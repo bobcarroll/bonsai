@@ -1,0 +1,58 @@
+
+#include <stdlib.h>
+#include <pthread.h>
+
+#include <gcs/pgcommon.h>
+#include <gcs/log.h>
+
+int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, int maxconns)
+{
+	gcslog_info("connecting to %s as %s", dsn, username);
+
+	EXEC SQL BEGIN DECLARE SECTION;
+	const char *dsnval = dsn;
+	const char *usernameval = username;
+	const char *passwdval = passwd;
+	char *connval = (char *)alloca(sizeof(char) * 10);
+	EXEC SQL END DECLARE SECTION;
+
+	gcs_ctxpool_init(maxconns);
+
+	EXEC SQL WHENEVER SQLERROR GOTO error;
+
+	int i;
+	for (i = 0; i < maxconns; i++) {
+		sprintf(connval, "conn%d", i);
+
+		EXEC SQL CONNECT TO :dsnval AS :connval USER :usernameval USING :passwdval;
+		gcs_pgctx_alloc(connval);
+	}
+
+	gcslog_notice("connected to PG (%s)", dsn);
+	return 1;
+
+error:
+	gcslog_error(sqlca.sqlerrm.sqlerrmc);
+	return 0;
+}
+
+int gcs_pg_disconnect()
+{
+	gcslog_info("disconnecting from PG");
+
+	EXEC SQL BEGIN DECLARE SECTION;
+	const char *connval = NULL;
+	EXEC SQL END DECLARE SECTION;
+
+	EXEC SQL WHENEVER SQLERROR GOTO error;
+	EXEC SQL DISCONNECT ALL;
+
+	gcs_ctxpool_free();
+	
+	return 1;
+
+error:
+	gcslog_error(sqlca.sqlerrm.sqlerrmc);
+	return 0;
+}
+

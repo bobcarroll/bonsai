@@ -1,0 +1,365 @@
+
+#include <string.h>
+#include <stdlib.h>
+
+#include <gcs/pgctxpool.h>
+#include <gcs/log.h>
+
+#include <tf/catalogdb.h>
+
+tf_error_t tf_catalog_fetch_nodes(const char *path, int depth, tf_catalog_node_array_t *result)
+{
+	if (path == NULL || depth < 0 || result == NULL)
+		return TF_ERROR_BAD_PARAMETER;
+
+	gcslog_debug("looking up catalog node %s with depth %d", path, depth);
+
+	EXEC SQL BEGIN DECLARE SECTION;
+	const char *conn = NULL;
+	char *pathval = NULL;
+	int pathlen = 0;
+	int count = 0;
+	EXEC SQL END DECLARE SECTION;
+
+	gcs_pgctx_t *ctx = gcs_pgctx_acquire();
+	conn = ctx->conn;
+
+	EXEC SQL WHENEVER SQLERROR GOTO error;
+	EXEC SQL SET CONNECTION :conn;
+
+	if (depth == TF_CATALOG_NODE_DEPTH_NONE) {
+		pathval = (char *)alloca(sizeof(char) * (strlen(path) + 1));
+		strcpy(pathval, path);
+	} else {
+		pathval = (char *)alloca(sizeof(char) * (strlen(path) + 2));
+		sprintf(pathval, "%s%%", path);
+
+		pathlen = (depth == TF_CATALOG_NODE_DEPTH_SINGLE) ?
+			TF_CATALOG_CHILD_ITEM_MAXLEN - 1 :
+			TF_CATALOG_PARENT_PATH_MAXLEN - 1;
+	}
+
+	EXEC SQL WHENEVER NOT FOUND CONTINUE;
+	EXEC SQL SELECT COUNT(*) INTO :count
+		 FROM catalog_nodes AS cn
+		 INNER JOIN catalog_resources AS cr
+		    ON cn.resource_identifier = cr.identifier
+		 INNER JOIN catalog_resource_types AS crt
+		    ON cr.fk_resource_type = crt.identifier
+		 WHERE cn.parent_path || cn.child_item LIKE :pathval
+		    AND char_length(cn.parent_path) <= :pathlen;
+
+	gcslog_debug("found %d matching catalog node(s)", count);
+	bzero(result, sizeof(tf_catalog_node_array_t));
+
+	if (count == 0) {
+		gcs_pgctx_release(ctx);
+		return TF_ERROR_SUCCESS;
+	}
+
+	result->items = (tf_catalog_node_t *)calloc(count, sizeof(tf_catalog_node_t));
+	result->count = count;
+
+	EXEC SQL DECLARE cur1 CURSOR FOR 
+		SELECT cn.parent_path, cn.child_item, cn."default",
+		       cr.identifier, cr.display_name, cr.description,
+		       crt.identifier, crt.display_name, crt.description
+		FROM catalog_nodes AS cn
+		INNER JOIN catalog_resources AS cr
+		   ON cn.resource_identifier = cr.identifier
+		INNER JOIN catalog_resource_types AS crt
+		   ON cr.fk_resource_type = crt.identifier
+		WHERE cn.parent_path || cn.child_item LIKE :pathval
+		   AND char_length(cn.parent_path) <= :pathlen;
+	EXEC SQL OPEN cur1;
+
+	int i;
+	for (i = 0; ; i++) {
+		EXEC SQL WHENEVER NOT FOUND DO BREAK;
+
+		EXEC SQL BEGIN DECLARE SECTION;
+		char parent[TF_CATALOG_PARENT_PATH_MAXLEN];
+		char child[TF_CATALOG_CHILD_ITEM_MAXLEN];
+		int fdefault;
+		char resid[TF_CATALOG_RESOURCE_ID_MAXLEN];
+		char resname[TF_CATALOG_RESOURCE_NAME_MAXLEN];
+		char *resdesc = NULL;
+		int resdesc_ind;
+		char typeid[TF_CATALOG_RESOURCE_TYPE_MAXLEN];
+		char typename[TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN];
+		char *typedesc = NULL;
+		int typedesc_ind;
+		EXEC SQL END DECLARE SECTION;
+
+		EXEC SQL FETCH NEXT FROM cur1
+			INTO :parent, :child, :fdefault,
+			     :resid, :resname, :resdesc:resdesc_ind,
+			     :typeid, :typename, :typedesc:typedesc_ind;
+
+		strncpy(result->items[i].parent, parent, TF_CATALOG_PARENT_PATH_MAXLEN);
+		strncpy(result->items[i].child, child, TF_CATALOG_CHILD_ITEM_MAXLEN);
+		result->items[i].fdefault = fdefault;
+
+		strncpy(result->items[i].resource.id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+		strncpy(result->items[i].resource.name, resname, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+		result->items[i].resource.description = !resdesc_ind ? strdup(resdesc) : NULL;
+
+		strncpy(result->items[i].resource.type.id, typeid, TF_CATALOG_RESOURCE_TYPE_MAXLEN);
+		strncpy(result->items[i].resource.type.name, typename, TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
+		result->items[i].resource.type.description = !typedesc_ind ? strdup(typedesc) : NULL;
+
+		free(resdesc);
+		free(typedesc);
+	}
+
+	EXEC SQL CLOSE cur1;
+	gcs_pgctx_release(ctx);
+
+	return TF_ERROR_SUCCESS;
+
+error:
+	gcs_pgctx_release(ctx);
+	gcslog_error(sqlca.sqlerrm.sqlerrmc);
+	return TF_ERROR_PG_FAILURE;
+}
+
+tf_error_t tf_catalog_fetch_resources(const char *path, tf_catalog_node_array_t *result)
+{
+	if (path == NULL || result == NULL)
+		return TF_ERROR_BAD_PARAMETER;
+
+	gcslog_debug("looking up catalog resources with path %s", path);
+
+	EXEC SQL BEGIN DECLARE SECTION;
+	const char *conn = NULL;
+	const char *pathval = path;
+	int count = 0;
+	EXEC SQL END DECLARE SECTION;
+
+	gcs_pgctx_t *ctx = gcs_pgctx_acquire();
+	conn = ctx->conn;
+
+	EXEC SQL WHENEVER SQLERROR GOTO error;
+	EXEC SQL SET CONNECTION :conn;
+
+	EXEC SQL WHENEVER NOT FOUND CONTINUE;
+	EXEC SQL SELECT COUNT(*) INTO :count
+		 FROM catalog_nodes AS cn
+		 INNER JOIN catalog_resources AS cr
+		    ON cn.resource_identifier = cr.identifier
+		 INNER JOIN catalog_resource_types AS crt
+		    ON cr.fk_resource_type = crt.identifier;
+		 //WHERE cr.identifier = :pathval;
+
+	gcslog_debug("found %d matching resource(s)", count);
+	bzero(result, sizeof(tf_catalog_node_array_t));
+
+	if (count == 0) {
+		gcs_pgctx_release(ctx);
+		return TF_ERROR_SUCCESS;
+	}
+
+	result->items = (tf_catalog_node_t *)calloc(count, sizeof(tf_catalog_node_t));
+	result->count = count;
+
+	EXEC SQL DECLARE cur2 CURSOR FOR 
+		SELECT cn.parent_path, cn.child_item, cn."default",
+		       cr.identifier, cr.display_name, cr.description,
+		       crt.identifier, crt.display_name, crt.description
+		FROM catalog_nodes AS cn
+		INNER JOIN catalog_resources AS cr
+		   ON cn.resource_identifier = cr.identifier
+		INNER JOIN catalog_resource_types AS crt
+		   ON cr.fk_resource_type = crt.identifier;
+		//WHERE cr.identifier = :pathval;
+	EXEC SQL OPEN cur2;
+
+	int i;
+	for (i = 0; ; i++) {
+		EXEC SQL WHENEVER NOT FOUND DO BREAK;
+
+		EXEC SQL BEGIN DECLARE SECTION;
+		char parent[TF_CATALOG_PARENT_PATH_MAXLEN];
+		char child[TF_CATALOG_CHILD_ITEM_MAXLEN];
+		int fdefault;
+		char resid[TF_CATALOG_RESOURCE_ID_MAXLEN];
+		char resname[TF_CATALOG_RESOURCE_NAME_MAXLEN];
+		char *resdesc = NULL;
+		int resdesc_ind;
+		char typeid[TF_CATALOG_RESOURCE_TYPE_MAXLEN];
+		char typename[TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN];
+		char *typedesc = NULL;
+		int typedesc_ind;
+		EXEC SQL END DECLARE SECTION;
+
+		EXEC SQL FETCH NEXT FROM cur2
+			INTO :parent, :child, :fdefault,
+			     :resid, :resname, :resdesc:resdesc_ind,
+			     :typeid, :typename, :typedesc:typedesc_ind;
+
+		strncpy(result->items[i].parent, parent, TF_CATALOG_PARENT_PATH_MAXLEN);
+		strncpy(result->items[i].child, child, TF_CATALOG_CHILD_ITEM_MAXLEN);
+		result->items[i].fdefault = fdefault;
+
+		strncpy(result->items[i].resource.id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+		strncpy(result->items[i].resource.name, resname, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+		result->items[i].resource.description = !resdesc_ind ? strdup(resdesc) : NULL;
+
+		strncpy(result->items[i].resource.type.id, typeid, TF_CATALOG_RESOURCE_TYPE_MAXLEN);
+		strncpy(result->items[i].resource.type.name, typename, TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
+		result->items[i].resource.type.description = !typedesc_ind ? strdup(typedesc) : NULL;
+
+		free(resdesc);
+		free(typedesc);
+	}
+
+	EXEC SQL CLOSE cur2;
+	gcs_pgctx_release(ctx);
+
+	return TF_ERROR_SUCCESS;
+
+error:
+	gcs_pgctx_release(ctx);
+	gcslog_error(sqlca.sqlerrm.sqlerrmc);
+	return TF_ERROR_PG_FAILURE;
+}
+
+tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_service_array_t *result)
+{
+	if (nodes.count == 0 || result == NULL)
+		return TF_ERROR_BAD_PARAMETER;
+
+	gcslog_debug("looking up catalog services matching the given nodes");
+
+	EXEC SQL BEGIN DECLARE SECTION;
+	const char *conn = NULL;
+	char countstmt[20480];
+	char selstmt[20480];
+	int count = 0;
+	EXEC SQL END DECLARE SECTION;
+
+	gcs_pgctx_t *ctx = gcs_pgctx_acquire();
+	conn = ctx->conn;
+
+	EXEC SQL WHENEVER SQLERROR GOTO error;
+	EXEC SQL SET CONNECTION :conn;
+
+	char residlst[10240];
+	int curpos = 0;
+	int i = 0;
+
+	for (i = 0; i < nodes.count; i++) {
+		if (curpos >= 10240) {
+			gcs_pgctx_release(ctx);
+			return TF_ERROR_PARAM_TOO_LONG;
+		}
+
+		if (curpos > 0) {
+			sprintf(residlst + curpos, "%s", ", ");
+			curpos += 2;
+		}
+
+		sprintf(residlst + curpos, "'%s'", nodes.items[i].resource.id);
+		curpos += strlen(nodes.items[i].resource.id) + 2;
+	}
+
+	sprintf(countstmt, 
+		"SELECT COUNT(*) \
+		FROM catalog_service_references AS csr \
+		JOIN service_definitions AS sd \
+		   ON csr.fk_service_identifier = sd.identifier \
+		   AND csr.fk_service_type = sd.service_type \
+		JOIN tool_types AS tt \
+		   ON sd.fk_tool_id = tt.id \
+		WHERE csr.resource_identifier IN (%s)", 
+		residlst);
+
+	EXEC SQL PREPARE sref_stmt FROM :countstmt;
+
+	EXEC SQL WHENEVER NOT FOUND CONTINUE;
+	EXEC SQL EXECUTE sref_stmt INTO :count;
+	EXEC SQL DEALLOCATE PREPARE sref_stmt;
+
+	gcslog_debug("found %d catalog service(s)", count);
+	bzero(result, sizeof(tf_catalog_service_array_t));
+
+	if (count == 0) {
+		gcs_pgctx_release(ctx);
+		return TF_ERROR_SUCCESS;
+	}
+
+	result->items = (tf_catalog_service_t *)calloc(count, sizeof(tf_catalog_service_t));
+	result->count = count;
+
+	sprintf(selstmt, 
+		"SELECT csr.resource_identifier, csr.association_key, \
+		        sd.identifier, sd.service_type, sd.display_name, \
+		        sd.relative_to_setting, sd.relative_path, \
+		        sd.singleton, sd.description, tt.type \
+		FROM catalog_service_references AS csr \
+		JOIN service_definitions AS sd \
+		   ON csr.fk_service_identifier = sd.identifier \
+		   AND csr.fk_service_type = sd.service_type \
+		JOIN tool_types AS tt \
+		   ON sd.fk_tool_id = tt.id \
+		WHERE csr.resource_identifier IN (%s)", 
+		residlst);
+
+	EXEC SQL PREPARE sref_stmt FROM :selstmt;
+
+	EXEC SQL DECLARE cur3 CURSOR FOR sref_stmt;
+	EXEC SQL OPEN cur3;
+
+	for (i = 0; ; i++) {
+		EXEC SQL WHENEVER NOT FOUND DO BREAK;
+
+		EXEC SQL BEGIN DECLARE SECTION;
+		char resid[TF_CATALOG_RESOURCE_ID_MAXLEN];
+		char assockey[TF_CATALOG_ASSOCIATION_KEY_MAXLEN];
+		char svcid[TF_LOCATION_SERVICE_ID_MAXLEN];
+		char svctype[TF_LOCATION_SERVICE_TYPE_MAXLEN];
+		char svcname[TF_LOCATION_SERVICE_NAME_MAXLEN];
+		int reltosetting;
+		char relpath[TF_LOCATION_SERVICE_REL_PATH_MAXLEN];
+		int relpath_ind;
+		int singleton;
+		char *svcdesc = NULL;
+		int svcdesc_ind;
+		char tooltype[TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN];
+		EXEC SQL END DECLARE SECTION;
+
+		EXEC SQL FETCH NEXT FROM cur3
+			INTO :resid, :assockey, :svcid, :svctype, :svcname, :reltosetting,
+			     :relpath:relpath_ind, :singleton, :svcdesc:svcdesc_ind, :tooltype;
+
+		strncpy(result->items[i].id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+		strncpy(result->items[i].assockey, assockey, TF_CATALOG_ASSOCIATION_KEY_MAXLEN);
+
+		strncpy(result->items[i].service.id, svcid, TF_LOCATION_SERVICE_ID_MAXLEN);
+		strncpy(result->items[i].service.type, svctype, TF_LOCATION_SERVICE_TYPE_MAXLEN);
+		strncpy(result->items[i].service.name, svcname, TF_LOCATION_SERVICE_NAME_MAXLEN);
+		strncpy(result->items[i].service.tooltype, tooltype, TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN);
+
+		result->items[i].service.reltosetting = reltosetting;
+		result->items[i].service.singleton = singleton;
+
+		if (!relpath_ind)
+			strncpy(result->items[i].service.relpath, relpath, TF_LOCATION_SERVICE_REL_PATH_MAXLEN);
+
+		result->items[i].service.description = !svcdesc_ind ? strdup(svcdesc) : NULL;
+
+		free(svcdesc);
+	}
+
+	EXEC SQL CLOSE cur3;
+	EXEC SQL DEALLOCATE PREPARE sref_stmt;
+	gcs_pgctx_release(ctx);
+
+	return TF_ERROR_SUCCESS;
+
+error:
+	gcs_pgctx_release(ctx);
+	gcslog_error(sqlca.sqlerrm.sqlerrmc);
+	return TF_ERROR_PG_FAILURE;
+}
+
