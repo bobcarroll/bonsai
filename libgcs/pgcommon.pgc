@@ -1,3 +1,27 @@
+/**
+ * GCS - open source group collaboration and application lifecycle management
+ * Copyright (c) 2011 Bob Carroll
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+/**
+ * @brief	common Postgres functions
+ *
+ * @author	Bob Carroll (bob.carroll@alum.rit.edu)
+ */
 
 #include <stdlib.h>
 #include <pthread.h>
@@ -5,6 +29,18 @@
 #include <gcs/pgcommon.h>
 #include <gcs/log.h>
 
+/**
+ * Connects to the database.
+ *
+ * @param dsn -- the database source name in the form of dbname[@hostname][:port]
+ * @param username -- the username to connect as
+ * @param passwd -- the user password
+ * @param maxconns -- the maximum number of connections to open
+ *
+ * @returns 1 on success, 0 on failure
+ *
+ * @seealso http://www.postgresql.org/docs/9.0/static/ecpg-connect.html
+ */
 int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, int maxconns)
 {
 	gcslog_info("connecting to %s as %s", dsn, username);
@@ -36,6 +72,12 @@ error:
 	return 0;
 }
 
+/**
+ * Disconnects all open connections to the database, and frees
+ * all associated resources.
+ *
+ * @returns 1 on success, 0 on failure
+ */
 int gcs_pg_disconnect()
 {
 	gcslog_info("disconnecting from PG");

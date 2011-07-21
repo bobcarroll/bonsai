@@ -1,3 +1,27 @@
+/**
+ * GCS - open source group collaboration and application lifecycle management
+ * Copyright (c) 2011 Bob Carroll
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+/**
+ * @brief	catalog web service
+ *
+ * @author	Bob Carroll (bob.carroll@alum.rit.edu)
+ */
 
 #include <cs/catalog.h>
 
@@ -7,6 +31,12 @@
 #include <tf/webservices.h>
 #include <tf/xml.h>
 
+/**
+ * Appends a CatalogResourceType node to the given parent node.
+ *
+ * @param parent -- the parent node to attach to
+ * @param type -- resource type info for the new node
+ */
 static void _catalog_append_resource_type(xmlNode *parent, tf_catalog_resource_type_t type)
 {
 	xmlNode *crtnode = xmlNewChild(parent, NULL, "CatalogResourceType", NULL);
@@ -17,6 +47,12 @@ static void _catalog_append_resource_type(xmlNode *parent, tf_catalog_resource_t
 		xmlNewChild(crtnode, NULL, "Description", type.description);
 }
 
+/**
+ * Appends a CatalogServiceReference node to the given parent node.
+ *
+ * @param parent -- the parent node to attach to
+ * @param ref -- service reference info for the new node
+ */
 static void _catalog_append_service_ref(xmlNode *parent, tf_catalog_service_t ref)
 {
 	char reltosettingstr[5];
@@ -40,6 +76,15 @@ static void _catalog_append_service_ref(xmlNode *parent, tf_catalog_service_t re
 	xmlNewChild(sdnode, NULL, "LocationMappings", NULL);
 }
 
+/**
+ * Appends a CatalogResource node to the given parent node.
+ *
+ * @param parent -- the parent node to attach to
+ * @param path -- the catalog node full path
+ * @param resource -- the catalog resource info for the new node
+ * @param service -- matching catalog service references
+ * @param matched
+ */
 static void _catalog_append_resource(xmlNode *parent, const char *path, tf_catalog_resource_t resource,
 	tf_catalog_service_array_t services, int matched)
 {
@@ -76,6 +121,14 @@ static void _catalog_append_resource(xmlNode *parent, const char *path, tf_catal
 	xmlNewChild(refpathnode, NULL, "string", path);
 }
 
+/**
+ * Appends a CatalogNode node to the given parent node.
+ *
+ * @param parent -- the parent node to attach to
+ * @param path -- the catalog node full path
+ * @param node -- catalog node info for the new node
+ * @param matched
+ */
 static void _catalog_append_node(xmlNode *parent, const char *path, tf_catalog_node_t node, int matched)
 {
 	xmlNode *cnnode = xmlNewChild(parent, NULL, "CatalogNode", NULL);
@@ -90,6 +143,14 @@ static void _catalog_append_node(xmlNode *parent, const char *path, tf_catalog_n
 	xmlNewChild(cnnode, NULL, "NodeDependencies", NULL);
 }
 
+/**
+ * Catalog SOAP service handler for QueryResources.
+ *
+ * @param req -- SOAP request context
+ * @param res -- SOAP response context
+ *
+ * @returns H_OK on success
+ */
 static herror_t _catalog_query_resources(SoapCtx *req, SoapCtx *res)
 {
 	char *guid = NULL;
@@ -147,6 +208,14 @@ static herror_t _catalog_query_resources(SoapCtx *req, SoapCtx *res)
 	return H_OK;
 }
 
+/**
+ * Catalog SOAP service handler for QueryNodes.
+ *
+ * @param req -- SOAP request context
+ * @param res -- SOAP response context
+ *
+ * @returns H_OK on success
+ */
 static herror_t _catalog_query_nodes(SoapCtx *req, SoapCtx *res)
 {
 	char *pathspec = NULL;
@@ -211,6 +280,12 @@ static int _catalog_auth_ntlm(SoapEnv *env, const char *user, const char *passwd
 	return 0;
 }
 
+/**
+ * Catalog service initialisation.
+ *
+ * @param router -- output buffer for the SOAP router
+ * @param prefix -- the URI prefix for this service
+ */
 void catalog_service_init(SoapRouter **router, const char *prefix)
 {
 	char url[1024];

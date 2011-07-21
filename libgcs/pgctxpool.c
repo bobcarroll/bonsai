@@ -1,3 +1,27 @@
+/**
+ * GCS - open source group collaboration and application lifecycle management
+ * Copyright (c) 2011 Bob Carroll
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+/**
+ * @brief	Postgres context pool functions
+ *
+ * @author	Bob Carroll (bob.carroll@alum.rit.edu)
+ */
 
 #include <string.h>
 #include <stdlib.h>
@@ -10,6 +34,11 @@ static gcs_pgctx_t **_ctxpool = NULL;
 static int _ctxcount = 0;
 static pthread_mutex_t _ctxmtx;
 
+/**
+ * Initialises the database connection pool.
+ *
+ * @param count -- the number of contexts to allocate
+ */
 void gcs_ctxpool_init(int count)
 {
 	pthread_mutexattr_t mattr;
@@ -32,6 +61,9 @@ void gcs_ctxpool_init(int count)
 	pthread_mutexattr_destroy(&mattr);
 }
 
+/**
+ * Deallocates the database connection pool.
+ */
 void gcs_ctxpool_free()
 {
 	pthread_mutex_lock(&_ctxmtx);
@@ -60,6 +92,13 @@ void gcs_ctxpool_free()
 	gcslog_debug("freed PG context pool");
 }
 
+/**
+ * Allocates a new database context.
+ *
+ * @param conn -- the PG connection name
+ *
+ * @returns 1 on success, 0 on failure
+ */
 int gcs_pgctx_alloc(const char *conn)
 {
 	pthread_mutex_lock(&_ctxmtx);
@@ -90,6 +129,12 @@ int gcs_pgctx_alloc(const char *conn)
 	return 0;
 }
 
+/**
+ * Acquires a thread-exclusive database connection. This function will
+ * block until a connection becomes available.
+ *
+ * @returns a connection context
+ */
 gcs_pgctx_t *gcs_pgctx_acquire()
 {
 	gcs_pgctx_t *result = NULL;
@@ -137,6 +182,12 @@ gcs_pgctx_t *gcs_pgctx_acquire()
 	return result;
 }
 
+/**
+ * Releases the given database connection. If no other callers in the
+ * thread hold a lock then the context is released back into the pool.
+ *
+ * @param context
+ */
 void gcs_pgctx_release(gcs_pgctx_t *context)
 {
 	int i;

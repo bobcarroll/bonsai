@@ -1,3 +1,27 @@
+/**
+ * GCS - open source group collaboration and application lifecycle management
+ * Copyright (c) 2011 Bob Carroll
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+/**
+ * @brief	location web service
+ *
+ * @author	Bob Carroll (bob.carroll@alum.rit.edu)
+ */
 
 #include <cs/location.h>
 
@@ -138,6 +162,14 @@ static void _location_build_service_list(xmlNode *parent, int inclservices)
 	}
 }
 
+/**
+ * Location SOAP service handler for Connect.
+ *
+ * @param req -- SOAP request context
+ * @param res -- SOAP response context
+ *
+ * @returns H_OK on success
+ */
 static herror_t _location_connect(SoapCtx *req, SoapCtx *res)
 {
 	xmlNode *cmd;
@@ -175,6 +207,12 @@ static int _location_auth_ntlm(SoapEnv *env, const char *user, const char *passw
 	return 0;
 }
 
+/**
+ * Location service initialisation.
+ *
+ * @param router -- output buffer for the SOAP router
+ * @param prefix -- the URI prefix for this service
+ */
 void location_service_init(SoapRouter **router, const char *prefix)
 {
 	char url[1024];
