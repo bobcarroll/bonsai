@@ -50,6 +50,29 @@ void tf_catalog_free_node_array(tf_catalog_node_array_t result)
 }
 
 /**
+ * Frees memory associated with a catalog pathspec array, but not
+ * the array itself.
+ *
+ * @param result
+ */
+void tf_catalog_free_pathspec_array(tf_catalog_pathspec_array_t result)
+{
+	if (result.items != NULL && result.count > 0) {
+		int i;
+		for (i = 0; i < result.count; i++) {
+			if (result.items[i].path != NULL)
+				free(result.items[i].path);
+
+			result.items[i].path = NULL;
+		}
+
+		free(result.items);
+	}
+
+	result.items = NULL;
+}
+
+/**
  * Frees memory associated with a catalog resource, but not
  * the resource itself.
  *
@@ -90,34 +113,45 @@ void tf_catalog_free_service_array(tf_catalog_service_array_t result)
  * Queries the catalog for nodes in the given path. Calling functions
  * should call tf_catalog_free_node_array() prior to freeing "result".
  *
- * @param path -- the catalog path, optionally with depth markers
+ * @param patharr -- a null-terminated array of catalog paths, optionally with depth markers
+ * @param types -- a null-terminated array of resource type ID strings to filter by
  * @param result -- pre-allocated output buffer for the results
  *
  * @returns TF_ERROR_SUCCESS or an error code
  */
-tf_error_t tf_catalog_query_nodes(const char *path, tf_catalog_node_array_t *result)
+tf_error_t tf_catalog_query_nodes(const char * const *patharr, const char * const *types, 
+	tf_catalog_node_array_t *result)
 {
-	char *newpath = NULL;
-	int pathlen = strlen(path);
-	int depth = TF_CATALOG_NODE_DEPTH_NONE;
+	tf_catalog_pathspec_array_t pathspecs;
+	tf_error_t dberr;
+	int i;
 
-	if (path[pathlen - 2] == '*' && path[pathlen - 1] == '*') {
-		depth = TF_CATALOG_NODE_DEPTH_FULL;
+	for (i = 0; patharr[i] != NULL; i++);
+	pathspecs.items = (tf_catalog_pathspec_t *)calloc(i, sizeof(tf_catalog_pathspec_t));
+	pathspecs.count = i;
 
-		newpath = (char *)alloca(sizeof(char) * (pathlen - 1));
-		strncpy(newpath, path, pathlen - 2);
-		newpath[pathlen - 2] = '\0';
-	} else if (path[pathlen - 1] == '*') {
-		depth = TF_CATALOG_NODE_DEPTH_SINGLE;
+	for (i = 0; i < pathspecs.count; i++) {
+		tf_catalog_pathspec_t *ps = &pathspecs.items[i];
+		const char *path = patharr[i];
+		int pathlen = strlen(path);
 
-		newpath = (char *)alloca(sizeof(char) * pathlen);
-		strncpy(newpath, path, pathlen - 1);
-		newpath[pathlen - 1] = '\0';
-	} else {
-		newpath = (char *)alloca(sizeof(char) * (pathlen + 1));
-		strcpy(newpath, path);
+		ps->depth = TF_CATALOG_NODE_DEPTH_NONE;
+
+		if (path[pathlen - 2] == '*' && path[pathlen - 1] == '*') {
+			ps->depth = TF_CATALOG_NODE_DEPTH_FULL;
+			ps->path = (char *)calloc(pathlen - 1, sizeof(char));
+			strncpy(ps->path, path, pathlen - 2);
+		} else if (path[pathlen - 1] == '*') {
+			ps->depth = TF_CATALOG_NODE_DEPTH_SINGLE;
+			ps->path = (char *)calloc(pathlen, sizeof(char));
+			strncpy(ps->path, path, pathlen - 1);
+		} else
+			ps->path = strdup(path);
 	}
 
-	return tf_catalog_fetch_nodes(newpath, depth, result);
+	dberr = tf_catalog_fetch_nodes(pathspecs, types, result);
+	tf_catalog_free_pathspec_array(pathspecs);
+
+	return dberr;
 }
 

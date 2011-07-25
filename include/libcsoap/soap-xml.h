@@ -29,12 +29,9 @@
 
 #include <nanohttp/nanohttp-common.h>
 
-//static const char * const soap_env_ns = "http://schemas.xmlsoap.org/soap/envelope/";
 static const char * const soap_env_ns = "http://www.w3.org/2003/05/soap-envelope";
 static const char * const soap_env_enc = "http://schemas.xmlsoap.org/soap/encoding/";
-//static const char * const soap_xsi_ns = "http://www.w3.org/1999/XMLSchema-instance";
 static const char * const soap_xsi_ns = "http://www.w3.org/2001/XMLSchema-instance";
-//static const char * const soap_xsd_ns = "http://www.w3.org/1999/XMLSchema";
 static const char * const soap_xsd_ns = "http://www.w3.org/2001/XMLSchema";
 
 typedef int (*soap_xmlnode_callback) (xmlNodePtr, void *);

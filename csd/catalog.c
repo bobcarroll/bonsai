@@ -27,6 +27,7 @@
 
 #include <gcs/log.h>
 
+#include <tf/catalog.h>
 #include <tf/catalogdb.h>
 #include <tf/webservices.h>
 #include <tf/xml.h>
@@ -55,8 +56,8 @@ static void _catalog_append_resource_type(xmlNode *parent, tf_catalog_resource_t
  */
 static void _catalog_append_service_ref(xmlNode *parent, tf_catalog_service_t ref)
 {
-	char reltosettingstr[5];
-	sprintf(reltosettingstr, "%d", ref.service.reltosetting);
+	char reltosettingstr[6];
+	snprintf(reltosettingstr, 6, "%d", ref.service.reltosetting);
 
 	xmlNode *csrnode = xmlNewChild(parent, NULL, "CatalogServiceReference", NULL);
 	xmlNewProp(csrnode, "ResourceIdentifier", ref.id);
@@ -95,7 +96,7 @@ static void _catalog_append_resource(xmlNode *parent, const char *path, tf_catal
 	xmlNewProp(crnode, "DisplayName", resource.name);
 	xmlNewProp(crnode, "ResourceTypeIdentifier", resource.type.id);
 	xmlNewProp(crnode, "TempCorrelationId", resource.id);
-	xmlNewProp(crnode, "ctype", "0");
+	xmlNewProp(crnode, "ctype", "0"); /* TODO */
 	xmlNewProp(crnode, "MatchedQuery", matched ? "true" : "false");
 
 	if (resource.description != NULL)
@@ -112,6 +113,7 @@ static void _catalog_append_resource(xmlNode *parent, const char *path, tf_catal
 		_catalog_append_service_ref(refsnode, cursvc);
 	}
 
+	/* TODO */
 	xmlNode *propsnode = xmlNewChild(crnode, NULL, "Properties", NULL);
 	xmlNode *kvoss = xmlNewChild(propsnode, NULL, "KeyValueOfStringString", NULL);
 	xmlNewChild(kvoss, NULL, "Key", "InstanceId");
@@ -138,7 +140,7 @@ static void _catalog_append_node(xmlNode *parent, const char *path, tf_catalog_n
 	xmlNewProp(cnnode, "ParentPath", node.parent);
 	xmlNewProp(cnnode, "ChildItem", node.child);
 	xmlNewProp(cnnode, "NodeDependenciesIncluded", "false");
-	xmlNewProp(cnnode, "ctype", "0");
+	xmlNewProp(cnnode, "ctype", "0"); /* TODO */
 	xmlNewProp(cnnode, "MatchedQuery", matched ? "true" : "false");
 	xmlNewChild(cnnode, NULL, "NodeDependencies", NULL);
 }
@@ -153,26 +155,80 @@ static void _catalog_append_node(xmlNode *parent, const char *path, tf_catalog_n
  */
 static herror_t _catalog_query_resources(SoapCtx *req, SoapCtx *res)
 {
-	char *guid = NULL;
+	xmlNode *body = req->env->body;
+	xmlXPathObject *xpres;
+	char **idarr = NULL;
 	tf_catalog_node_array_t nodearr;
 	tf_catalog_service_array_t svcarr;
 	tf_error_t dberr;
-	int i;
-	int f = 0;
+	int ftypes = 0, i;
+
+	xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:resourceIdentifiers/m:guid/text()");
+	if (xpres != NULL && xpres->nodesetval != NULL) {
+		idarr = (char **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(char *));
+
+		for (i = 0; i < xpres->nodesetval->nodeNr; i++)
+			idarr[i] = strdup(xpres->nodesetval->nodeTab[i]->content);
+
+		xmlXPathFreeObject(xpres);
+	} else if (xpres != NULL)
+		xmlXPathFreeObject(xpres);
+
+	xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:resourceTypeIdentifiers/m:guid/text()");
+	if (xpres != NULL && xpres->nodesetval != NULL && idarr == NULL) {
+		idarr = (char **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(char *));
+		ftypes = 1;
+
+		for (i = 0; i < xpres->nodesetval->nodeNr; i++)
+			idarr[i] = strdup(xpres->nodesetval->nodeTab[i]->content);
+
+		xmlXPathFreeObject(xpres);
+	} else if (xpres != NULL) {
+		if (xpres->nodesetval != NULL)
+			gcslog_warn("skipping resourceTypeIdentifiers because resourceIdentifiers was found");
+		xmlXPathFreeObject(xpres);
+	}
+
+	if (idarr == NULL) { 
+		tf_fault_env(
+			Fault_Client, 
+			"No resourceIdentifiers or resourceTypeIdentifiers were found in the message", 
+			dberr, 
+			&res->env);
+		return H_OK;
+	}
+
+	/* TODO property filters */
+	/* TODO query options */
+
+	dberr = tf_catalog_fetch_resources((const char * const *)idarr, ftypes, &nodearr);
+
+	for (i = 0; idarr[i] != NULL; i++)
+		free(idarr[i]);
+	free(idarr);
+
+	if (dberr != TF_ERROR_SUCCESS) {
+		tf_fault_env(
+			Fault_Server, 
+			"Failed to retrieve catalog resources from the database", 
+			dberr, 
+			&res->env);
+		return H_OK;
+	}
+
+	dberr = tf_catalog_fetch_services(nodearr, &svcarr);
+	if (dberr != TF_ERROR_SUCCESS) {
+		tf_catalog_free_node_array(nodearr);
+		tf_fault_env(
+			Fault_Server, 
+			"Failed to retrieve service definitions from the database", 
+			dberr, 
+			&res->env);
+		return H_OK;
+	}
 
 	xmlNode *cmd = soap_env_get_method(req->env);
 	soap_env_new_with_method(cmd->ns->href, "QueryResourcesResponse", &res->env);
-	xmlNode *body = req->env->body;
-
-	xmlNode *arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:resourceIdentifiers//m:guid");
-	if (arg != NULL && arg->children != NULL)
-		guid = arg->children->content;
-
-	arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:resourceTypeIdentifiers//m:guid");
-	if (arg != NULL && arg->children != NULL) {
-		guid = arg->children->content;
-		f = 1;
-	}
 
 	xmlNode *result = xmlNewChild(res->env->body->children->next, NULL, "QueryResourcesResult", NULL);
 	xmlNode *restypenode = xmlNewChild(result, NULL, "CatalogResourceTypes", NULL);
@@ -181,20 +237,13 @@ static herror_t _catalog_query_resources(SoapCtx *req, SoapCtx *res)
 	xmlNewChild(result, NULL, "DeletedResources", NULL);
 	xmlNewChild(result, NULL, "DeletedNodeResources", NULL);
 	xmlNewChild(result, NULL, "DeletedNodes", NULL);
-	xmlNewChild(result, NULL, "LocationServiceLastChangeId", "2565");
-
-	dberr = tf_catalog_fetch_resources(guid, &nodearr);
-	dberr = tf_catalog_fetch_services(nodearr, &svcarr);
+	xmlNewChild(result, NULL, "LocationServiceLastChangeId", "2565"); /* TODO */
 
 	for (i = 0; i < nodearr.count; i++) {
 		tf_catalog_node_t curnode = nodearr.items[i];
 
-		if (f && strcmp(curnode.resource.type.id, guid) != 0)
-			continue;
-		else if (!f && strcmp(curnode.resource.id, guid) != 0)
-			continue;
-
-		char *noderefpath = (char *)alloca(sizeof(char) * (strlen(curnode.parent) + strlen(curnode.child) + 1));
+		char *noderefpath = (char *)alloca(sizeof(char) * 
+			(strlen(curnode.parent) + strlen(curnode.child) + 1));
 		sprintf(noderefpath, "%s%s", curnode.parent, curnode.child);
 
 		_catalog_append_resource_type(restypenode, curnode.resource.type);
@@ -218,30 +267,79 @@ static herror_t _catalog_query_resources(SoapCtx *req, SoapCtx *res)
  */
 static herror_t _catalog_query_nodes(SoapCtx *req, SoapCtx *res)
 {
-	char *pathspec = NULL;
-	char *typefilter = NULL;
+	xmlNode *body = req->env->body;
+	xmlXPathObject *xpres;
+	char **pathspec = NULL;
+	char **typefilter = NULL;
 	tf_catalog_node_array_t nodearr;
 	tf_catalog_service_array_t svcarr;
 	tf_error_t dberr;
 	int i;
 
-	xmlNode *cmd = soap_env_get_method(req->env);
-	soap_env_new_with_method(cmd->ns->href, "QueryNodesResponse", &res->env);
-	xmlNode *body = req->env->body;
+	xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:pathSpecs/m:string/text()");
+	if (xpres != NULL && xpres->nodesetval != NULL) {
+		pathspec = (char **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(char *));
 
-	/* TODO */
-	xmlNode *arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:QueryNodes/m:pathSpecs/m:string");
-	if (arg != NULL && arg->children != NULL) {
-		pathspec = arg->children->content;
+		for (i = 0; i < xpres->nodesetval->nodeNr; i++)
+			pathspec[i] = strdup(xpres->nodesetval->nodeTab[i]->content);
+
+		xmlXPathFreeObject(xpres);
+	} else if (xpres != NULL) {
+		pathspec = (char **)calloc(1, sizeof(char *));
+		xmlXPathFreeObject(xpres);
 	}
 
-	/* TODO */
-	arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:QueryNodes/m:resourceTypeFilters/m:guid");
-	if (arg != NULL && arg->children != NULL) {
-		typefilter = arg->children->content;
+	xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:resourceTypeFilters/m:guid/text()");
+	if (xpres != NULL && xpres->nodesetval != NULL) {
+		typefilter = (char **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(char *));
+
+		for (i = 0; i < xpres->nodesetval->nodeNr; i++)
+			typefilter[i] = strdup(xpres->nodesetval->nodeTab[i]->content);
+
+		xmlXPathFreeObject(xpres);
+	} else if (xpres != NULL) {
+		typefilter = (char **)calloc(1, sizeof(char *));
+		xmlXPathFreeObject(xpres);
 	}
 
 	/* TODO property filter */
+	/* TODO query options */
+
+	dberr = tf_catalog_query_nodes(
+		(const char * const *)pathspec, 
+		(const char * const *)typefilter, 
+		&nodearr);
+
+	for (i = 0; pathspec[i] != NULL; i++)
+		free(pathspec[i]);
+	free(pathspec);
+
+	for (i = 0; typefilter[i] != NULL; i++)
+		free(typefilter[i]);
+	free(typefilter);
+
+	if (dberr != TF_ERROR_SUCCESS) {
+		tf_fault_env(
+			Fault_Server, 
+			"Failed to retrieve catalog nodes from the database", 
+			dberr, 
+			&res->env);
+		return H_OK;
+	}
+
+	dberr = tf_catalog_fetch_services(nodearr, &svcarr);
+	if (dberr != TF_ERROR_SUCCESS) {
+		tf_catalog_free_node_array(nodearr);
+		tf_fault_env(
+			Fault_Server, 
+			"Failed to retrieve service definitions from the database", 
+			dberr, 
+			&res->env);
+		return H_OK;
+	}
+
+	xmlNode *cmd = soap_env_get_method(req->env);
+	soap_env_new_with_method(cmd->ns->href, "QueryNodesResponse", &res->env);
 
 	xmlNode *result = xmlNewChild(res->env->body->children->next, NULL, "QueryNodesResult", NULL);
 	xmlNode *restypenode = xmlNewChild(result, NULL, "CatalogResourceTypes", NULL);
@@ -252,16 +350,11 @@ static herror_t _catalog_query_nodes(SoapCtx *req, SoapCtx *res)
 	xmlNewChild(result, NULL, "DeletedNodes", NULL);
 	xmlNewChild(result, NULL, "LocationServiceLastChangeId", "2565");
 
-	dberr = tf_catalog_query_nodes(pathspec, &nodearr);
-	dberr = tf_catalog_fetch_services(nodearr, &svcarr);
-
 	for (i = 0; i < nodearr.count; i++) {
 		tf_catalog_node_t curnode = nodearr.items[i];
 
-		if (typefilter != NULL && strcmp(curnode.resource.type.id, typefilter) != 0)
-			continue;
-
-		char *noderefpath = (char *)alloca(sizeof(char) * (strlen(curnode.parent) + strlen(curnode.child) + 1));
+		char *noderefpath = (char *)alloca(sizeof(char) * 
+			(strlen(curnode.parent) + strlen(curnode.child) + 1));
 		sprintf(noderefpath, "%s%s", curnode.parent, curnode.child);
 
 		_catalog_append_resource_type(restypenode, curnode.resource.type);

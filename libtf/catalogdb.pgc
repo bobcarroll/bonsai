@@ -35,23 +35,24 @@
  * Retrieves catalog nodes from the database. Calling functions should
  * call tf_catalog_free_node_array() prior to freeing "result".
  *
- * @param path -- the catalog path without depth markers
- * @param depth -- the catalog depth to search
+ * @param pathspecs -- catalog paths without depth markers
+ * @param types -- a null-terminated array of resource type ID strings to filter by
  * @param result -- pre-allocated output buffer for the results
  *
  * @returns TF_ERROR_SUCCESS or an error code
  */
-tf_error_t tf_catalog_fetch_nodes(const char *path, int depth, tf_catalog_node_array_t *result)
+tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const char * const *types,
+	tf_catalog_node_array_t *result)
 {
-	if (path == NULL || depth < 0 || result == NULL)
+	if (pathspecs.count < 1 || result == NULL)
 		return TF_ERROR_BAD_PARAMETER;
 
-	gcslog_debug("looking up catalog node %s with depth %d", path, depth);
+	gcslog_debug("looking up catalog nodes for %d path(s)", pathspecs.count);
 
 	EXEC SQL BEGIN DECLARE SECTION;
 	const char *conn = NULL;
-	char *pathval = NULL;
-	int pathlen = 0;
+	char countstmt[20480];
+	char selstmt[20480];
 	int count = 0;
 	EXEC SQL END DECLARE SECTION;
 
@@ -61,27 +62,98 @@ tf_error_t tf_catalog_fetch_nodes(const char *path, int depth, tf_catalog_node_a
 	EXEC SQL WHENEVER SQLERROR GOTO error;
 	EXEC SQL SET CONNECTION :conn;
 
-	if (depth == TF_CATALOG_NODE_DEPTH_NONE) {
-		pathval = (char *)alloca(sizeof(char) * (strlen(path) + 1));
-		strcpy(pathval, path);
-	} else {
-		pathval = (char *)alloca(sizeof(char) * (strlen(path) + 2));
-		sprintf(pathval, "%s%%", path);
+	char where[10240];
+	const int wherelen = 10240;
+	int curpos = 0;
+	int i = 0, r;
+	tf_error_t dberr;
 
-		pathlen = (depth == TF_CATALOG_NODE_DEPTH_SINGLE) ?
-			TF_CATALOG_CHILD_ITEM_MAXLEN - 1 :
-			TF_CATALOG_PARENT_PATH_MAXLEN - 1;
+	bzero(&where, wherelen);
+
+	for (i = 0; i < pathspecs.count; i++) {
+		tf_catalog_pathspec_t *ps = &pathspecs.items[i];
+		char *pathval = NULL;
+		int pathlen = 0;
+
+		if (i > 0) {
+			r = snprintf(where + curpos, wherelen - curpos, " OR ");
+			if (r >= wherelen - curpos) {
+				gcs_pgctx_release(ctx);
+				return TF_ERROR_PARAM_TOO_LONG;
+			}
+
+			curpos = strlen(where);
+		}
+
+		if (ps->depth == TF_CATALOG_NODE_DEPTH_NONE) {
+			pathval = (char *)alloca(sizeof(char) * (strlen(ps->path) + 1));
+			strcpy(pathval, ps->path);
+		} else {
+			pathval = (char *)alloca(sizeof(char) * (strlen(ps->path) + 2));
+			sprintf(pathval, "%s%%", ps->path);
+
+			pathlen = (ps->depth == TF_CATALOG_NODE_DEPTH_SINGLE) ?
+				TF_CATALOG_CHILD_ITEM_MAXLEN - 1 :
+				TF_CATALOG_PARENT_PATH_MAXLEN - 1;
+		}
+
+		r = snprintf(
+			where + curpos, 
+			wherelen - curpos, 
+			"(cn.parent_path || cn.child_item LIKE '%s' AND char_length(cn.parent_path) <= %d)", 
+			pathval,
+			pathlen);
+		if (r >= wherelen - curpos) {
+			gcs_pgctx_release(ctx);
+			return TF_ERROR_PARAM_TOO_LONG;
+		}
+
+		curpos = strlen(where);
 	}
 
+	if (types[0] != NULL) {
+		if (curpos >= wherelen - 28) {
+			gcs_pgctx_release(ctx);
+			return TF_ERROR_PARAM_TOO_LONG;
+		}
+
+		memmove(where + 1, where, strlen(where) + 1);
+		curpos++;
+
+		where[0] = '(';
+		sprintf(where + curpos, ") AND (crt.identifier IN (");
+		curpos = strlen(where);
+
+		dberr = tf_db_build_list(types, where, wherelen, &curpos);
+		if (dberr != TF_ERROR_SUCCESS) {
+			gcs_pgctx_release(ctx);
+			return dberr;
+		}
+
+		if (snprintf(where + curpos, wherelen - curpos, "))") >= wherelen - curpos) {
+			gcs_pgctx_release(ctx);
+			return TF_ERROR_PARAM_TOO_LONG;
+		}
+
+		curpos = strlen(where);
+	}
+
+	sprintf(countstmt, 
+		"SELECT COUNT(*) \
+		 FROM catalog_nodes AS cn \
+		 INNER JOIN catalog_resources AS cr \
+		    ON cn.resource_identifier = cr.identifier \
+		 INNER JOIN catalog_resource_types AS crt \
+		    ON cr.fk_resource_type = crt.identifier \
+		 WHERE %s", 
+		where);
+	gcslog_trace("fetch catalog nodes SQL: %s", countstmt);
+
+	EXEC SQL PREPARE fetchnodes_stmt FROM :countstmt;
+
 	EXEC SQL WHENEVER NOT FOUND CONTINUE;
-	EXEC SQL SELECT COUNT(*) INTO :count
-		 FROM catalog_nodes AS cn
-		 INNER JOIN catalog_resources AS cr
-		    ON cn.resource_identifier = cr.identifier
-		 INNER JOIN catalog_resource_types AS crt
-		    ON cr.fk_resource_type = crt.identifier
-		 WHERE cn.parent_path || cn.child_item LIKE :pathval
-		    AND char_length(cn.parent_path) <= :pathlen;
+	EXEC SQL EXECUTE fetchnodes_stmt INTO :count;
+	EXEC SQL DEALLOCATE PREPARE fetchnodes_stmt;
 
 	gcslog_debug("found %d matching catalog node(s)", count);
 	bzero(result, sizeof(tf_catalog_node_array_t));
@@ -94,20 +166,23 @@ tf_error_t tf_catalog_fetch_nodes(const char *path, int depth, tf_catalog_node_a
 	result->items = (tf_catalog_node_t *)calloc(count, sizeof(tf_catalog_node_t));
 	result->count = count;
 
-	EXEC SQL DECLARE cur1 CURSOR FOR 
-		SELECT cn.parent_path, cn.child_item, cn."default",
-		       cr.identifier, cr.display_name, cr.description,
-		       crt.identifier, crt.display_name, crt.description
-		FROM catalog_nodes AS cn
-		INNER JOIN catalog_resources AS cr
-		   ON cn.resource_identifier = cr.identifier
-		INNER JOIN catalog_resource_types AS crt
-		   ON cr.fk_resource_type = crt.identifier
-		WHERE cn.parent_path || cn.child_item LIKE :pathval
-		   AND char_length(cn.parent_path) <= :pathlen;
+	sprintf(selstmt, 
+		"SELECT cn.parent_path, cn.child_item, cn.\"default\", \
+		       cr.identifier, cr.display_name, cr.description, \
+		       crt.identifier, crt.display_name, crt.description \
+		 FROM catalog_nodes AS cn \
+		 INNER JOIN catalog_resources AS cr \
+		    ON cn.resource_identifier = cr.identifier \
+		 INNER JOIN catalog_resource_types AS crt \
+		    ON cr.fk_resource_type = crt.identifier \
+		 WHERE %s", 
+		where);
+
+	EXEC SQL PREPARE fetchnodes_stmt FROM :selstmt;
+
+	EXEC SQL DECLARE cur1 CURSOR FOR fetchnodes_stmt;
 	EXEC SQL OPEN cur1;
 
-	int i;
 	for (i = 0; ; i++) {
 		EXEC SQL WHENEVER NOT FOUND DO BREAK;
 
@@ -147,6 +222,7 @@ tf_error_t tf_catalog_fetch_nodes(const char *path, int depth, tf_catalog_node_a
 	}
 
 	EXEC SQL CLOSE cur1;
+	EXEC SQL DEALLOCATE PREPARE fetchnodes_stmt;
 	gcs_pgctx_release(ctx);
 
 	return TF_ERROR_SUCCESS;
@@ -158,25 +234,26 @@ error:
 }
 
 /**
- * Retrieves catalog resources from the database. Calling functions should
- * call tf_catalog_free_node_array() prior to freeing "result".
+ * Retrieves catalog nodes from the database by resource ID. Calling functions
+ * should call tf_catalog_free_node_array() prior to freeing "result".
  *
- * @param path
+ * @param idarr -- a null-terminated array of resource ID strings to lookup
+ * @param types -- flag to indicate if idarr has resource type ID strings
  * @param result -- pre-allocated output buffer for the results
  *
  * @returns TF_ERROR_SUCCESS or an error code
  */
-tf_error_t tf_catalog_fetch_resources(const char *path, tf_catalog_node_array_t *result)
+tf_error_t tf_catalog_fetch_resources(const char * const *idarr, int types, tf_catalog_node_array_t *result)
 {
-	/* TODO path?? or should it be id? */
-	if (path == NULL || result == NULL)
+	if (idarr == NULL || idarr[0] == NULL || result == NULL)
 		return TF_ERROR_BAD_PARAMETER;
 
-	gcslog_debug("looking up catalog resources with path %s", path);
+	gcslog_debug("looking up catalog resources");
 
 	EXEC SQL BEGIN DECLARE SECTION;
 	const char *conn = NULL;
-	const char *pathval = path;
+	char countstmt[20480];
+	char selstmt[20480];
 	int count = 0;
 	EXEC SQL END DECLARE SECTION;
 
@@ -186,14 +263,36 @@ tf_error_t tf_catalog_fetch_resources(const char *path, tf_catalog_node_array_t 
 	EXEC SQL WHENEVER SQLERROR GOTO error;
 	EXEC SQL SET CONNECTION :conn;
 
+	char residlst[10240];
+	const int residlen = 10240;
+	int curpos = 0;
+	tf_error_t dberr;
+
+	bzero(&residlst, residlen);
+
+	dberr = tf_db_build_list(idarr, residlst, residlen, &curpos);
+	if (dberr != TF_ERROR_SUCCESS) {
+		gcs_pgctx_release(ctx);
+		return dberr;
+	}
+
+	sprintf(countstmt, 
+		"SELECT COUNT(*) \
+		 FROM catalog_nodes AS cn \
+		 INNER JOIN catalog_resources AS cr \
+		    ON cn.resource_identifier = cr.identifier \
+		 INNER JOIN catalog_resource_types AS crt \
+		    ON cr.fk_resource_type = crt.identifier \
+		 WHERE %s IN (%s)", 
+		types ? "crt.identifier" : "cr.identifier", 
+		residlst);
+	gcslog_trace("fetch catalog resources SQL: %s", countstmt);
+
+	EXEC SQL PREPARE fetchres_stmt FROM :countstmt;
+
 	EXEC SQL WHENEVER NOT FOUND CONTINUE;
-	EXEC SQL SELECT COUNT(*) INTO :count
-		 FROM catalog_nodes AS cn
-		 INNER JOIN catalog_resources AS cr
-		    ON cn.resource_identifier = cr.identifier
-		 INNER JOIN catalog_resource_types AS crt
-		    ON cr.fk_resource_type = crt.identifier;
-		 //WHERE cr.identifier = :pathval;
+	EXEC SQL EXECUTE fetchres_stmt INTO :count;
+	EXEC SQL DEALLOCATE PREPARE fetchres_stmt;
 
 	gcslog_debug("found %d matching resource(s)", count);
 	bzero(result, sizeof(tf_catalog_node_array_t));
@@ -206,16 +305,22 @@ tf_error_t tf_catalog_fetch_resources(const char *path, tf_catalog_node_array_t 
 	result->items = (tf_catalog_node_t *)calloc(count, sizeof(tf_catalog_node_t));
 	result->count = count;
 
-	EXEC SQL DECLARE cur2 CURSOR FOR 
-		SELECT cn.parent_path, cn.child_item, cn."default",
-		       cr.identifier, cr.display_name, cr.description,
-		       crt.identifier, crt.display_name, crt.description
-		FROM catalog_nodes AS cn
-		INNER JOIN catalog_resources AS cr
-		   ON cn.resource_identifier = cr.identifier
-		INNER JOIN catalog_resource_types AS crt
-		   ON cr.fk_resource_type = crt.identifier;
-		//WHERE cr.identifier = :pathval;
+	sprintf(selstmt, 
+		"SELECT cn.parent_path, cn.child_item, cn.\"default\", \
+		       cr.identifier, cr.display_name, cr.description, \
+		       crt.identifier, crt.display_name, crt.description \
+		 FROM catalog_nodes AS cn \
+		 INNER JOIN catalog_resources AS cr \
+		    ON cn.resource_identifier = cr.identifier \
+		 INNER JOIN catalog_resource_types AS crt \
+		    ON cr.fk_resource_type = crt.identifier \
+		 WHERE %s IN (%s)", 
+		types ? "crt.identifier" : "cr.identifier", 
+		residlst);
+
+	EXEC SQL PREPARE fetchres_stmt FROM :selstmt;
+
+	EXEC SQL DECLARE cur2 CURSOR FOR fetchres_stmt;
 	EXEC SQL OPEN cur2;
 
 	int i;
@@ -258,6 +363,7 @@ tf_error_t tf_catalog_fetch_resources(const char *path, tf_catalog_node_array_t 
 	}
 
 	EXEC SQL CLOSE cur2;
+	EXEC SQL DEALLOCATE PREPARE fetchres_stmt;
 	gcs_pgctx_release(ctx);
 
 	return TF_ERROR_SUCCESS;
@@ -279,10 +385,10 @@ error:
  */
 tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_service_array_t *result)
 {
-	if (nodes.count == 0 || result == NULL)
+	if (nodes.count < 1 || result == NULL)
 		return TF_ERROR_BAD_PARAMETER;
 
-	gcslog_debug("looking up catalog services matching the given nodes");
+	gcslog_debug("looking up catalog services for %d node(s)", nodes.count);
 
 	EXEC SQL BEGIN DECLARE SECTION;
 	const char *conn = NULL;
@@ -298,22 +404,30 @@ tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_s
 	EXEC SQL SET CONNECTION :conn;
 
 	char residlst[10240];
+	const int residlen = 10240;
 	int curpos = 0;
-	int i = 0;
+	int r = residlen - curpos, i = 0;
+
+	bzero(&residlst, residlen);
 
 	for (i = 0; i < nodes.count; i++) {
-		if (curpos >= 10240) {
+		if (i > 0) {
+			if (snprintf(residlst + curpos, r, ", ") >= r) {
+				gcs_pgctx_release(ctx);
+				return TF_ERROR_PARAM_TOO_LONG;
+			}
+
+			curpos = strlen(residlst);
+			r = residlen - curpos;
+		}
+
+		if (snprintf(residlst + curpos, r, "'%s'", nodes.items[i].resource.id) >= r) {
 			gcs_pgctx_release(ctx);
 			return TF_ERROR_PARAM_TOO_LONG;
 		}
 
-		if (curpos > 0) {
-			sprintf(residlst + curpos, "%s", ", ");
-			curpos += 2;
-		}
-
-		sprintf(residlst + curpos, "'%s'", nodes.items[i].resource.id);
-		curpos += strlen(nodes.items[i].resource.id) + 2;
+		curpos = strlen(residlst);
+		r = residlen - curpos;
 	}
 
 	sprintf(countstmt, 
@@ -326,6 +440,7 @@ tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_s
 		   ON sd.fk_tool_id = tt.id \
 		WHERE csr.resource_identifier IN (%s)", 
 		residlst);
+	gcslog_trace("fetch catalog services SQL: %s", countstmt);
 
 	EXEC SQL PREPARE sref_stmt FROM :countstmt;
 

@@ -67,3 +67,13 @@ typedef struct {
 	int count;
 } tf_catalog_service_array_t;
 
+typedef struct {
+	char *path;
+	int depth;
+} tf_catalog_pathspec_t;
+
+typedef struct {
+	tf_catalog_pathspec_t *items;
+	int count;
+} tf_catalog_pathspec_array_t;
+

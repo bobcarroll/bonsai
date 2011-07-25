@@ -26,6 +26,34 @@
 #include <tf/xml.h>
 
 /**
+ * Finds all XML nodes with the given XPath.
+ *
+ * @param parent -- the top-most node where the search begins
+ * @param nsname -- the namespace name
+ * @param nshref -- the namespace URI
+ * @param expr -- the XPath expression to use
+ *
+ * @returns an XML nodeset or NULL
+ */
+xmlXPathObject *tf_xml_find_all(xmlNode *parent, xmlChar *nsname, xmlChar *nshref, xmlChar *expr)
+{
+	xmlXPathContextPtr xpctx;
+	xmlXPathObjectPtr xpres;
+
+	if (parent == NULL || parent->doc == NULL || expr == NULL)
+		return NULL;
+
+	xpctx = xmlXPathNewContext(parent->doc);
+	if (nsname != NULL)
+		xmlXPathRegisterNs(xpctx, nsname, nshref);
+
+	xpres = xmlXPathEvalExpression(expr, xpctx);
+	xmlXPathFreeContext(xpctx);
+
+	return xpres;
+}
+
+/**
  * Finds the first XML node with the given XPath.
  *
  * @param parent -- the top-most node where the search begins
@@ -37,19 +65,8 @@
  */
 xmlNode *tf_xml_find_first(xmlNode *parent, xmlChar *nsname, xmlChar *nshref, xmlChar *expr)
 {
-	xmlXPathContextPtr xpctx;
-	xmlXPathObjectPtr xpres;
+	xmlXPathObject *xpres = tf_xml_find_all(parent, nsname, nshref, expr);
 	xmlNode *result = NULL;
-
-	if (parent == NULL || parent->doc == NULL || expr == NULL)
-		return NULL;
-
-	xpctx = xmlXPathNewContext(parent->doc);
-	if (nsname != NULL)
-		xmlXPathRegisterNs(xpctx, nsname, nshref);
-
-	xpres = xmlXPathEvalExpression(expr, xpctx);
-	xmlXPathFreeContext(xpctx);
 
 	if (!xpres)
 		return NULL;

@@ -3,7 +3,9 @@ set(LIBTF_SRC
     catalog.c
     catalogdb.c
     location.c
-    xml.c)
+    xml.c
+    fault.c
+    dbhelp.c)
 
 add_library(tf ${LIBTF_SRC})
 

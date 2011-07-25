@@ -41,19 +41,18 @@ Parameters:
 8- detail
 */
 #define  _SOAP_FAULT_TEMPLATE_ \
-	"<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"%s\" SOAP-ENV:encoding=\"%s\"" \
+	"<soap:Envelope xmlns:soap=\"%s\" soap:encoding=\"%s\"" \
 	" xmlns:xsi=\"%s\"" \
 	" xmlns:xsd=\"%s\">" \
-        " <SOAP-ENV:Header />" \
-	" <SOAP-ENV:Body>" \
-	"  <SOAP-ENV:Fault>"\
+	" <soap:Body>" \
+	"  <soap:Fault>"\
 	"   <faultcode>%s</faultcode>"\
 	"   <faultstring>%s</faultstring>"\
 	"   <faultactor>%s</faultactor>"\
 	"   <detail>%s</detail>"\
-	"  </SOAP-ENV:Fault>" \
-	" </SOAP-ENV:Body>"\
-	"</SOAP-ENV:Envelope>"
+	"  </soap:Fault>" \
+	" </soap:Body>"\
+	"</soap:Envelope>"
 
 
 
