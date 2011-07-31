@@ -50,14 +50,14 @@ tf_error_t tf_db_build_list(const char * const *list, char *buf, const int bufle
 			if (snprintf(buf + *curpos, r, ", ") >= r)
 				return TF_ERROR_PARAM_TOO_LONG;
 
-			*curpos = strlen(buf);
+			*curpos += 2;
 			r = buflen - *curpos;
 		}
 
 		if (snprintf(buf + *curpos, r, "'%s'", list[i]) >= r)
 			return TF_ERROR_PARAM_TOO_LONG;
 
-		*curpos = strlen(buf);
+		*curpos += strlen(buf + *curpos);
 		r = buflen - *curpos;
 	}
 

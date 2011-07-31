@@ -139,10 +139,10 @@ static void _catalog_append_node(xmlNode *parent, const char *path, tf_catalog_n
 	xmlNewProp(cnnode, "ResourceIdentifier", node.resource.id);
 	xmlNewProp(cnnode, "ParentPath", node.parent);
 	xmlNewProp(cnnode, "ChildItem", node.child);
-	xmlNewProp(cnnode, "NodeDependenciesIncluded", "false");
+	xmlNewProp(cnnode, "NodeDependenciesIncluded", "false"); /* TODO */
 	xmlNewProp(cnnode, "ctype", "0"); /* TODO */
 	xmlNewProp(cnnode, "MatchedQuery", matched ? "true" : "false");
-	xmlNewChild(cnnode, NULL, "NodeDependencies", NULL);
+	xmlNewChild(cnnode, NULL, "NodeDependencies", NULL); /* TODO */
 }
 
 /**

@@ -22,6 +22,11 @@
 #include <tf/catalogtypes.h>
 #include <tf/errors.h>
 
+#define TF_CATALOG_QUERY_EXPAND_DEPS	1
+#define TF_CATALOG_QUERY_INC_PARENTS	2
+
+#define TF_CATALOG_ORGANIZATION_ROOT	"3eYRYkJOok6GHrKam0AcAA=="
+
 void tf_catalog_free_node_array(tf_catalog_node_array_t);
 void tf_catalog_free_pathspec_array(tf_catalog_pathspec_array_t);
 void tf_catalog_free_resource(tf_catalog_resource_t);

@@ -30,6 +30,7 @@
 #include <gcs/log.h>
 
 #include <tf/catalogdb.h>
+#include <tf/dbhelp.h>
 
 /**
  * Retrieves catalog nodes from the database. Calling functions should
@@ -73,7 +74,8 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
 	for (i = 0; i < pathspecs.count; i++) {
 		tf_catalog_pathspec_t *ps = &pathspecs.items[i];
 		char *pathval = NULL;
-		int pathlen = 0;
+		int oldpathlen = strlen(ps->path);
+		int newpathlen = 0;
 
 		if (i > 0) {
 			r = snprintf(where + curpos, wherelen - curpos, " OR ");
@@ -82,17 +84,17 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
 				return TF_ERROR_PARAM_TOO_LONG;
 			}
 
-			curpos = strlen(where);
+			curpos += 4;
 		}
 
 		if (ps->depth == TF_CATALOG_NODE_DEPTH_NONE) {
-			pathval = (char *)alloca(sizeof(char) * (strlen(ps->path) + 1));
+			pathval = (char *)alloca(sizeof(char) * (oldpathlen + 1));
 			strcpy(pathval, ps->path);
 		} else {
-			pathval = (char *)alloca(sizeof(char) * (strlen(ps->path) + 2));
+			pathval = (char *)alloca(sizeof(char) * (oldpathlen + 2));
 			sprintf(pathval, "%s%%", ps->path);
 
-			pathlen = (ps->depth == TF_CATALOG_NODE_DEPTH_SINGLE) ?
+			newpathlen = (ps->depth == TF_CATALOG_NODE_DEPTH_SINGLE) ?
 				TF_CATALOG_CHILD_ITEM_MAXLEN - 1 :
 				TF_CATALOG_PARENT_PATH_MAXLEN - 1;
 		}
@@ -102,13 +104,13 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
 			wherelen - curpos, 
 			"(cn.parent_path || cn.child_item LIKE '%s' AND char_length(cn.parent_path) <= %d)", 
 			pathval,
-			pathlen);
+			newpathlen);
 		if (r >= wherelen - curpos) {
 			gcs_pgctx_release(ctx);
 			return TF_ERROR_PARAM_TOO_LONG;
 		}
 
-		curpos = strlen(where);
+		curpos += strlen(where + curpos);
 	}
 
 	if (types[0] != NULL) {
@@ -117,12 +119,12 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
 			return TF_ERROR_PARAM_TOO_LONG;
 		}
 
-		memmove(where + 1, where, strlen(where) + 1);
+		memmove(where + 1, where, curpos + 1);
 		curpos++;
 
 		where[0] = '(';
 		sprintf(where + curpos, ") AND (crt.identifier IN (");
-		curpos = strlen(where);
+		curpos += 26;
 
 		dberr = tf_db_build_list(types, where, wherelen, &curpos);
 		if (dberr != TF_ERROR_SUCCESS) {
@@ -135,7 +137,7 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
 			return TF_ERROR_PARAM_TOO_LONG;
 		}
 
-		curpos = strlen(where);
+		curpos += strlen(where + curpos);
 	}
 
 	sprintf(countstmt, 
@@ -417,7 +419,7 @@ tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_s
 				return TF_ERROR_PARAM_TOO_LONG;
 			}
 
-			curpos = strlen(residlst);
+			curpos += 2;
 			r = residlen - curpos;
 		}
 
@@ -426,7 +428,7 @@ tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_s
 			return TF_ERROR_PARAM_TOO_LONG;
 		}
 
-		curpos = strlen(residlst);
+		curpos += strlen(residlst + curpos);
 		r = residlen - curpos;
 	}
 
