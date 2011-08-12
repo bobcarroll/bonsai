@@ -24,6 +24,7 @@
 #define TF_CATALOG_ASSOCIATION_KEY_MAXLEN	257
 #define TF_CATALOG_CHILD_ITEM_MAXLEN		25
 #define TF_CATALOG_PARENT_PATH_MAXLEN		865
+#define TF_CATALOG_PROPERTY_NAME_MAXLEN		401
 #define TF_CATALOG_RESOURCE_ID_MAXLEN		37
 #define TF_CATALOG_RESOURCE_NAME_MAXLEN		257
 #define TF_CATALOG_RESOURCE_TYPE_MAXLEN		37
@@ -40,6 +41,7 @@ typedef struct {
 	tf_catalog_resource_type_t type;
 	char name[TF_CATALOG_RESOURCE_NAME_MAXLEN];
 	char *description;
+	int propertyid;
 } tf_catalog_resource_t;
 
 typedef struct {
@@ -74,4 +76,19 @@ typedef struct {
 	tf_catalog_pathspec_t *items;
 	int count;
 } tf_catalog_pathspec_array_t;
+
+typedef struct {
+	int artifactid;
+	int version;
+	char property[TF_CATALOG_PROPERTY_NAME_MAXLEN];
+	int type;
+	int kindid;
+	char *value;
+} tf_catalog_property_t;
+
+typedef struct {
+	tf_catalog_property_t *items;
+	int count;
+} tf_catalog_property_array_t;
+
 

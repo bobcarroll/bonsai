@@ -151,11 +151,11 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
 		where);
 	gcslog_trace("fetch catalog nodes SQL: %s", countstmt);
 
-	EXEC SQL PREPARE fetchnodes_stmt FROM :countstmt;
+	EXEC SQL PREPARE sqlstmt FROM :countstmt;
 
 	EXEC SQL WHENEVER NOT FOUND CONTINUE;
-	EXEC SQL EXECUTE fetchnodes_stmt INTO :count;
-	EXEC SQL DEALLOCATE PREPARE fetchnodes_stmt;
+	EXEC SQL EXECUTE sqlstmt INTO :count;
+	EXEC SQL DEALLOCATE PREPARE sqlstmt;
 
 	gcslog_debug("found %d matching catalog node(s)", count);
 	bzero(result, sizeof(tf_catalog_node_array_t));
@@ -170,7 +170,7 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
 
 	sprintf(selstmt, 
 		"SELECT cn.parent_path, cn.child_item, cn.\"default\", \
-		       cr.identifier, cr.display_name, cr.description, \
+		       cr.identifier, cr.display_name, cr.description, cr.fk_property_artifact, \
 		       crt.identifier, crt.display_name, crt.description \
 		 FROM catalog_nodes AS cn \
 		 INNER JOIN catalog_resources AS cr \
@@ -180,9 +180,9 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
 		 WHERE %s", 
 		where);
 
-	EXEC SQL PREPARE fetchnodes_stmt FROM :selstmt;
+	EXEC SQL PREPARE sqlstmt FROM :selstmt;
 
-	EXEC SQL DECLARE cur1 CURSOR FOR fetchnodes_stmt;
+	EXEC SQL DECLARE cur1 CURSOR FOR sqlstmt;
 	EXEC SQL OPEN cur1;
 
 	for (i = 0; ; i++) {
@@ -196,6 +196,8 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
 		char resname[TF_CATALOG_RESOURCE_NAME_MAXLEN];
 		char *resdesc = NULL;
 		int resdesc_ind;
+		int propid;
+		int propid_ind;
 		char typeid[TF_CATALOG_RESOURCE_TYPE_MAXLEN];
 		char typename[TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN];
 		char *typedesc = NULL;
@@ -204,7 +206,7 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
 
 		EXEC SQL FETCH NEXT FROM cur1
 			INTO :parent, :child, :fdefault,
-			     :resid, :resname, :resdesc:resdesc_ind,
+			     :resid, :resname, :resdesc:resdesc_ind, :propid:propid_ind,
 			     :typeid, :typename, :typedesc:typedesc_ind;
 
 		strncpy(result->items[i].parent, parent, TF_CATALOG_PARENT_PATH_MAXLEN);
@@ -214,6 +216,7 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
 		strncpy(result->items[i].resource.id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
 		strncpy(result->items[i].resource.name, resname, TF_CATALOG_RESOURCE_NAME_MAXLEN);
 		result->items[i].resource.description = !resdesc_ind ? strdup(resdesc) : NULL;
+		result->items[i].resource.propertyid = propid;
 
 		strncpy(result->items[i].resource.type.id, typeid, TF_CATALOG_RESOURCE_TYPE_MAXLEN);
 		strncpy(result->items[i].resource.type.name, typename, TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
@@ -224,7 +227,7 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
 	}
 
 	EXEC SQL CLOSE cur1;
-	EXEC SQL DEALLOCATE PREPARE fetchnodes_stmt;
+	EXEC SQL DEALLOCATE PREPARE sqlstmt;
 	gcs_pgctx_release(ctx);
 
 	return TF_ERROR_SUCCESS;
@@ -290,11 +293,11 @@ tf_error_t tf_catalog_fetch_resources(const char * const *idarr, int types, tf_c
 		residlst);
 	gcslog_trace("fetch catalog resources SQL: %s", countstmt);
 
-	EXEC SQL PREPARE fetchres_stmt FROM :countstmt;
+	EXEC SQL PREPARE sqlstmt FROM :countstmt;
 
 	EXEC SQL WHENEVER NOT FOUND CONTINUE;
-	EXEC SQL EXECUTE fetchres_stmt INTO :count;
-	EXEC SQL DEALLOCATE PREPARE fetchres_stmt;
+	EXEC SQL EXECUTE sqlstmt INTO :count;
+	EXEC SQL DEALLOCATE PREPARE sqlstmt;
 
 	gcslog_debug("found %d matching resource(s)", count);
 	bzero(result, sizeof(tf_catalog_node_array_t));
@@ -309,7 +312,7 @@ tf_error_t tf_catalog_fetch_resources(const char * const *idarr, int types, tf_c
 
 	sprintf(selstmt, 
 		"SELECT cn.parent_path, cn.child_item, cn.\"default\", \
-		       cr.identifier, cr.display_name, cr.description, \
+		       cr.identifier, cr.display_name, cr.description, cr.fk_property_artifact, \
 		       crt.identifier, crt.display_name, crt.description \
 		 FROM catalog_nodes AS cn \
 		 INNER JOIN catalog_resources AS cr \
@@ -320,9 +323,9 @@ tf_error_t tf_catalog_fetch_resources(const char * const *idarr, int types, tf_c
 		types ? "crt.identifier" : "cr.identifier", 
 		residlst);
 
-	EXEC SQL PREPARE fetchres_stmt FROM :selstmt;
+	EXEC SQL PREPARE sqlstmt FROM :selstmt;
 
-	EXEC SQL DECLARE cur2 CURSOR FOR fetchres_stmt;
+	EXEC SQL DECLARE cur2 CURSOR FOR sqlstmt;
 	EXEC SQL OPEN cur2;
 
 	int i;
@@ -337,6 +340,8 @@ tf_error_t tf_catalog_fetch_resources(const char * const *idarr, int types, tf_c
 		char resname[TF_CATALOG_RESOURCE_NAME_MAXLEN];
 		char *resdesc = NULL;
 		int resdesc_ind;
+		int propid;
+		int propid_ind;
 		char typeid[TF_CATALOG_RESOURCE_TYPE_MAXLEN];
 		char typename[TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN];
 		char *typedesc = NULL;
@@ -345,7 +350,7 @@ tf_error_t tf_catalog_fetch_resources(const char * const *idarr, int types, tf_c
 
 		EXEC SQL FETCH NEXT FROM cur2
 			INTO :parent, :child, :fdefault,
-			     :resid, :resname, :resdesc:resdesc_ind,
+			     :resid, :resname, :resdesc:resdesc_ind, :propid:propid_ind,
 			     :typeid, :typename, :typedesc:typedesc_ind;
 
 		strncpy(result->items[i].parent, parent, TF_CATALOG_PARENT_PATH_MAXLEN);
@@ -355,6 +360,7 @@ tf_error_t tf_catalog_fetch_resources(const char * const *idarr, int types, tf_c
 		strncpy(result->items[i].resource.id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
 		strncpy(result->items[i].resource.name, resname, TF_CATALOG_RESOURCE_NAME_MAXLEN);
 		result->items[i].resource.description = !resdesc_ind ? strdup(resdesc) : NULL;
+		result->items[i].resource.propertyid = propid;
 
 		strncpy(result->items[i].resource.type.id, typeid, TF_CATALOG_RESOURCE_TYPE_MAXLEN);
 		strncpy(result->items[i].resource.type.name, typename, TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
@@ -365,7 +371,7 @@ tf_error_t tf_catalog_fetch_resources(const char * const *idarr, int types, tf_c
 	}
 
 	EXEC SQL CLOSE cur2;
-	EXEC SQL DEALLOCATE PREPARE fetchres_stmt;
+	EXEC SQL DEALLOCATE PREPARE sqlstmt;
 	gcs_pgctx_release(ctx);
 
 	return TF_ERROR_SUCCESS;
@@ -444,11 +450,11 @@ tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_s
 		residlst);
 	gcslog_trace("fetch catalog services SQL: %s", countstmt);
 
-	EXEC SQL PREPARE sref_stmt FROM :countstmt;
+	EXEC SQL PREPARE sqlstmt FROM :countstmt;
 
 	EXEC SQL WHENEVER NOT FOUND CONTINUE;
-	EXEC SQL EXECUTE sref_stmt INTO :count;
-	EXEC SQL DEALLOCATE PREPARE sref_stmt;
+	EXEC SQL EXECUTE sqlstmt INTO :count;
+	EXEC SQL DEALLOCATE PREPARE sqlstmt;
 
 	gcslog_debug("found %d catalog service(s)", count);
 	bzero(result, sizeof(tf_catalog_service_array_t));
@@ -475,9 +481,9 @@ tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_s
 		WHERE csr.resource_identifier IN (%s)", 
 		residlst);
 
-	EXEC SQL PREPARE sref_stmt FROM :selstmt;
+	EXEC SQL PREPARE sqlstmt FROM :selstmt;
 
-	EXEC SQL DECLARE cur3 CURSOR FOR sref_stmt;
+	EXEC SQL DECLARE cur3 CURSOR FOR sqlstmt;
 	EXEC SQL OPEN cur3;
 
 	for (i = 0; ; i++) {
@@ -522,7 +528,141 @@ tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_s
 	}
 
 	EXEC SQL CLOSE cur3;
-	EXEC SQL DEALLOCATE PREPARE sref_stmt;
+	EXEC SQL DEALLOCATE PREPARE sqlstmt;
+	gcs_pgctx_release(ctx);
+
+	return TF_ERROR_SUCCESS;
+
+error:
+	gcs_pgctx_release(ctx);
+	gcslog_error(sqlca.sqlerrm.sqlerrmc);
+	return TF_ERROR_PG_FAILURE;
+}
+
+/**
+ * Retrieves properties for the given catalog nodes.
+ *
+ * @param nodes -- an array of nodes to lookup services for
+ * @param result -- pre-allocated output buffer for the results
+ *
+ * @returns TF_ERROR_SUCCESS or an error code
+ */
+tf_error_t tf_catalog_fetch_properties(tf_catalog_node_array_t nodes, tf_catalog_property_array_t *result)
+{
+	if (nodes.count < 1 || result == NULL)
+		return TF_ERROR_BAD_PARAMETER;
+
+	gcslog_debug("looking up resource properties for %d node(s)", nodes.count);
+
+	EXEC SQL BEGIN DECLARE SECTION;
+	const char *conn = NULL;
+	char countstmt[20480];
+	char selstmt[20480];
+	int count = 0;
+	EXEC SQL END DECLARE SECTION;
+
+	gcs_pgctx_t *ctx = gcs_pgctx_acquire();
+	conn = ctx->conn;
+
+	EXEC SQL WHENEVER SQLERROR GOTO error;
+	EXEC SQL SET CONNECTION :conn;
+
+	char idlst[10240];
+	const int idlen = 10240;
+	int curpos = 0;
+	int r = idlen - curpos, i = 0;
+
+	bzero(&idlst, idlen);
+
+	for (i = 0; i < nodes.count; i++) {
+		if (i > 0) {
+			if (snprintf(idlst + curpos, r, ", ") >= r) {
+				gcs_pgctx_release(ctx);
+				return TF_ERROR_PARAM_TOO_LONG;
+			}
+
+			curpos += 2;
+			r = idlen - curpos;
+		}
+
+		if (snprintf(idlst + curpos, r, "%d", nodes.items[i].resource.propertyid) >= r) {
+			gcs_pgctx_release(ctx);
+			return TF_ERROR_PARAM_TOO_LONG;
+		}
+
+		curpos += strlen(idlst + curpos);
+		r = idlen - curpos;
+	}
+
+	sprintf(countstmt, 
+		"SELECT COUNT(*) \
+		FROM property_values AS pv \
+		JOIN property_definitions AS pd \
+		   ON pv.fk_property_id = pd.id \
+		WHERE artifact_id IN (%s)",
+		idlst);
+	gcslog_trace("fetch resource properties SQL: %s", countstmt);
+
+	EXEC SQL PREPARE sqlstmt FROM :countstmt;
+
+	EXEC SQL WHENEVER NOT FOUND CONTINUE;
+	EXEC SQL EXECUTE sqlstmt INTO :count;
+	EXEC SQL DEALLOCATE PREPARE sqlstmt;
+
+	gcslog_debug("found %d resource properties", count);
+	bzero(result, sizeof(tf_catalog_property_array_t));
+
+	if (count == 0) {
+		gcs_pgctx_release(ctx);
+		return TF_ERROR_SUCCESS;
+	}
+
+	result->items = (tf_catalog_property_t *)calloc(count, sizeof(tf_catalog_property_t));
+	result->count = count;
+
+	sprintf(selstmt, 
+		"SELECT pv.artifact_id, pv.\"version\", pv.internal_kind_id, pv.value, \
+			pd.name, pd.type_id \
+		FROM property_values AS pv \
+		JOIN property_definitions AS pd \
+		   ON pv.fk_property_id = pd.id \
+		WHERE artifact_id IN (%s)",
+		idlst);
+
+	EXEC SQL PREPARE sqlstmt FROM :selstmt;
+
+	EXEC SQL DECLARE cur4 CURSOR FOR sqlstmt;
+	EXEC SQL OPEN cur4;
+
+	for (i = 0; ; i++) {
+		EXEC SQL WHENEVER NOT FOUND DO BREAK;
+
+		EXEC SQL BEGIN DECLARE SECTION;
+		int artifactid;
+		int version;
+		int kindid;
+		char *value;
+		int value_ind;
+		char property[TF_CATALOG_PROPERTY_NAME_MAXLEN];
+		int typeid;
+		EXEC SQL END DECLARE SECTION;
+
+		EXEC SQL FETCH NEXT FROM cur4
+			INTO :artifactid, :version, :kindid, :value:value_ind,
+			     :property, :typeid;
+
+		result->items[i].artifactid = artifactid;
+		result->items[i].version = version;
+		result->items[i].kindid = kindid;
+
+		strncpy(result->items[i].property, property, TF_CATALOG_PROPERTY_NAME_MAXLEN);
+		result->items[i].value = !value_ind ? strdup(value) : NULL;
+
+		free(value);
+	}
+
+	EXEC SQL CLOSE cur4;
+	EXEC SQL DEALLOCATE PREPARE sqlstmt;
 	gcs_pgctx_release(ctx);
 
 	return TF_ERROR_SUCCESS;

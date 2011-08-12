@@ -30,4 +30,5 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t, const char * cons
 	tf_catalog_node_array_t *);
 tf_error_t tf_catalog_fetch_resources(const char * const *, int, tf_catalog_node_array_t *);
 tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t, tf_catalog_service_array_t *);
+tf_error_t tf_catalog_fetch_properties(tf_catalog_node_array_t, tf_catalog_property_array_t *);
 

@@ -73,6 +73,39 @@ void tf_catalog_free_pathspec_array(tf_catalog_pathspec_array_t result)
 }
 
 /**
+ * Frees memory associated with a catalog property, but not
+ * the property itself.
+ *
+ * @param result
+ */
+void tf_catalog_free_property(tf_catalog_property_t result)
+{
+	if (result.value != NULL)
+		free(result.value);
+
+	result.value = NULL;
+}
+
+/**
+ * Frees memory associated with a catalog property array, but not
+ * the array itself.
+ *
+ * @param result
+ */
+void tf_catalog_free_property_array(tf_catalog_property_array_t result)
+{
+	if (result.items != NULL && result.count > 0) {
+		int i;
+		for (i = 0; i < result.count; i++)
+			tf_catalog_free_property(result.items[i]);
+
+		free(result.items);
+	}
+
+	result.items = NULL;
+}
+
+/**
  * Frees memory associated with a catalog resource, but not
  * the resource itself.
  *

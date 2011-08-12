@@ -87,7 +87,7 @@ static void _catalog_append_service_ref(xmlNode *parent, tf_catalog_service_t re
  * @param matched
  */
 static void _catalog_append_resource(xmlNode *parent, const char *path, tf_catalog_resource_t resource,
-	tf_catalog_service_array_t services, int matched)
+	tf_catalog_service_array_t services, tf_catalog_property_array_t properties, int matched)
 {
 	int i;
 
@@ -113,11 +113,18 @@ static void _catalog_append_resource(xmlNode *parent, const char *path, tf_catal
 		_catalog_append_service_ref(refsnode, cursvc);
 	}
 
-	/* TODO */
 	xmlNode *propsnode = xmlNewChild(crnode, NULL, "Properties", NULL);
-	xmlNode *kvoss = xmlNewChild(propsnode, NULL, "KeyValueOfStringString", NULL);
-	xmlNewChild(kvoss, NULL, "Key", "InstanceId");
-	xmlNewChild(kvoss, NULL, "Value", "75ce4f73-3c70-4770-8e95-a4413d2d6a78");
+
+	for (i = 0; i < properties.count; i++) {
+		tf_catalog_property_t curprop = properties.items[i];
+
+		if (resource.propertyid != curprop.artifactid)
+			continue;
+
+		xmlNode *kvoss = xmlNewChild(propsnode, NULL, "KeyValueOfStringString", NULL);
+		xmlNewChild(kvoss, NULL, "Key", curprop.property);
+		xmlNewChild(kvoss, NULL, "Value", curprop.value);
+	}
 
 	xmlNode *refpathnode = xmlNewChild(crnode, NULL, "NodeReferencePaths", NULL);
 	xmlNewChild(refpathnode, NULL, "string", path);
@@ -160,6 +167,7 @@ static herror_t _catalog_query_resources(SoapCtx *req, SoapCtx *res)
 	char **idarr = NULL;
 	tf_catalog_node_array_t nodearr;
 	tf_catalog_service_array_t svcarr;
+	tf_catalog_property_array_t proparr;
 	tf_error_t dberr;
 	int ftypes = 0, i;
 
@@ -227,6 +235,18 @@ static herror_t _catalog_query_resources(SoapCtx *req, SoapCtx *res)
 		return H_OK;
 	}
 
+	dberr = tf_catalog_fetch_properties(nodearr, &proparr);
+	if (dberr != TF_ERROR_SUCCESS) {
+		tf_catalog_free_node_array(nodearr);
+		tf_catalog_free_service_array(svcarr);
+		tf_fault_env(
+			Fault_Server, 
+			"Failed to retrieve resource properties from the database", 
+			dberr, 
+			&res->env);
+		return H_OK;
+	}
+
 	xmlNode *cmd = soap_env_get_method(req->env);
 	soap_env_new_with_method(cmd->ns->href, "QueryResourcesResponse", &res->env);
 
@@ -247,12 +267,13 @@ static herror_t _catalog_query_resources(SoapCtx *req, SoapCtx *res)
 		sprintf(noderefpath, "%s%s", curnode.parent, curnode.child);
 
 		_catalog_append_resource_type(restypenode, curnode.resource.type);
-		_catalog_append_resource(resnode, noderefpath, curnode.resource, svcarr, 1);
+		_catalog_append_resource(resnode, noderefpath, curnode.resource, svcarr, proparr, 1);
 		_catalog_append_node(nodesnode, noderefpath, curnode, 0);
 	}
 
 	tf_catalog_free_node_array(nodearr);
 	tf_catalog_free_service_array(svcarr);
+	tf_catalog_free_property_array(proparr);
 
 	return H_OK;
 }
@@ -273,6 +294,7 @@ static herror_t _catalog_query_nodes(SoapCtx *req, SoapCtx *res)
 	char **typefilter = NULL;
 	tf_catalog_node_array_t nodearr;
 	tf_catalog_service_array_t svcarr;
+	tf_catalog_property_array_t proparr;
 	tf_error_t dberr;
 	int i;
 
@@ -338,6 +360,18 @@ static herror_t _catalog_query_nodes(SoapCtx *req, SoapCtx *res)
 		return H_OK;
 	}
 
+	dberr = tf_catalog_fetch_properties(nodearr, &proparr);
+	if (dberr != TF_ERROR_SUCCESS) {
+		tf_catalog_free_node_array(nodearr);
+		tf_catalog_free_service_array(svcarr);
+		tf_fault_env(
+			Fault_Server, 
+			"Failed to retrieve resource properties from the database", 
+			dberr, 
+			&res->env);
+		return H_OK;
+	}
+
 	xmlNode *cmd = soap_env_get_method(req->env);
 	soap_env_new_with_method(cmd->ns->href, "QueryNodesResponse", &res->env);
 
@@ -358,12 +392,13 @@ static herror_t _catalog_query_nodes(SoapCtx *req, SoapCtx *res)
 		sprintf(noderefpath, "%s%s", curnode.parent, curnode.child);
 
 		_catalog_append_resource_type(restypenode, curnode.resource.type);
-		_catalog_append_resource(resnode, noderefpath, curnode.resource, svcarr, 1);
+		_catalog_append_resource(resnode, noderefpath, curnode.resource, svcarr, proparr, 1);
 		_catalog_append_node(nodesnode, noderefpath, curnode, 1);
 	}
 
 	tf_catalog_free_node_array(nodearr);
 	tf_catalog_free_service_array(svcarr);
+	tf_catalog_free_property_array(proparr);
 
 	return H_OK;
 }
