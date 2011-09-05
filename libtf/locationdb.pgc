@@ -18,9 +18,9 @@
  */
 
 /**
- * @brief	Team Foundation location databse functions
+ * @brief   Team Foundation location databse functions
  *
- * @author	Bob Carroll (bob.carroll@alum.rit.edu)
+ * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
 #include <tf/locationdb.h>

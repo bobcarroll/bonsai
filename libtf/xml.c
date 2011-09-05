@@ -18,9 +18,9 @@
  */
 
 /**
- * @brief	XML utility functions
+ * @brief   XML utility functions
  *
- * @author	Bob Carroll (bob.carroll@alum.rit.edu)
+ * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
 #include <tf/xml.h>
@@ -28,53 +28,53 @@
 /**
  * Finds all XML nodes with the given XPath.
  *
- * @param parent -- the top-most node where the search begins
- * @param nsname -- the namespace name
- * @param nshref -- the namespace URI
- * @param expr -- the XPath expression to use
+ * @param parent    the top-most node where the search begins
+ * @param nsname    the namespace name
+ * @param nshref    the namespace URI
+ * @param expr      the XPath expression to use
  *
- * @returns an XML nodeset or NULL
+ * @return an XML nodeset or NULL
  */
 xmlXPathObject *tf_xml_find_all(xmlNode *parent, xmlChar *nsname, xmlChar *nshref, xmlChar *expr)
 {
-	xmlXPathContextPtr xpctx;
-	xmlXPathObjectPtr xpres;
+    xmlXPathContextPtr xpctx;
+    xmlXPathObjectPtr xpres;
 
-	if (parent == NULL || parent->doc == NULL || expr == NULL)
-		return NULL;
+    if (parent == NULL || parent->doc == NULL || expr == NULL)
+        return NULL;
 
-	xpctx = xmlXPathNewContext(parent->doc);
-	if (nsname != NULL)
-		xmlXPathRegisterNs(xpctx, nsname, nshref);
+    xpctx = xmlXPathNewContext(parent->doc);
+    if (nsname != NULL)
+        xmlXPathRegisterNs(xpctx, nsname, nshref);
 
-	xpres = xmlXPathEvalExpression(expr, xpctx);
-	xmlXPathFreeContext(xpctx);
+    xpres = xmlXPathEvalExpression(expr, xpctx);
+    xmlXPathFreeContext(xpctx);
 
-	return xpres;
+    return xpres;
 }
 
 /**
  * Finds the first XML node with the given XPath.
  *
- * @param parent -- the top-most node where the search begins
- * @param nsname -- the namespace name
- * @param nshref -- the namespace URI
- * @param expr -- the XPath expression to use
+ * @param parent    the top-most node where the search begins
+ * @param nsname    the namespace name
+ * @param nshref    the namespace URI
+ * @param expr      the XPath expression to use
  *
- * @returns the first matching node found or NULL
+ * @return the first matching node found or NULL
  */
 xmlNode *tf_xml_find_first(xmlNode *parent, xmlChar *nsname, xmlChar *nshref, xmlChar *expr)
 {
-	xmlXPathObject *xpres = tf_xml_find_all(parent, nsname, nshref, expr);
-	xmlNode *result = NULL;
+    xmlXPathObject *xpres = tf_xml_find_all(parent, nsname, nshref, expr);
+    xmlNode *result = NULL;
 
-	if (!xpres)
-		return NULL;
+    if (!xpres)
+        return NULL;
 
-	if (!xmlXPathNodeSetIsEmpty(xpres->nodesetval))
-		result = xpres->nodesetval->nodeTab[0];
+    if (!xmlXPathNodeSetIsEmpty(xpres->nodesetval))
+        result = xpres->nodesetval->nodeTab[0];
 
-	xmlXPathFreeObject(xpres);
-	return result;
+    xmlXPathFreeObject(xpres);
+    return result;
 }
 

@@ -18,9 +18,9 @@
  */
 
 /**
- * @brief	Team Foundation location service functions
+ * @brief   Team Foundation location service functions
  *
- * @author	Bob Carroll (bob.carroll@alum.rit.edu)
+ * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
 #include <string.h>
@@ -36,9 +36,9 @@
  */
 void tf_location_free_service(tf_location_service_t result)
 {
-	if (result.description != NULL)
-		free(result.description);
+    if (result.description != NULL)
+        free(result.description);
 
-	result.description = NULL;
+    result.description = NULL;
 }
 

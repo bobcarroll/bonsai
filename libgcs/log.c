@@ -18,9 +18,9 @@
  */
 
 /**
- * @brief	system logging
+ * @brief   system logging
  *
- * @author	Bob Carroll (bob.carroll@alum.rit.edu)
+ * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
 #include <string.h>
@@ -44,65 +44,65 @@ static FILE *_logfile = NULL;
  * eight character string. Calling functions should not
  * free the result.
  *
- * @param lev -- the log level value
+ * @param lev   the log level value
  *
- * @result the log level name
+ * @return the log level name
  */
 static char *_leveltostr(int lev)
 {
-	switch (lev) {
+    switch (lev) {
 
-	case GCS_LOG_FATAL:
-		return "Fatal   ";
+    case GCS_LOG_FATAL:
+        return "Fatal   ";
 
-	case GCS_LOG_CRITICAL:
-		return "Critical";
+    case GCS_LOG_CRITICAL:
+        return "Critical";
 
-	case GCS_LOG_ERROR:
-		return "Error   ";
+    case GCS_LOG_ERROR:
+        return "Error   ";
 
-	case GCS_LOG_WARN:
-		return "Warn    ";
+    case GCS_LOG_WARN:
+        return "Warn    ";
 
-	case GCS_LOG_NOTICE:
-		return "Notice  ";
+    case GCS_LOG_NOTICE:
+        return "Notice  ";
 
-	case GCS_LOG_INFO:
-		return "Info    ";
+    case GCS_LOG_INFO:
+        return "Info    ";
 
-	case GCS_LOG_DEBUG:
-		return "Debug   ";
+    case GCS_LOG_DEBUG:
+        return "Debug   ";
 
-	case GCS_LOG_TRACE:
-		return "Trace   ";
+    case GCS_LOG_TRACE:
+        return "Trace   ";
 
-	default:
-		return "Unknown ";
-	}
+    default:
+        return "Unknown ";
+    }
 }
 
 /**
  * Opens the log for writing. If "filename" is NULL then the log
  * output is written to stdout.
  *
- * @param filename -- the file to write the log to (optionally NULL)
- * @param ll -- the logging level
- * @param fg -- flag to enable writing to stdout even if filename isn't NULL
+ * @param filename  the file to write the log to (optionally NULL)
+ * @param ll        the logging level
+ * @param fg        flag to enable writing to stdout even if filename isn't NULL
  *
- * @param 1 on success, 0 on failure
+ * @return 1 on success, 0 on failure
  */
 int gcs_log_open(const char *filename, int ll, int fg)
 {
-	_loglevel = (ll >= GCS_LOG_FATAL) ? ll : GCS_LOG_FATAL;
-	_foreground = fg;
+    _loglevel = (ll >= GCS_LOG_FATAL) ? ll : GCS_LOG_FATAL;
+    _foreground = fg;
 
-	if (filename != NULL && (_logfile = fopen(filename, "a")) == NULL) {
-		gcslog_fatal("failed to open log file");
-		return 0;
-	}
+    if (filename != NULL && (_logfile = fopen(filename, "a")) == NULL) {
+        gcslog_fatal("failed to open log file");
+        return 0;
+    }
 
-	gcslog_notice("LOG OPEN");
-	return 1;
+    gcslog_notice("LOG OPEN");
+    return 1;
 }
 
 /**
@@ -111,71 +111,71 @@ int gcs_log_open(const char *filename, int ll, int fg)
  */
 void gcs_log_close()
 {
-	if (_logfile == NULL)
-		return;
+    if (_logfile == NULL)
+        return;
 
-	fclose(_logfile);
-	_logfile = NULL;
+    fclose(_logfile);
+    _logfile = NULL;
 }
 
 /**
  * Gets the current logging level.
  *
- * @param the log level value
+ * @return the log level value
  */
 int gcs_log_level()
 {
-	return _loglevel;
+    return _loglevel;
 }
 
 /**
  * Writes a message to the log file.
  *
- * @param lev -- the message priority
- * @param fn -- the calling function name
- * @param ln -- the calling line number
- * @param format -- message format string followed by format args
+ * @param lev       the message priority
+ * @param fn        the calling function name
+ * @param ln        the calling line number
+ * @param format    message format string followed by format args
  */
 void gcs_log_write(int lev, const char *fn, int ln, const char *format, ...)
 {
-	va_list args;
-	char *msgstr;
-	time_t timestamp;
-	char *datestr;
-	char *logstr;
+    va_list args;
+    char *msgstr;
+    time_t timestamp;
+    char *datestr;
+    char *logstr;
 
-	if (lev > _loglevel)
-		return;
+    if (lev > _loglevel)
+        return;
 
-	msgstr = (char *)alloca(MAX_LOG + 1);
-	logstr = (char *)alloca(MAX_LOG + 1);
+    msgstr = (char *)alloca(MAX_LOG + 1);
+    logstr = (char *)alloca(MAX_LOG + 1);
 
-	va_start(args, format);
-	vsnprintf(msgstr, MAX_LOG, format, args);
-	va_end(args);
+    va_start(args, format);
+    vsnprintf(msgstr, MAX_LOG, format, args);
+    va_end(args);
 
-	snprintf(logstr, 
-		 MAX_LOG, 
-		 "%d %15lu %s %s [%s:%d]\n", 
-		 (int)getpid(), 
-		 (unsigned long)pthread_self(), 
-		 _leveltostr(lev), 
-		 msgstr, 
-		 fn, 
-		 ln);
+    snprintf(logstr, 
+         MAX_LOG, 
+         "%d %15lu %s %s [%s:%d]\n", 
+         (int)getpid(), 
+         (unsigned long)pthread_self(), 
+         _leveltostr(lev), 
+         msgstr, 
+         fn, 
+         ln);
 
-	if (_foreground) {
-		printf("%s", logstr);
-		fflush(stdout);
-	}
+    if (_foreground) {
+        printf("%s", logstr);
+        fflush(stdout);
+    }
 
-	if (_logfile != NULL) {
-		timestamp = time(NULL);
-		datestr = ctime(&timestamp);
-		datestr[strlen(datestr) - 1] = '\0';
+    if (_logfile != NULL) {
+        timestamp = time(NULL);
+        datestr = ctime(&timestamp);
+        datestr[strlen(datestr) - 1] = '\0';
 
-		fprintf(_logfile, "%s %s", datestr, logstr);
-		fflush(_logfile);
-	}
+        fprintf(_logfile, "%s %s", datestr, logstr);
+        fflush(_logfile);
+    }
 }
 

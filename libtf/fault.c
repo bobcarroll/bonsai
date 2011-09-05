@@ -18,9 +18,9 @@
  */
 
 /**
- * @brief	SOAP fault helper functions
+ * @brief   SOAP fault helper functions
  *
- * @author	Bob Carroll (bob.carroll@alum.rit.edu)
+ * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
 #include <libxml/tree.h>
@@ -34,30 +34,30 @@
 /**
  * Generates a fault message in a SOAP envelope.
  *
- * @param code -- the fault code
- * @param msg -- the fault string
- * @param tferr -- the TF error code
- * @param out -- the SOAP envelope output buffer
+ * @param code  the fault code
+ * @param msg   the fault string
+ * @param tferr the TF error code
+ * @param out   the SOAP envelope output buffer
  *
- * @returns the fault detail node
+ * @return the fault detail node
  */
 xmlNode *tf_fault_env(int code, const char *msg, int tferr, SoapEnv **out)
 {
-	xmlNode *detailnode = NULL;
-	char tferrstr[10];
+    xmlNode *detailnode = NULL;
+    char tferrstr[10];
 
-	gcslog_info("SOAP Fault %d: %s", tferr, msg);
+    gcslog_info("SOAP Fault %d: %s", tferr, msg);
 
-	if (*out)
-		soap_env_free(*out);
+    if (*out)
+        soap_env_free(*out);
 
-	soap_env_new_with_fault(code, msg, "", "", out);
+    soap_env_new_with_fault(code, msg, "", "", out);
 
-	if ((detailnode = tf_xml_find_first((*out)->body, NULL, NULL, "//detail"))) {
-		snprintf(tferrstr, 10, "%d", tferr);
-		xmlNewChild(detailnode, NULL, "tferror", tferrstr);
-	}
+    if ((detailnode = tf_xml_find_first((*out)->body, NULL, NULL, "//detail"))) {
+        snprintf(tferrstr, 10, "%d", tferr);
+        xmlNewChild(detailnode, NULL, "tferror", tferrstr);
+    }
 
-	return detailnode;
+    return detailnode;
 }
 

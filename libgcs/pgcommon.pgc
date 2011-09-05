@@ -18,9 +18,9 @@
  */
 
 /**
- * @brief	common Postgres functions
+ * @brief   common Postgres functions
  *
- * @author	Bob Carroll (bob.carroll@alum.rit.edu)
+ * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
 #include <stdlib.h>
@@ -32,69 +32,69 @@
 /**
  * Connects to the database.
  *
- * @param dsn -- the database source name in the form of dbname[@hostname][:port]
- * @param username -- the username to connect as
- * @param passwd -- the user password
- * @param maxconns -- the maximum number of connections to open
+ * @param dsn       the database source name in the form of dbname[@hostname][:port]
+ * @param username  the username to connect as
+ * @param passwd    the user password
+ * @param maxconns  the maximum number of connections to open
  *
- * @returns 1 on success, 0 on failure
+ * @return 1 on success, 0 on failure
  *
  * @seealso http://www.postgresql.org/docs/9.0/static/ecpg-connect.html
  */
 int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, int maxconns)
 {
-	gcslog_info("connecting to %s as %s", dsn, username);
+    gcslog_info("connecting to %s as %s", dsn, username);
 
-	EXEC SQL BEGIN DECLARE SECTION;
-	const char *dsnval = dsn;
-	const char *usernameval = username;
-	const char *passwdval = passwd;
-	char *connval = (char *)alloca(sizeof(char) * 10);
-	EXEC SQL END DECLARE SECTION;
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *dsnval = dsn;
+    const char *usernameval = username;
+    const char *passwdval = passwd;
+    char *connval = (char *)alloca(sizeof(char) * 10);
+    EXEC SQL END DECLARE SECTION;
 
-	gcs_ctxpool_init(maxconns);
+    gcs_ctxpool_init(maxconns);
 
-	EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL WHENEVER SQLERROR GOTO error;
 
-	int i;
-	for (i = 0; i < maxconns; i++) {
-		sprintf(connval, "conn%d", i);
+    int i;
+    for (i = 0; i < maxconns; i++) {
+        sprintf(connval, "conn%d", i);
 
-		EXEC SQL CONNECT TO :dsnval AS :connval USER :usernameval USING :passwdval;
-		gcs_pgctx_alloc(connval);
-	}
+        EXEC SQL CONNECT TO :dsnval AS :connval USER :usernameval USING :passwdval;
+        gcs_pgctx_alloc(connval);
+    }
 
-	gcslog_notice("connected to PG (%s)", dsn);
-	return 1;
+    gcslog_notice("connected to PG (%s)", dsn);
+    return 1;
 
 error:
-	gcslog_error(sqlca.sqlerrm.sqlerrmc);
-	return 0;
+    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    return 0;
 }
 
 /**
  * Disconnects all open connections to the database, and frees
  * all associated resources.
  *
- * @returns 1 on success, 0 on failure
+ * @return 1 on success, 0 on failure
  */
 int gcs_pg_disconnect()
 {
-	gcslog_info("disconnecting from PG");
+    gcslog_info("disconnecting from PG");
 
-	EXEC SQL BEGIN DECLARE SECTION;
-	const char *connval = NULL;
-	EXEC SQL END DECLARE SECTION;
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *connval = NULL;
+    EXEC SQL END DECLARE SECTION;
 
-	EXEC SQL WHENEVER SQLERROR GOTO error;
-	EXEC SQL DISCONNECT ALL;
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL DISCONNECT ALL;
 
-	gcs_ctxpool_free();
-	
-	return 1;
+    gcs_ctxpool_free();
+    
+    return 1;
 
 error:
-	gcslog_error(sqlca.sqlerrm.sqlerrmc);
-	return 0;
+    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    return 0;
 }
 
