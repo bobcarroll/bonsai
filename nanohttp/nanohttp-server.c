@@ -37,7 +37,6 @@
 
 #ifdef HAVE_NTLM
 #include <ntlm.h>
-static int _httpd_ntlm_step = 0;
 #define NTLM_BUF_SIZE 512
 #endif
 
@@ -218,7 +217,6 @@ httpd_register_secure(const char *ctx, httpd_service func, httpd_auth auth)
 
   service->next = NULL;
   service->auth = auth;
-  service->authmode = NANOHTTPD_AUTHMODE_NTLM; /* TODO bob */
   service->func = func;
   strcpy(service->ctx, ctx);
 
@@ -569,9 +567,8 @@ _httpd_decode_authorization(const char *value, char **user, char **pass)
 }
 
 static int
-_httpd_authenticate_request(hrequest_t * req, httpd_auth auth, int authmode, char **authdata)
+_httpd_authenticate_request(hrequest_t * req, httpd_auth auth, char **authdata)
 {
-  char *user, *pass;
   char *authorization;
   int ret = 0;
 #ifdef HAVE_NTLM
@@ -593,80 +590,60 @@ _httpd_authenticate_request(hrequest_t * req, httpd_auth auth, int authmode, cha
        hpairnode_get_ignore_case(req->header, HEADER_AUTHORIZATION)))
   {
     gcslog_debug("%s header not set", HEADER_AUTHORIZATION);
+#ifdef HAVE_NTLM
+    (*authdata) = strdup("NTLM");
+#endif
     return 0;
   }
 
-  if (authmode == NANOHTTPD_AUTHMODE_BASIC)
-  {
-    if (_httpd_decode_authorization(authorization, &user, &pass))
-    {
-      gcslog_error("httpd_base64_decode_failed");
-      return 0;
-    }
-
-    if ((ret = auth(req, user, pass)))
-      gcslog_debug("Access granted for user=\"%s\"", user);
-    else
-      gcslog_info("Authentication failed for user=\"%s\"", user);
-
-    free(user);
-    free(pass);
-  }
 #ifdef HAVE_NTLM
-  else if (authmode == NANOHTTPD_AUTHMODE_NTLM)
+  if (strlen(authorization) < 6 || strncmp(authorization, "NTLM ", 5) != 0)
   {
-    if (strlen(authorization) < 6 || strncmp(authorization, "NTLM ", 5) != 0)
-    {
-      gcslog_error("Received malformed NTLM authorization");
-      return 0;
-    }
+    gcslog_error("Received malformed NTLM authorization");
+    return 0;
+  }
 
+  ntlmBase64_pton(authorization + 5,
+                  (unsigned char *) &msg,
+                  sizeof(tSmbNtlmAuthMessage));
+
+  if (gcs_log_level() == GCS_LOG_TRACE)
+    dumpSmbNtlmAuthMessage(stdout, &msg);
+
+  if (msg.msgType == NTLMSSP_MSGTYPE_NEGOTIATE)
+  {
     ntlmBase64_pton(authorization + 5,
-                    (unsigned char *) &msg,
-                    sizeof(tSmbNtlmAuthMessage));
+                    (unsigned char *) &request,
+                    sizeof(tSmbNtlmAuthRequest));
 
     if (gcs_log_level() == GCS_LOG_TRACE)
-    	dumpSmbNtlmAuthMessage(stdout, &msg);
+      dumpSmbNtlmAuthRequest(stdout, &request);
 
-    if (msg.msgType == NTLMSSP_MSGTYPE_NEGOTIATE)
-    {
-      ntlmBase64_pton(authorization + 5,
-                      (unsigned char *) &request,
-                      sizeof(tSmbNtlmAuthRequest));
+    bzero(&challenge, sizeof(tSmbNtlmAuthChallenge));
+    buildSmbNtlmAuthChallenge(&request, &challenge, "FOOBIE"); /* TODO bob */
 
-      if (gcs_log_level() == GCS_LOG_TRACE)
-        dumpSmbNtlmAuthRequest(stdout, &request);
+    if (gcs_log_level() == GCS_LOG_TRACE)
+      dumpSmbNtlmAuthChallenge(stdout, &challenge);
 
-      bzero(&challenge, sizeof(tSmbNtlmAuthChallenge));
-      buildSmbNtlmAuthChallenge(&request, &challenge, "FOOBIE");
+    bufpos = ntlmBase64_ntop((unsigned char *) &challenge,
+                             SmbLength(&challenge),
+                             ntlmbuf,
+                             NTLM_BUF_SIZE);
+    (*authdata) = (char *)calloc(strlen(ntlmbuf) + 6, sizeof(char));
+    sprintf(*authdata, "NTLM %s", ntlmbuf);
+  }
+  else if (msg.msgType == NTLMSSP_MSGTYPE_RESPONSE)
+  {
+    ntlmBase64_pton(authorization + 5,
+                    (unsigned char *) &response,
+                    sizeof(tSmbNtlmAuthResponse));
 
-      if (gcs_log_level() == GCS_LOG_TRACE)
-        dumpSmbNtlmAuthChallenge(stdout, &challenge);
+    if (gcs_log_level() == GCS_LOG_TRACE)
+      dumpSmbNtlmAuthResponse(stdout, &response);
 
-      bufpos = ntlmBase64_ntop((unsigned char *) &challenge,
-                               SmbLength(&challenge),
-                               ntlmbuf,
-                               NTLM_BUF_SIZE);
-      (*authdata) = strdup(ntlmbuf);
-    }
-    else if (msg.msgType == NTLMSSP_MSGTYPE_RESPONSE)
-    {
-      ntlmBase64_pton(authorization + 5,
-                      (unsigned char *) &response,
-                      sizeof(tSmbNtlmAuthResponse));
-
-      if (gcs_log_level() == GCS_LOG_TRACE)
-        dumpSmbNtlmAuthResponse(stdout, &response);
-
-      ret = 1;	/* TODO bob */
-    }
+    ret = 1;	/* TODO bob */
   }
 #endif
-  else
-  {
-    gcslog_error("Unsupported authentication mode (%d)", authmode);
-    return 0;
-  }
 
   return ret;
 }
@@ -690,7 +667,6 @@ httpd_session_main(void *data)
   hservice_t *service;
   herror_t status;
   char *authdata;
-  char authhdr[1024];
   int done;
 
   conn = (conndata_t *) data;
@@ -742,7 +718,7 @@ httpd_session_main(void *data)
       {
         gcslog_debug("service '%s' for '%s' found", service->ctx, req->path);
 
-        if (_httpd_authenticate_request(req, service->auth, service->authmode, &authdata))
+        if (_httpd_authenticate_request(req, service->auth, &authdata))
         {
           if (service->func != NULL)
           {
@@ -777,25 +753,11 @@ httpd_session_main(void *data)
             "</body>"
             "</html>";
 
-          if (service->authmode == NANOHTTPD_AUTHMODE_BASIC)
+          if (authdata)
           {
-            httpd_set_header(rconn, HEADER_WWW_AUTHENTICATE,
-                             "Basic realm=\"nanoHTTP\"");
+            httpd_set_header(rconn, HEADER_WWW_AUTHENTICATE, authdata);
+            free(authdata);
           }
-#ifdef HAVE_NTLM
-          else if (service->authmode == NANOHTTPD_AUTHMODE_NTLM)
-          {
-            if (authdata == NULL)
-              sprintf(authhdr, "NTLM");
-            else
-            {
-              sprintf(authhdr, "NTLM %s", authdata);
-              //free(authdata);
-            }
-
-            httpd_set_header(rconn, HEADER_WWW_AUTHENTICATE, authhdr);
-          }
-#endif
 
           char templsz[1024];
           sprintf(templsz, "%lu", (unsigned long)strlen(template));

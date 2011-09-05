@@ -57,16 +57,9 @@ typedef struct tag_hservice
   char ctx[255];
   httpd_service func;
   httpd_auth auth;
-  int authmode;
   struct tag_hservice *next;
 }
 hservice_t;
-
-
-#define NANOHTTPD_AUTHMODE_BASIC   0
-#ifdef HAVE_NTLM
-#define NANOHTTPD_AUTHMODE_NTLM    1
-#endif
 
 
 #ifdef __cplusplus
