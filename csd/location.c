@@ -30,7 +30,7 @@
 #include <tf/webservices.h>
 #include <tf/xml.h>
 
-static void _location_build_auth_node(xmlNode *parent)
+static void _build_auth_node(xmlNode *parent)
 {
     xmlNode *authuser = xmlNewChild(parent, NULL, "AuthenticatedUser", "");
     xmlNewProp(authuser, "DisplayName", "Bob Carroll");
@@ -70,7 +70,7 @@ static void _location_build_auth_node(xmlNode *parent)
     xmlNode *memberof = xmlNewChild(authuser, NULL, "MemberOf", NULL);
 }
 
-static void _location_build_authz_node(xmlNode *parent)
+static void _build_authz_node(xmlNode *parent)
 {
     xmlNode *authzuser = xmlNewChild(parent, NULL, "AuthorizedUser", NULL);
     xmlNewProp(authzuser, "DisplayName", "Bob Carroll");
@@ -110,7 +110,7 @@ static void _location_build_authz_node(xmlNode *parent)
     xmlNode *authzmemberof = xmlNewChild(authzuser, NULL, "MemberOf", NULL);
 }
 
-static void _location_build_service_list(xmlNode *parent, int inclservices)
+static void _build_service_list(xmlNode *parent, int inclservices)
 {
     xmlNode *locdata = xmlNewChild(parent, NULL, "LocationServiceData", NULL);
     xmlNewProp(locdata, "DefaultAccessMappingMoniker", "PublicAccessMapping");
@@ -170,7 +170,7 @@ static void _location_build_service_list(xmlNode *parent, int inclservices)
  *
  * @return H_OK on success
  */
-static herror_t _location_connect(SoapCtx *req, SoapCtx *res)
+static herror_t _connect(SoapCtx *req, SoapCtx *res)
 {
     xmlNode *cmd;
     xmlNode *arg;
@@ -195,14 +195,14 @@ static herror_t _location_connect(SoapCtx *req, SoapCtx *res)
     xmlNewProp(connresult, "InstanceId", "bed36b22-8b2a-464b-8702-8df2dbc413fe");
     xmlNewProp(connresult, "CatalogResourceId", "e06e112f-0c57-4611-b88d-49a4eff6f52a");
 
-    _location_build_auth_node(connresult);
-    _location_build_authz_node(connresult);
-    _location_build_service_list(connresult, inclservices);
+    _build_auth_node(connresult);
+    _build_authz_node(connresult);
+    _build_service_list(connresult, inclservices);
 
     return H_OK;
 }
 
-static int _location_auth_ntlm(SoapEnv *env, const char *user, const char *passwd)
+static int _auth_ntlm(SoapEnv *env, const char *user, const char *passwd)
 {
     return 0;
 }
@@ -218,14 +218,14 @@ void location_service_init(SoapRouter **router, const char *prefix)
     char url[1024];
 
     (*router) = soap_router_new();
-    soap_router_register_security(*router, (httpd_auth)_location_auth_ntlm);
+    soap_router_register_security(*router, (httpd_auth)_auth_ntlm);
 
     sprintf(url, "%s%s", prefix != NULL ? prefix : "", TF_LOCATION_SERVICE_ENDPOINT);
     soap_server_register_router(*router, url);
 
     soap_router_register_service(
         *router,
-        _location_connect,
+        _connect,
         "Connect",
         TF_DEFAULT_NAMESPACE);
 

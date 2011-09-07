@@ -38,7 +38,7 @@
  * @param parent    the parent node to attach to
  * @param type      resource type info for the new node
  */
-static void _catalog_append_resource_type(xmlNode *parent, tf_catalog_resource_type_t type)
+static void _append_resource_type(xmlNode *parent, tf_catalog_resource_type_t type)
 {
     xmlNode *crtnode = xmlNewChild(parent, NULL, "CatalogResourceType", NULL);
     xmlNewProp(crtnode, "Identifier", type.id);
@@ -54,7 +54,7 @@ static void _catalog_append_resource_type(xmlNode *parent, tf_catalog_resource_t
  * @param parent    the parent node to attach to
  * @param ref       service reference info for the new node
  */
-static void _catalog_append_service_ref(xmlNode *parent, tf_catalog_service_t ref)
+static void _append_service_ref(xmlNode *parent, tf_catalog_service_t ref)
 {
     char reltosettingstr[6];
     snprintf(reltosettingstr, 6, "%d", ref.service.reltosetting);
@@ -86,7 +86,7 @@ static void _catalog_append_service_ref(xmlNode *parent, tf_catalog_service_t re
  * @param service   matching catalog service references
  * @param matched
  */
-static void _catalog_append_resource(xmlNode *parent, const char *path, tf_catalog_resource_t resource,
+static void _append_resource(xmlNode *parent, const char *path, tf_catalog_resource_t resource,
     tf_catalog_service_array_t services, tf_catalog_property_array_t properties, int matched)
 {
     int i;
@@ -110,7 +110,7 @@ static void _catalog_append_resource(xmlNode *parent, const char *path, tf_catal
         if (strcmp(resource.id, cursvc.id) != 0)
             continue;
 
-        _catalog_append_service_ref(refsnode, cursvc);
+        _append_service_ref(refsnode, cursvc);
     }
 
     xmlNode *propsnode = xmlNewChild(crnode, NULL, "Properties", NULL);
@@ -138,7 +138,7 @@ static void _catalog_append_resource(xmlNode *parent, const char *path, tf_catal
  * @param node      catalog node info for the new node
  * @param matched
  */
-static void _catalog_append_node(xmlNode *parent, const char *path, tf_catalog_node_t node, int matched)
+static void _append_node(xmlNode *parent, const char *path, tf_catalog_node_t node, int matched)
 {
     xmlNode *cnnode = xmlNewChild(parent, NULL, "CatalogNode", NULL);
     xmlNewProp(cnnode, "FullPath", path);
@@ -160,7 +160,7 @@ static void _catalog_append_node(xmlNode *parent, const char *path, tf_catalog_n
  *
  * @return H_OK on success
  */
-static herror_t _catalog_query_resources(SoapCtx *req, SoapCtx *res)
+static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
 {
     xmlNode *body = req->env->body;
     xmlXPathObject *xpres;
@@ -266,9 +266,9 @@ static herror_t _catalog_query_resources(SoapCtx *req, SoapCtx *res)
             (strlen(curnode.parent) + strlen(curnode.child) + 1));
         sprintf(noderefpath, "%s%s", curnode.parent, curnode.child);
 
-        _catalog_append_resource_type(restypenode, curnode.resource.type);
-        _catalog_append_resource(resnode, noderefpath, curnode.resource, svcarr, proparr, 1);
-        _catalog_append_node(nodesnode, noderefpath, curnode, 0);
+        _append_resource_type(restypenode, curnode.resource.type);
+        _append_resource(resnode, noderefpath, curnode.resource, svcarr, proparr, 1);
+        _append_node(nodesnode, noderefpath, curnode, 0);
     }
 
     tf_catalog_free_node_array(nodearr);
@@ -286,7 +286,7 @@ static herror_t _catalog_query_resources(SoapCtx *req, SoapCtx *res)
  *
  * @return H_OK on success
  */
-static herror_t _catalog_query_nodes(SoapCtx *req, SoapCtx *res)
+static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
 {
     xmlNode *body = req->env->body;
     xmlXPathObject *xpres;
@@ -391,9 +391,9 @@ static herror_t _catalog_query_nodes(SoapCtx *req, SoapCtx *res)
             (strlen(curnode.parent) + strlen(curnode.child) + 1));
         sprintf(noderefpath, "%s%s", curnode.parent, curnode.child);
 
-        _catalog_append_resource_type(restypenode, curnode.resource.type);
-        _catalog_append_resource(resnode, noderefpath, curnode.resource, svcarr, proparr, 1);
-        _catalog_append_node(nodesnode, noderefpath, curnode, 1);
+        _append_resource_type(restypenode, curnode.resource.type);
+        _append_resource(resnode, noderefpath, curnode.resource, svcarr, proparr, 1);
+        _append_node(nodesnode, noderefpath, curnode, 1);
     }
 
     tf_catalog_free_node_array(nodearr);
@@ -403,7 +403,7 @@ static herror_t _catalog_query_nodes(SoapCtx *req, SoapCtx *res)
     return H_OK;
 }
 
-static int _catalog_auth_ntlm(SoapEnv *env, const char *user, const char *passwd)
+static int _auth_ntlm(SoapEnv *env, const char *user, const char *passwd)
 {
     return 0;
 }
@@ -419,19 +419,19 @@ void catalog_service_init(SoapRouter **router, const char *prefix)
     char url[1024];
 
     (*router) = soap_router_new();
-    soap_router_register_security(*router, (httpd_auth)_catalog_auth_ntlm);
+    soap_router_register_security(*router, (httpd_auth)_auth_ntlm);
 
     sprintf(url, "%s%s", prefix != NULL ? prefix : "", TF_CATALOG_SERVICE_ENDPOINT);
     soap_server_register_router(*router, url);
 
     soap_router_register_service(
         *router,
-        _catalog_query_resources,
+        _query_resources,
         "QueryResources",
         TF_DEFAULT_NAMESPACE);
     soap_router_register_service(
         *router,
-        _catalog_query_nodes,
+        _query_nodes,
         "QueryNodes",
         TF_DEFAULT_NAMESPACE);
 
