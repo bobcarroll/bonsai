@@ -1,5 +1,5 @@
 /**
- * GCS - open source group collaboration and application lifecycle management
+ * Bonsai - open source group collaboration and application lifecycle management
  * Copyright (c) 2011 Bob Carroll
  *
  * This program is free software; you can redistribute it and/or modify
