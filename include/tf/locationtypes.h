@@ -19,11 +19,26 @@
 
 #pragma once
 
+#define TF_LOCATION_ACCMAP_MONIKER_MAXLEN       128
+#define TF_LOCATION_ACCMAP_DISPLNAME_MAXLEN     256
+
 #define TF_LOCATION_SERVICE_NAME_MAXLEN         257
 #define TF_LOCATION_SERVICE_ID_MAXLEN           37
 #define TF_LOCATION_SERVICE_REL_PATH_MAXLEN     257
 #define TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN    257
 #define TF_LOCATION_SERVICE_TYPE_MAXLEN         257
+
+typedef struct {
+    char moniker[TF_LOCATION_ACCMAP_MONIKER_MAXLEN];
+    char name[TF_LOCATION_ACCMAP_DISPLNAME_MAXLEN];
+    char *apuri;
+    int fdefault;
+} tf_location_accmap_t;
+
+typedef struct {
+    tf_location_accmap_t *items;
+    int count;
+} tf_location_accmap_array_t;
 
 typedef struct {
     char id[TF_LOCATION_SERVICE_ID_MAXLEN];
@@ -35,4 +50,9 @@ typedef struct {
     char *description;
     char tooltype[TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN];
 } tf_location_service_t;
+
+typedef struct {
+    tf_location_service_t *items;
+    int count;
+} tf_location_service_array_t;
 

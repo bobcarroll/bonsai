@@ -29,6 +29,60 @@
 #include <tf/location.h>
 
 /**
+ * Finds the default access mapping in the given array. Calling functions
+ * should free the return value;
+ *
+ * @param array     access mapping array
+ *
+ * @return the default access mapping moniker, or NULL if none is found
+ */
+char *tf_location_find_default_accmap(tf_location_accmap_array_t array)
+{
+    int i;
+    for (i = 0; i < array.count; i++) {
+        tf_location_accmap_t accmap = array.items[i];
+
+        if (accmap.fdefault)
+            return strdup(accmap.moniker);
+    }
+
+    return NULL;
+}
+
+/**
+ * Frees memory associated with an access mapping, but not the
+ * service itself.
+ *
+ * @param result
+ */
+void tf_location_free_accmap(tf_location_accmap_t result)
+{
+    if (result.apuri != NULL)
+        free(result.apuri);
+
+    result.apuri = NULL;
+}
+
+/**
+ * Frees memory associated with a location service array, but not
+ * the array itself.
+ *
+ * @param result
+ */
+void tf_location_free_accmap_array(tf_location_accmap_array_t result)
+{
+    if (result.items != NULL && result.count > 0) {
+        int i;
+        for (i = 0; i < result.count; i++)
+            tf_location_free_accmap(result.items[i]);
+
+        free(result.items);
+    }
+
+    result.items = NULL;
+}
+
+/**
  * Frees memory associated with a service, but not the
  * service itself.
  *
@@ -40,5 +94,24 @@ void tf_location_free_service(tf_location_service_t result)
         free(result.description);
 
     result.description = NULL;
+}
+
+/**
+ * Frees memory associated with a location service array, but not
+ * the array itself.
+ *
+ * @param result
+ */
+void tf_location_free_service_array(tf_location_service_array_t result)
+{
+    if (result.items != NULL && result.count > 0) {
+        int i;
+        for (i = 0; i < result.count; i++)
+            tf_location_free_service(result.items[i]);
+
+        free(result.items);
+    }
+
+    result.items = NULL;
 }
 

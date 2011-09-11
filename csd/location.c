@@ -27,6 +27,8 @@
 
 #include <gcs/log.h>
 
+#include <tf/location.h>
+#include <tf/locationdb.h>
 #include <tf/webservices.h>
 #include <tf/xml.h>
 
@@ -110,56 +112,73 @@ static void _build_authz_node(xmlNode *parent)
     xmlNode *authzmemberof = xmlNewChild(authzuser, NULL, "MemberOf", NULL);
 }
 
-static void _build_service_list(xmlNode *parent, int inclservices)
+/**
+ * Appends a LocationServiceData node to the given parent node.
+ *
+ * @param parent        the parent node to attach to
+ * @param svcarr        service definitions array
+ * @param accmaparr     access mapping array
+ * @param inclall       flag to include all service definitions
+ */
+static void _append_location_data(xmlNode *parent, tf_location_service_array_t svcarr, 
+    tf_location_accmap_array_t accmaparr, int inclall)
 {
-    xmlNode *locdata = xmlNewChild(parent, NULL, "LocationServiceData", NULL);
-    xmlNewProp(locdata, "DefaultAccessMappingMoniker", "PublicAccessMapping");
-    xmlNewProp(locdata, "LastChangeId", "2565");
-    xmlNewProp(locdata, "ClientCacheFresh", "true");
-    xmlNewProp(locdata, "AccessPointsDoNotIncludeWebAppRelativeDirectory", "false");
+    int i;
 
-    if (inclservices) {
-        xmlNode *servicedefs = xmlNewChild(locdata, NULL, "ServiceDefinitions", NULL);
-
-        xmlNode *sd1 = xmlNewChild(servicedefs, NULL, "ServiceDefinition", NULL);
-        xmlNewProp(sd1, "serviceType", "CatalogService");
-        xmlNewProp(sd1, "identifier", "c2f9106f-127a-45b7-b0a3-e0ad8239a2a7");
-        xmlNewProp(sd1, "displayName", "Catalog Service");
-        xmlNewProp(sd1, "relativeToSetting", "0");
-        xmlNewProp(sd1, "relativePath", "/TeamFoundation/Administration/v3.0/CatalogService.asmx");
-        xmlNewProp(sd1, "description", "Catalog Service for Visual Studio Team Foundation Server.");
-        xmlNewProp(sd1, "toolId", "Framework");
-
-        xmlNode *sd2 = xmlNewChild(servicedefs, NULL, "ServiceDefinition", NULL);
-        xmlNewProp(sd2, "serviceType", "LocationService");
-        xmlNewProp(sd2, "identifier", "bf9cf1d0-24ac-4d35-aeca-6cd18c69c1fe");
-        xmlNewProp(sd2, "displayName", "Location Service");
-        xmlNewProp(sd2, "relativeToSetting", "0");
-        xmlNewProp(sd2, "relativePath", "/TeamFoundation/Administration/v3.0/LocationService.asmx");
-        xmlNewProp(sd2, "description", "Location Service for Visual Studio Team Foundation Server.");
-        xmlNewProp(sd2, "toolId", "Framework");
-
-        xmlNode *sd3 = xmlNewChild(servicedefs, NULL, "ServiceDefinition", NULL);
-        xmlNewProp(sd3, "serviceType", "LocationService");
-        xmlNewProp(sd3, "identifier", "75ce4f73-3c70-4770-8e95-a4413d2d6a78");
-        xmlNewProp(sd3, "displayName", "Location Service");
-        xmlNewProp(sd3, "relativeToSetting", "0");
-        xmlNewProp(sd3, "relativePath", "/Foobie/Services/v3.0/LocationService.asmx");
-        xmlNewProp(sd3, "description", "Location Service for Visual Studio Team Foundation Server.");
-        xmlNewProp(sd3, "toolId", "Framework");
-
-        xmlNode *accessmappings = xmlNewChild(locdata, NULL, "AccessMappings", NULL);
-
-        xmlNode *am1 = xmlNewChild(accessmappings, NULL, "AccessMapping", NULL);
-        xmlNewProp(am1, "DisplayName", "Public Access Mapping");
-        xmlNewProp(am1, "Moniker", "PublicAccessMapping");
-        xmlNewProp(am1, "AccessPoint", "http://zim.unifieddiff.net:8080/tfs");
-
-        xmlNode *am2 = xmlNewChild(accessmappings, NULL, "AccessMapping", NULL);
-        xmlNewProp(am2, "DisplayName", "Server Access Mapping");
-        xmlNewProp(am2, "Moniker", "ServerAccessMapping");
-        xmlNewProp(am2, "AccessPoint", "http://localhost:8080/tfs");
+    char *defmoniker = tf_location_find_default_accmap(accmaparr);
+    if (defmoniker) {
+        xmlNewProp(parent, "DefaultAccessMappingMoniker", defmoniker);
+        free(defmoniker);
     }
+
+    xmlNewProp(parent, "LastChangeId", "2565"); /* TODO */
+    xmlNewProp(parent, "ClientCacheFresh", "true"); /* TODO */
+    xmlNewProp(parent, "AccessPointsDoNotIncludeWebAppRelativeDirectory", "false"); /* TODO */
+
+    xmlNode *svcdefs = xmlNewChild(parent, NULL, "ServiceDefinitions", NULL);
+
+    if (inclall) {
+        for (i = 0; i < svcarr.count; i++ )
+            location_append_service(svcdefs, svcarr.items[i]);
+    }
+
+    xmlNode *accessmappings = xmlNewChild(parent, NULL, "AccessMappings", NULL);
+
+    for (i = 0; i < accmaparr.count; i++) {
+        tf_location_accmap_t accmap = accmaparr.items[i];
+
+        xmlNode *am = xmlNewChild(accessmappings, NULL, "AccessMapping", NULL);
+        xmlNewProp(am, "DisplayName", accmap.name);
+        xmlNewProp(am, "Moniker", accmap.moniker);
+        xmlNewProp(am, "AccessPoint", accmap.apuri);
+    }
+}
+
+/**
+ * Appends a ServiceDefinition node to the given parent node.
+ *
+ * @param parent    the parent node to attach to
+ * @param ref       service info for the new node
+ */
+void location_append_service(xmlNode *parent, tf_location_service_t svcdef)
+{
+    char reltosettingstr[6];
+    snprintf(reltosettingstr, 6, "%d", svcdef.reltosetting);
+
+    xmlNode *sdnode = xmlNewChild(parent, NULL, "ServiceDefinition", NULL);
+    xmlNewProp(sdnode, "serviceType", svcdef.type);
+    xmlNewProp(sdnode, "identifier", svcdef.id);
+    xmlNewProp(sdnode, "displayName", svcdef.name);
+    xmlNewProp(sdnode, "relativeToSetting", reltosettingstr);
+
+    if (strcmp(svcdef.relpath, "") != 0)
+        xmlNewProp(sdnode, "relativePath", svcdef.relpath);
+
+    xmlNewProp(sdnode, "description", svcdef.description);
+    xmlNewProp(sdnode, "toolId", svcdef.tooltype);
+
+    /* TODO */
+    xmlNewChild(sdnode, NULL, "LocationMappings", NULL);
 }
 
 /**
@@ -172,32 +191,152 @@ static void _build_service_list(xmlNode *parent, int inclservices)
  */
 static herror_t _connect(SoapCtx *req, SoapCtx *res)
 {
-    xmlNode *cmd;
+    xmlNode *body = req->env->body;
+    xmlXPathObject *xpres;
     xmlNode *arg;
-    xmlNode *body;
-    xmlNode *connresult;
-    int inclservices;
-    char *lastchgid;
+    tf_location_service_array_t svcarr;
+    tf_location_accmap_array_t accmaparr;
+    tf_error_t dberr;
+    int inclservices = 0;
+    int lastchgid = -1;
 
-    cmd = soap_env_get_method(req->env);
+    arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:connectOptions/text()");
+    if (arg != NULL)
+        inclservices = atoi(arg->content);
+
+    arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:lastChangeId/text()");
+    if (arg != NULL)
+        lastchgid = atoi(arg->content);
+
+    xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:serviceTypeFilters/m:ServiceTypeFilter");
+    if (xpres != NULL && xpres->nodesetval != NULL) {
+        /*pathspec = (char **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(char *));
+
+        for (i = 0; i < xpres->nodesetval->nodeNr; i++)
+            pathspec[i] = strdup(xpres->nodesetval->nodeTab[i]->content);*/
+
+        xmlXPathFreeObject(xpres);
+    } else if (xpres != NULL) {
+        //pathspec = (char **)calloc(1, sizeof(char *));
+        xmlXPathFreeObject(xpres);
+    }
+
+    bzero(&svcarr, sizeof(tf_location_service_array_t));
+    bzero(&accmaparr, sizeof(tf_location_accmap_array_t));
+
+    if (inclservices) {
+        /* TODO check last changed ID */
+        dberr = tf_location_fetch_services(&svcarr);
+
+        /* TODO free service type filters */
+
+        if (dberr != TF_ERROR_SUCCESS) {
+            tf_fault_env(
+                    Fault_Server, 
+                    "Failed to retrieve service definitions from the database", 
+                    dberr, 
+                    &res->env);
+            return H_OK;
+        }
+    }
+
+    dberr = tf_location_fetch_accmap(&accmaparr);
+    if (dberr != TF_ERROR_SUCCESS) {
+        tf_location_free_service_array(svcarr);
+        tf_fault_env(
+                Fault_Server, 
+                "Failed to retrieve service definitions from the database", 
+                dberr, 
+                &res->env);
+        return H_OK;
+    }
+
+    xmlNode *cmd = soap_env_get_method(req->env);
     soap_env_new_with_method(cmd->ns->href, "ConnectResponse", &res->env);
-    body = req->env->body;
 
-    arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:Connect/m:connectOptions");
-    if (arg != NULL && arg->children != NULL)
-        inclservices = (strcmp(arg->children->content, "1") == 0);
+    xmlNode *connresult = xmlNewChild(res->env->body->children->next, NULL, "ConnectResult", NULL);
+    xmlNewProp(connresult, "InstanceId", "bed36b22-8b2a-464b-8702-8df2dbc413fe"); /* TODO */
+    xmlNewProp(connresult, "CatalogResourceId", "e06e112f-0c57-4611-b88d-49a4eff6f52a"); /* TODO */
 
-    arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:Connect/lastChangeId");
-    if (arg != NULL && arg->children != NULL)
-        lastchgid = arg->children->content;
+    _build_auth_node(connresult); /* TODO */
+    _build_authz_node(connresult); /* TODO */
 
-    connresult = xmlNewChild(res->env->body->children->next, NULL, "ConnectResult", NULL);
-    xmlNewProp(connresult, "InstanceId", "bed36b22-8b2a-464b-8702-8df2dbc413fe");
-    xmlNewProp(connresult, "CatalogResourceId", "e06e112f-0c57-4611-b88d-49a4eff6f52a");
+    xmlNode *locdata = xmlNewChild(connresult, NULL, "LocationServiceData", NULL);
+    _append_location_data(locdata, svcarr, accmaparr, inclservices);
 
-    _build_auth_node(connresult);
-    _build_authz_node(connresult);
-    _build_service_list(connresult, inclservices);
+    tf_location_free_service_array(svcarr);
+    tf_location_free_accmap_array(accmaparr);
+
+    return H_OK;
+}
+
+/**
+ * Location SOAP service handler for QueryServices.
+ *
+ * @param req   SOAP request context
+ * @param res   SOAP response context
+ *
+ * @return H_OK on success
+ */
+static herror_t _query_services(SoapCtx *req, SoapCtx *res)
+{
+    xmlNode *body = req->env->body;
+    xmlXPathObject *xpres;
+    tf_location_service_array_t svcarr;
+    tf_location_accmap_array_t accmaparr;
+    tf_error_t dberr;
+    int lastchgid = -1;
+
+    xmlNode *arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:lastChangeId/text()");
+    if (arg != NULL)
+        lastchgid = atoi(arg->content);
+
+    xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:serviceTypeFilters/m:ServiceTypeFilter");
+    if (xpres != NULL && xpres->nodesetval != NULL) {
+        /*pathspec = (char **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(char *));
+
+        for (i = 0; i < xpres->nodesetval->nodeNr; i++)
+            pathspec[i] = strdup(xpres->nodesetval->nodeTab[i]->content);*/
+
+        xmlXPathFreeObject(xpres);
+    } else if (xpres != NULL) {
+        //pathspec = (char **)calloc(1, sizeof(char *));
+        xmlXPathFreeObject(xpres);
+    }
+
+    /* TODO check last changed ID */
+    dberr = tf_location_fetch_services(&svcarr);
+
+    /* TODO free service type filters */
+
+    if (dberr != TF_ERROR_SUCCESS) {
+        tf_fault_env(
+                Fault_Server, 
+                "Failed to retrieve service definitions from the database", 
+                dberr, 
+                &res->env);
+        return H_OK;
+    }
+
+    dberr = tf_location_fetch_accmap(&accmaparr);
+    if (dberr != TF_ERROR_SUCCESS) {
+        tf_location_free_service_array(svcarr);
+        tf_fault_env(
+                Fault_Server, 
+                "Failed to retrieve service definitions from the database", 
+                dberr, 
+                &res->env);
+        return H_OK;
+    }
+
+    xmlNode *cmd = soap_env_get_method(req->env);
+    soap_env_new_with_method(cmd->ns->href, "QueryServicesResponse", &res->env);
+
+    xmlNode *result = xmlNewChild(res->env->body->children->next, NULL, "QueryServicesResult", NULL);
+    _append_location_data(result, svcarr, accmaparr, 1);
+
+    tf_location_free_service_array(svcarr);
+    tf_location_free_accmap_array(accmaparr);
 
     return H_OK;
 }
@@ -227,6 +366,11 @@ void location_service_init(SoapRouter **router, const char *prefix)
         *router,
         _connect,
         "Connect",
+        TF_DEFAULT_NAMESPACE);
+    soap_router_register_service(
+        *router,
+        _query_services,
+        "QueryServices",
         TF_DEFAULT_NAMESPACE);
 
     gcslog_info("registered location services");

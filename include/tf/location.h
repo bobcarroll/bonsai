@@ -21,5 +21,9 @@
 
 #include <tf/locationtypes.h>
 
+char *tf_location_find_default_accmap(tf_location_accmap_array_t);
+void tf_location_free_accmap(tf_location_accmap_t);
+void tf_location_free_accmap_array(tf_location_accmap_array_t);
 void tf_location_free_service(tf_location_service_t);
+void tf_location_free_service_array(tf_location_service_array_t);
 

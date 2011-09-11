@@ -24,6 +24,7 @@
  */
 
 #include <cs/catalog.h>
+#include <cs/location.h>
 
 #include <gcs/log.h>
 
@@ -56,34 +57,21 @@ static void _append_resource_type(xmlNode *parent, tf_catalog_resource_type_t ty
  */
 static void _append_service_ref(xmlNode *parent, tf_catalog_service_t ref)
 {
-    char reltosettingstr[6];
-    snprintf(reltosettingstr, 6, "%d", ref.service.reltosetting);
-
     xmlNode *csrnode = xmlNewChild(parent, NULL, "CatalogServiceReference", NULL);
     xmlNewProp(csrnode, "ResourceIdentifier", ref.id);
     xmlNewProp(csrnode, "AssociationKey", ref.assockey);
 
-    xmlNode *sdnode = xmlNewChild(csrnode, NULL, "ServiceDefinition", NULL);
-    xmlNewProp(sdnode, "serviceType", ref.service.type);
-    xmlNewProp(sdnode, "identifier", ref.service.id);
-    xmlNewProp(sdnode, "displayName", ref.service.name);
-    xmlNewProp(sdnode, "relativeToSetting", reltosettingstr);
-
-    if (strcmp(ref.service.relpath, "") != 0)
-        xmlNewProp(sdnode, "relativePath", ref.service.relpath);
-
-    xmlNewProp(sdnode, "description", ref.service.description);
-    xmlNewProp(sdnode, "toolId", ref.service.tooltype);
-    xmlNewChild(sdnode, NULL, "LocationMappings", NULL);
+    location_append_service(csrnode, ref.service);
 }
 
 /**
  * Appends a CatalogResource node to the given parent node.
  *
- * @param parent    the parent node to attach to
- * @param path      the catalog node full path
- * @param resource  the catalog resource info for the new node
- * @param service   matching catalog service references
+ * @param parent        the parent node to attach to
+ * @param path          the catalog node full path
+ * @param resource      the catalog resource info for the new node
+ * @param services      matching catalog service references
+ * @param properties    property info array
  * @param matched
  */
 static void _append_resource(xmlNode *parent, const char *path, tf_catalog_resource_t resource,
