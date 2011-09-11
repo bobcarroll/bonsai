@@ -27,6 +27,7 @@
 
 #include <gcs/log.h>
 
+#include <tf/catalog.h>
 #include <tf/location.h>
 #include <tf/locationdb.h>
 #include <tf/webservices.h>
@@ -196,6 +197,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     xmlNode *arg;
     tf_location_service_array_t svcarr;
     tf_location_accmap_array_t accmaparr;
+    tf_catalog_node_array_t nodearr;
     tf_error_t dberr;
     int inclservices = 0;
     int lastchgid = -1;
@@ -251,12 +253,38 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
+    char **pathspec = (char **)calloc(2, sizeof(char *));
+    pathspec[0] = (char *)alloca(sizeof(char) * 27);
+    snprintf(pathspec[0], 27, "%s**", TF_CATALOG_ORGANIZATION_ROOT);
+
+    char **typearr = (char **)calloc(2, sizeof(char *));
+    typearr[0] = TF_CATALOG_TYPE_SERVER_INSTANCE;
+
+    dberr = tf_catalog_query_nodes(
+        (const char * const *)pathspec,
+        (const char * const *)typearr,
+        &nodearr);
+
+    free(pathspec);
+    free(typearr);
+
+    if (dberr != TF_ERROR_SUCCESS || nodearr.count == 0) {
+        tf_location_free_service_array(svcarr);
+        tf_location_free_accmap_array(accmaparr);
+        tf_fault_env(
+                Fault_Server, 
+                "Failed to retrieve the server instance ID from the database", 
+                dberr, 
+                &res->env);
+        return H_OK;
+    }
+
     xmlNode *cmd = soap_env_get_method(req->env);
     soap_env_new_with_method(cmd->ns->href, "ConnectResponse", &res->env);
 
     xmlNode *connresult = xmlNewChild(res->env->body->children->next, NULL, "ConnectResult", NULL);
     xmlNewProp(connresult, "InstanceId", "bed36b22-8b2a-464b-8702-8df2dbc413fe"); /* TODO */
-    xmlNewProp(connresult, "CatalogResourceId", "e06e112f-0c57-4611-b88d-49a4eff6f52a"); /* TODO */
+    xmlNewProp(connresult, "CatalogResourceId", nodearr.items[0].resource.id);
 
     _build_auth_node(connresult); /* TODO */
     _build_authz_node(connresult); /* TODO */
@@ -266,6 +294,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
 
     tf_location_free_service_array(svcarr);
     tf_location_free_accmap_array(accmaparr);
+    tf_catalog_free_node_array(nodearr);
 
     return H_OK;
 }
