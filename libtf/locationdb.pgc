@@ -35,13 +35,14 @@
  * Retrieves service defitions from the database. Calling functions should
  * call tf_free_service_array() to free "result"..
  *
+ * @param filters   a null-terminated array of service filters
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_services(tf_service ***result)
+tf_error tf_fetch_services(tf_service_filter **filters, tf_service ***result)
 {
-    if (result == NULL || *result != NULL)
+    if (filters == NULL || filters[0] == NULL || result == NULL || *result != NULL)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up service definitions");
@@ -59,38 +60,56 @@ tf_error tf_fetch_services(tf_service ***result)
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL SET CONNECTION :conn;
 
-    /*char residlst[10240];
-    const int residlen = 10240;
+    char where[10246];
+    char idtypelst[10240];
+    const int idtypelen = 10240;
     int curpos = 0;
-    int r = residlen - curpos, i = 0;
+    int i = 0, r, fwhere = 0;
 
-    bzero(&residlst, residlen);
+    bzero(&idtypelst, idtypelen);
 
-    for (i = 0; i < nodes.count; i++) {
-        if (i > 0) {
-            if (snprintf(residlst + curpos, r, ", ") >= r) {
+    for (i = 0; filters[i] != NULL; i++) {
+        if (strcmp(filters[i]->id, TF_LOCATION_FILTER_SERVICE_ID) == 0 &&
+            strcmp(filters[i]->type, TF_LOCATION_FILTER_SERVICE_TYPE) == 0)
+            continue;
+
+        if (fwhere && i > 0) {
+            r = snprintf(idtypelst + curpos, idtypelen - curpos, " OR ");
+            if (r >= idtypelen - curpos) {
                 gcs_pgctx_release(ctx);
                 return TF_ERROR_PARAM_TOO_LONG;
             }
 
-            curpos += 2;
-            r = residlen - curpos;
+            curpos += 4;
         }
 
-        if (snprintf(residlst + curpos, r, "'%s'", nodes.items[i].resource.id) >= r) {
+        r = snprintf(
+            idtypelst + curpos,
+            idtypelen - curpos,
+            "(sd.identifier = '%s' AND sd.service_type = '%s')",
+            filters[i]->id,
+            filters[i]->type);
+        if (r >= idtypelen - curpos) {
             gcs_pgctx_release(ctx);
             return TF_ERROR_PARAM_TOO_LONG;
         }
 
-        curpos += strlen(residlst + curpos);
-        r = residlen - curpos;
-    }*/
+        curpos += strlen(idtypelst + curpos);
+        fwhere = 1;
+    }
+
+    if (fwhere)
+        snprintf(where, 10246, "WHERE %s", idtypelst);
+    else
+        where[0] = '\0';
 
     sprintf(countstmt, 
         "SELECT COUNT(*) \
         FROM service_definitions AS sd \
         JOIN tool_types AS tt \
-           ON sd.fk_tool_id = tt.id");
+           ON sd.fk_tool_id = tt.id \
+        %s",
+        where);
     gcslog_trace("fetch service definitions SQL: %s", countstmt);
 
     EXEC SQL PREPARE sqlstmt FROM :countstmt;
@@ -113,14 +132,15 @@ tf_error tf_fetch_services(tf_service ***result)
                 sd.singleton, sd.description, tt.type \
         FROM service_definitions AS sd \
         JOIN tool_types AS tt \
-           ON sd.fk_tool_id = tt.id");
+           ON sd.fk_tool_id = tt.id \
+        %s",
+        where);
 
     EXEC SQL PREPARE sqlstmt FROM :selstmt;
 
     EXEC SQL DECLARE cur1 CURSOR FOR sqlstmt;
     EXEC SQL OPEN cur1;
 
-    int i;
     for (i = 0; ; i++) {
         EXEC SQL WHENEVER NOT FOUND DO BREAK;
 

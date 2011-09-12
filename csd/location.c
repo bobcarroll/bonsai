@@ -180,6 +180,38 @@ void location_append_service(xmlNode *parent, tf_service *svcdef)
 }
 
 /**
+ * Builds an array of service filters from XML. Calling functions
+ * should call tf_free_service_filter_array() to free the result.
+ *
+ * @param xpres     the XPath result for the XML filter nodes
+ *
+ * @return a null-terminated array filters (return value will never be NULL)
+ */
+static tf_service_filter **_build_service_filters(xmlXPathObject *xpres)
+{
+    tf_service_filter **filters = 
+        (tf_service_filter **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(tf_service_filter));
+
+    int i;
+    for (i = 0; i < xpres->nodesetval->nodeNr; i++) {
+        filters[i] = (tf_service_filter *)malloc(sizeof(tf_service_filter));
+        bzero(filters[i], sizeof(tf_service_filter));
+
+        xmlNode *stf = xpres->nodesetval->nodeTab[i];
+        xmlChar *type = xmlGetProp(stf, "ServiceType");
+        xmlChar *id = xmlGetProp(stf, "Identifier");
+
+        filters[i]->type = strdup(type);
+        filters[i]->id = strdup(id);
+
+        xmlFree(type);
+        xmlFree(id);
+    }
+
+    return filters;
+}
+
+/**
  * Location SOAP service handler for Connect.
  *
  * @param req   SOAP request context
@@ -192,6 +224,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     xmlNode *body = req->env->body;
     xmlXPathObject *xpres;
     xmlNode *arg;
+    tf_service_filter **filters = NULL;
     tf_service **svcarr = NULL;
     tf_access_map **accmaparr = NULL;
     tf_node **nodearr = NULL;
@@ -209,22 +242,17 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
 
     xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:serviceTypeFilters/m:ServiceTypeFilter");
     if (xpres != NULL && xpres->nodesetval != NULL) {
-        /*pathspec = (char **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(char *));
-
-        for (i = 0; i < xpres->nodesetval->nodeNr; i++)
-            pathspec[i] = strdup(xpres->nodesetval->nodeTab[i]->content);*/
-
+        filters = _build_service_filters(xpres);
         xmlXPathFreeObject(xpres);
     } else if (xpres != NULL) {
-        //pathspec = (char **)calloc(1, sizeof(char *));
+        filters = (tf_service_filter **)calloc(1, sizeof(tf_service_filter));
         xmlXPathFreeObject(xpres);
     }
 
     if (inclservices) {
         /* TODO check last changed ID */
-        dberr = tf_fetch_services(&svcarr);
-
-        /* TODO free service type filters */
+        dberr = tf_fetch_services(filters, &svcarr);
+        filters = tf_free_service_filter_array(filters);
 
         if (dberr != TF_ERROR_SUCCESS) {
             tf_fault_env(
@@ -234,7 +262,8 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
                     &res->env);
             return H_OK;
         }
-    }
+    } else
+        filters = tf_free_service_filter_array(filters);
 
     dberr = tf_fetch_access_map(&accmaparr);
     if (dberr != TF_ERROR_SUCCESS) {
@@ -306,6 +335,7 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
 {
     xmlNode *body = req->env->body;
     xmlXPathObject *xpres;
+    tf_service_filter **filters = NULL;
     tf_service **svcarr = NULL;
     tf_access_map **accmaparr = NULL;
     tf_error dberr;
@@ -317,21 +347,16 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
 
     xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:serviceTypeFilters/m:ServiceTypeFilter");
     if (xpres != NULL && xpres->nodesetval != NULL) {
-        /*pathspec = (char **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(char *));
-
-        for (i = 0; i < xpres->nodesetval->nodeNr; i++)
-            pathspec[i] = strdup(xpres->nodesetval->nodeTab[i]->content);*/
-
+        filters = _build_service_filters(xpres);
         xmlXPathFreeObject(xpres);
     } else if (xpres != NULL) {
-        //pathspec = (char **)calloc(1, sizeof(char *));
+        filters = (tf_service_filter **)calloc(1, sizeof(tf_service_filter));
         xmlXPathFreeObject(xpres);
     }
 
     /* TODO check last changed ID */
-    dberr = tf_fetch_services(&svcarr);
-
-    /* TODO free service type filters */
+    dberr = tf_fetch_services(filters, &svcarr);
+    filters = tf_free_service_filter_array(filters);
 
     if (dberr != TF_ERROR_SUCCESS) {
         tf_fault_env(

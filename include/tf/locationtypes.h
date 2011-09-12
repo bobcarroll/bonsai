@@ -46,3 +46,8 @@ typedef struct {
     char tooltype[TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN];
 } tf_service;
 
+typedef struct {
+    char *id;
+    char *type;
+} tf_service_filter;
+

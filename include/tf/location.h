@@ -26,4 +26,5 @@ void tf_free_access_map(tf_access_map *);
 void *tf_free_access_map_array(tf_access_map **);
 void tf_free_service(tf_service *);
 void *tf_free_service_array(tf_service **);
+void *tf_free_service_filter_array(tf_service_filter **);
 

@@ -128,3 +128,30 @@ void *tf_free_service_array(tf_service **result)
     return NULL;
 }
 
+/**
+ * Frees memory associated with a service filter array.
+ *
+ * @param result    a null-terminated service filter array
+ *
+ * @return NULL
+ */
+void *tf_free_service_filter_array(tf_service_filter **result)
+{
+    if (result == NULL)
+        return NULL;
+
+    int i;
+    for (i = 0; result[i] != NULL; i++) {
+        if (result[i]->id != NULL)
+            free(result[i]->id);
+
+        if (result[i]->type != NULL)
+            free(result[i]->type);
+
+        free(result[i]);
+    }
+
+    free(result);
+    return NULL;
+}
+
