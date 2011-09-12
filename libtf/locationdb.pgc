@@ -33,15 +33,15 @@
 
 /**
  * Retrieves service defitions from the database. Calling functions should
- * call tf_location_free_service_array() prior to freeing "result".
+ * call tf_free_service_array() to free "result"..
  *
- * @param result    pre-allocated output buffer for the results
+ * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error_t tf_location_fetch_services(tf_location_service_array_t *result)
+tf_error tf_fetch_services(tf_service ***result)
 {
-    if (result == NULL)
+    if (result == NULL || *result != NULL)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up service definitions");
@@ -100,15 +100,12 @@ tf_error_t tf_location_fetch_services(tf_location_service_array_t *result)
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
 
     gcslog_debug("found %d service definition(s)", count);
-    bzero(result, sizeof(tf_location_service_array_t));
+    *result = (tf_service **)calloc(count + 1, sizeof(tf_service *));
 
     if (count == 0) {
         gcs_pgctx_release(ctx);
         return TF_ERROR_SUCCESS;
     }
-
-    result->items = (tf_location_service_t *)calloc(count, sizeof(tf_location_service_t));
-    result->count = count;
 
     sprintf(selstmt, 
         "SELECT sd.identifier, sd.service_type, sd.display_name, \
@@ -144,18 +141,21 @@ tf_error_t tf_location_fetch_services(tf_location_service_array_t *result)
             INTO :svcid, :svctype, :svcname, :reltosetting, :relpath:relpath_ind,
                  :singleton, :svcdesc:svcdesc_ind, :tooltype;
 
-        strncpy(result->items[i].id, svcid, TF_LOCATION_SERVICE_ID_MAXLEN);
-        strncpy(result->items[i].type, svctype, TF_LOCATION_SERVICE_TYPE_MAXLEN);
-        strncpy(result->items[i].name, svcname, TF_LOCATION_SERVICE_NAME_MAXLEN);
-        strncpy(result->items[i].tooltype, tooltype, TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN);
+        tf_service *item = (*result)[i] = (tf_service *)malloc(sizeof(tf_service));
+        bzero(item, sizeof(tf_service));
 
-        result->items[i].reltosetting = reltosetting;
-        result->items[i].singleton = singleton;
+        strncpy(item->id, svcid, TF_LOCATION_SERVICE_ID_MAXLEN);
+        strncpy(item->type, svctype, TF_LOCATION_SERVICE_TYPE_MAXLEN);
+        strncpy(item->name, svcname, TF_LOCATION_SERVICE_NAME_MAXLEN);
+        strncpy(item->tooltype, tooltype, TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN);
+
+        item->reltosetting = reltosetting;
+        item->singleton = singleton;
 
         if (!relpath_ind)
-            strncpy(result->items[i].relpath, relpath, TF_LOCATION_SERVICE_REL_PATH_MAXLEN);
+            strncpy(item->relpath, relpath, TF_LOCATION_SERVICE_REL_PATH_MAXLEN);
 
-        result->items[i].description = !svcdesc_ind ? strdup(svcdesc) : NULL;
+        item->description = !svcdesc_ind ? strdup(svcdesc) : NULL;
 
         free(svcdesc);
     }
@@ -174,15 +174,15 @@ error:
 
 /**
  * Retrieves access mappings from the database. Calling functions should
- * call tf_location_free_accmap_array() prior to freeing "result".
+ * call tf_free_access_map_array() to free "result".
  *
- * @param result    pre-allocated output buffer for the results
+ * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error_t tf_location_fetch_accmap(tf_location_accmap_array_t *result)
+tf_error tf_fetch_access_map(tf_access_map ***result)
 {
-    if (result == NULL)
+    if (result == NULL || *result != NULL)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up access mappings");
@@ -212,15 +212,12 @@ tf_error_t tf_location_fetch_accmap(tf_location_accmap_array_t *result)
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
 
     gcslog_debug("found %d access mapping(s)", count);
-    bzero(result, sizeof(tf_location_accmap_array_t));
+    *result = (tf_access_map **)calloc(count + 1, sizeof(tf_access_map *));
 
     if (count == 0) {
         gcs_pgctx_release(ctx);
         return TF_ERROR_SUCCESS;
     }
-
-    result->items = (tf_location_accmap_t *)calloc(count, sizeof(tf_location_accmap_t));
-    result->count = count;
 
     sprintf(selstmt, 
         "SELECT moniker, display_name, access_point, is_default \
@@ -245,11 +242,14 @@ tf_error_t tf_location_fetch_accmap(tf_location_accmap_array_t *result)
         EXEC SQL FETCH NEXT FROM cur2
             INTO :moniker, :name, :apuri, :fdefault;
 
-        strncpy(result->items[i].moniker, moniker, TF_LOCATION_ACCMAP_MONIKER_MAXLEN);
-        strncpy(result->items[i].name, name, TF_LOCATION_ACCMAP_DISPLNAME_MAXLEN);
+        tf_access_map *item = (*result)[i] = (tf_access_map *)malloc(sizeof(tf_access_map));
+        bzero(item, sizeof(tf_access_map));
 
-        result->items[i].apuri = strdup(apuri);
-        result->items[i].fdefault = fdefault;
+        strncpy(item->moniker, moniker, TF_LOCATION_ACCMAP_MONIKER_MAXLEN);
+        strncpy(item->name, name, TF_LOCATION_ACCMAP_DISPLNAME_MAXLEN);
+
+        item->apuri = strdup(apuri);
+        item->fdefault = fdefault;
 
         free(apuri);
     }

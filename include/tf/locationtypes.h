@@ -33,12 +33,7 @@ typedef struct {
     char name[TF_LOCATION_ACCMAP_DISPLNAME_MAXLEN];
     char *apuri;
     int fdefault;
-} tf_location_accmap_t;
-
-typedef struct {
-    tf_location_accmap_t *items;
-    int count;
-} tf_location_accmap_array_t;
+} tf_access_map;
 
 typedef struct {
     char id[TF_LOCATION_SERVICE_ID_MAXLEN];
@@ -49,10 +44,5 @@ typedef struct {
     int singleton;
     char *description;
     char tooltype[TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN];
-} tf_location_service_t;
-
-typedef struct {
-    tf_location_service_t *items;
-    int count;
-} tf_location_service_array_t;
+} tf_service;
 

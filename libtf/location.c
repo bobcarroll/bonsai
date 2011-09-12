@@ -32,18 +32,19 @@
  * Finds the default access mapping in the given array. Calling functions
  * should free the return value;
  *
- * @param array     access mapping array
+ * @param accmaparr     a null-terminated access mapping array
  *
  * @return the default access mapping moniker, or NULL if none is found
  */
-char *tf_location_find_default_accmap(tf_location_accmap_array_t array)
+char *tf_find_default_moniker(tf_access_map **accmaparr)
 {
-    int i;
-    for (i = 0; i < array.count; i++) {
-        tf_location_accmap_t accmap = array.items[i];
+    if (accmaparr == NULL || accmaparr[0] == NULL)
+        return NULL;
 
-        if (accmap.fdefault)
-            return strdup(accmap.moniker);
+    int i;
+    for (i = 0; accmaparr[i] != NULL; i++) {
+        if (accmaparr[i]->fdefault)
+            return strdup(accmaparr[i]->moniker);
     }
 
     return NULL;
@@ -51,67 +52,79 @@ char *tf_location_find_default_accmap(tf_location_accmap_array_t array)
 
 /**
  * Frees memory associated with an access mapping, but not the
- * service itself.
+ * mapping itself.
  *
- * @param result
+ * @param result    pointer to an access mapping
  */
-void tf_location_free_accmap(tf_location_accmap_t result)
+void tf_free_access_map(tf_access_map *result)
 {
-    if (result.apuri != NULL)
-        free(result.apuri);
+    if (result == NULL)
+        return;
 
-    result.apuri = NULL;
+    if (result->apuri != NULL)
+        free(result->apuri);
+
+    result->apuri = NULL;
 }
 
 /**
- * Frees memory associated with a location service array, but not
- * the array itself.
+ * Frees memory associated with an access mapping array.
  *
- * @param result
+ * @param result    a null-terminated access mapping array
+ *
+ * @return NULL
  */
-void tf_location_free_accmap_array(tf_location_accmap_array_t result)
+void *tf_free_access_map_array(tf_access_map **result)
 {
-    if (result.items != NULL && result.count > 0) {
-        int i;
-        for (i = 0; i < result.count; i++)
-            tf_location_free_accmap(result.items[i]);
+    if (result == NULL)
+        return NULL;
 
-        free(result.items);
+    int i;
+    for (i = 0; result[i] != NULL; i++) {
+        tf_free_access_map(result[i]);
+        free(result[i]);
     }
 
-    result.items = NULL;
+    free(result);
+    return NULL;
 }
 
 /**
  * Frees memory associated with a service, but not the
  * service itself.
  *
- * @param result
+ * @param result    pointer to a service
  */
-void tf_location_free_service(tf_location_service_t result)
+void tf_free_service(tf_service *result)
 {
-    if (result.description != NULL)
-        free(result.description);
+    if (result == NULL)
+        return;
 
-    result.description = NULL;
+    if (result->description != NULL)
+        free(result->description);
+
+    result->description = NULL;
 }
 
 /**
- * Frees memory associated with a location service array, but not
- * the array itself.
+ * Frees memory associated with a service array.
  *
- * @param result
+ * @param result    a null-terminated service array
+ *
+ * @return NULL
  */
-void tf_location_free_service_array(tf_location_service_array_t result)
+void *tf_free_service_array(tf_service **result)
 {
-    if (result.items != NULL && result.count > 0) {
-        int i;
-        for (i = 0; i < result.count; i++)
-            tf_location_free_service(result.items[i]);
+    if (result == NULL)
+        return NULL;
 
-        free(result.items);
+    int i;
+    for (i = 0; result[i] != NULL; i++) {
+        tf_free_service(result[i]);
+        free(result[i]);
     }
 
-    result.items = NULL;
+    free(result);
+    return NULL;
 }
 

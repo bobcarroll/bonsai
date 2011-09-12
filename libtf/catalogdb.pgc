@@ -36,19 +36,18 @@
  * Retrieves catalog nodes from the database. Calling functions should
  * call tf_catalog_free_node_array() prior to freeing "result".
  *
- * @param pathspecs catalog paths without depth markers
- * @param types     a null-terminated array of resource type ID strings to filter by
- * @param result    pre-allocated output buffer for the results
+ * @param pathspecs     a null-terminated array of catalog paths without depth markers
+ * @param types         a null-terminated array of resource type ID strings to filter by
+ * @param result        pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const char * const *types,
-    tf_catalog_node_array_t *result)
+tf_error tf_fetch_nodes(tf_path_spec **pathspecs, const char * const *types, tf_node ***result)
 {
-    if (pathspecs.count < 1 || result == NULL)
+    if (pathspecs == NULL || pathspecs[0] == NULL || types == NULL || result == NULL || *result != NULL)
         return TF_ERROR_BAD_PARAMETER;
 
-    gcslog_debug("looking up catalog nodes for %d path(s)", pathspecs.count);
+    gcslog_debug("looking up catalog nodes with path(s)");
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = NULL;
@@ -67,14 +66,13 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
     const int wherelen = 10240;
     int curpos = 0;
     int i = 0, r;
-    tf_error_t dberr;
+    tf_error dberr;
 
     bzero(&where, wherelen);
 
-    for (i = 0; i < pathspecs.count; i++) {
-        tf_catalog_pathspec_t *ps = &pathspecs.items[i];
+    for (i = 0; pathspecs[i] != NULL; i++) {
         char *pathval = NULL;
-        int oldpathlen = strlen(ps->path);
+        int oldpathlen = strlen(pathspecs[i]->path);
         int newpathlen = 0;
 
         if (i > 0) {
@@ -87,14 +85,14 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
             curpos += 4;
         }
 
-        if (ps->depth == TF_CATALOG_NODE_DEPTH_NONE) {
+        if (pathspecs[i]->depth == TF_CATALOG_NODE_DEPTH_NONE) {
             pathval = (char *)alloca(sizeof(char) * (oldpathlen + 1));
-            strcpy(pathval, ps->path);
+            strcpy(pathval, pathspecs[i]->path);
         } else {
             pathval = (char *)alloca(sizeof(char) * (oldpathlen + 2));
-            sprintf(pathval, "%s%%", ps->path);
+            sprintf(pathval, "%s%%", pathspecs[i]->path);
 
-            newpathlen = (ps->depth == TF_CATALOG_NODE_DEPTH_SINGLE) ?
+            newpathlen = (pathspecs[i]->depth == TF_CATALOG_NODE_DEPTH_SINGLE) ?
                 TF_CATALOG_CHILD_ITEM_MAXLEN - 1 :
                 TF_CATALOG_PARENT_PATH_MAXLEN - 1;
         }
@@ -158,15 +156,12 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
 
     gcslog_debug("found %d matching catalog node(s)", count);
-    bzero(result, sizeof(tf_catalog_node_array_t));
+    *result = (tf_node **)calloc(count + 1, sizeof(tf_node *));
 
     if (count == 0) {
         gcs_pgctx_release(ctx);
         return TF_ERROR_SUCCESS;
     }
-
-    result->items = (tf_catalog_node_t *)calloc(count, sizeof(tf_catalog_node_t));
-    result->count = count;
 
     sprintf(selstmt, 
         "SELECT cn.parent_path, cn.child_item, cn.\"default\", \
@@ -209,18 +204,21 @@ tf_error_t tf_catalog_fetch_nodes(tf_catalog_pathspec_array_t pathspecs, const c
                  :resid, :resname, :resdesc:resdesc_ind, :propid:propid_ind,
                  :typeid, :typename, :typedesc:typedesc_ind;
 
-        strncpy(result->items[i].parent, parent, TF_CATALOG_PARENT_PATH_MAXLEN);
-        strncpy(result->items[i].child, child, TF_CATALOG_CHILD_ITEM_MAXLEN);
-        result->items[i].fdefault = fdefault;
+        tf_node *item = (*result)[i] = (tf_node *)malloc(sizeof(tf_node));
+        bzero(item, sizeof(tf_node));
 
-        strncpy(result->items[i].resource.id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
-        strncpy(result->items[i].resource.name, resname, TF_CATALOG_RESOURCE_NAME_MAXLEN);
-        result->items[i].resource.description = !resdesc_ind ? strdup(resdesc) : NULL;
-        result->items[i].resource.propertyid = propid;
+        strncpy(item->parent, parent, TF_CATALOG_PARENT_PATH_MAXLEN);
+        strncpy(item->child, child, TF_CATALOG_CHILD_ITEM_MAXLEN);
+        item->fdefault = fdefault;
 
-        strncpy(result->items[i].resource.type.id, typeid, TF_CATALOG_RESOURCE_TYPE_MAXLEN);
-        strncpy(result->items[i].resource.type.name, typename, TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
-        result->items[i].resource.type.description = !typedesc_ind ? strdup(typedesc) : NULL;
+        strncpy(item->resource.id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+        strncpy(item->resource.name, resname, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+        item->resource.description = !resdesc_ind ? strdup(resdesc) : NULL;
+        item->resource.propertyid = propid;
+
+        strncpy(item->resource.type.id, typeid, TF_CATALOG_RESOURCE_TYPE_MAXLEN);
+        strncpy(item->resource.type.name, typename, TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
+        item->resource.type.description = !typedesc_ind ? strdup(typedesc) : NULL;
 
         free(resdesc);
         free(typedesc);
@@ -240,17 +238,17 @@ error:
 
 /**
  * Retrieves catalog nodes from the database by resource ID. Calling functions
- * should call tf_catalog_free_node_array() prior to freeing "result".
+ * should call tf_free_node_array() to free "result".
  *
  * @param idarr     a null-terminated array of resource ID strings to lookup
  * @param types     flag to indicate if idarr has resource type ID strings
- * @param result    pre-allocated output buffer for the results
+ * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error_t tf_catalog_fetch_resources(const char * const *idarr, int types, tf_catalog_node_array_t *result)
+tf_error tf_fetch_resources(const char * const *idarr, int types, tf_node ***result)
 {
-    if (idarr == NULL || idarr[0] == NULL || result == NULL)
+    if (idarr == NULL || idarr[0] == NULL || result == NULL || *result != NULL)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up catalog resources");
@@ -271,7 +269,7 @@ tf_error_t tf_catalog_fetch_resources(const char * const *idarr, int types, tf_c
     char residlst[10240];
     const int residlen = 10240;
     int curpos = 0;
-    tf_error_t dberr;
+    tf_error dberr;
 
     bzero(&residlst, residlen);
 
@@ -300,15 +298,12 @@ tf_error_t tf_catalog_fetch_resources(const char * const *idarr, int types, tf_c
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
 
     gcslog_debug("found %d matching resource(s)", count);
-    bzero(result, sizeof(tf_catalog_node_array_t));
+    *result = (tf_node **)calloc(count + 1, sizeof(tf_node *));
 
     if (count == 0) {
         gcs_pgctx_release(ctx);
         return TF_ERROR_SUCCESS;
     }
-
-    result->items = (tf_catalog_node_t *)calloc(count, sizeof(tf_catalog_node_t));
-    result->count = count;
 
     sprintf(selstmt, 
         "SELECT cn.parent_path, cn.child_item, cn.\"default\", \
@@ -353,18 +348,21 @@ tf_error_t tf_catalog_fetch_resources(const char * const *idarr, int types, tf_c
                  :resid, :resname, :resdesc:resdesc_ind, :propid:propid_ind,
                  :typeid, :typename, :typedesc:typedesc_ind;
 
-        strncpy(result->items[i].parent, parent, TF_CATALOG_PARENT_PATH_MAXLEN);
-        strncpy(result->items[i].child, child, TF_CATALOG_CHILD_ITEM_MAXLEN);
-        result->items[i].fdefault = fdefault;
+        tf_node *item = (*result)[i] = (tf_node *)malloc(sizeof(tf_node));
+        bzero(item, sizeof(tf_node));
 
-        strncpy(result->items[i].resource.id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
-        strncpy(result->items[i].resource.name, resname, TF_CATALOG_RESOURCE_NAME_MAXLEN);
-        result->items[i].resource.description = !resdesc_ind ? strdup(resdesc) : NULL;
-        result->items[i].resource.propertyid = propid;
+        strncpy(item->parent, parent, TF_CATALOG_PARENT_PATH_MAXLEN);
+        strncpy(item->child, child, TF_CATALOG_CHILD_ITEM_MAXLEN);
+        item->fdefault = fdefault;
 
-        strncpy(result->items[i].resource.type.id, typeid, TF_CATALOG_RESOURCE_TYPE_MAXLEN);
-        strncpy(result->items[i].resource.type.name, typename, TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
-        result->items[i].resource.type.description = !typedesc_ind ? strdup(typedesc) : NULL;
+        strncpy(item->resource.id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+        strncpy(item->resource.name, resname, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+        item->resource.description = !resdesc_ind ? strdup(resdesc) : NULL;
+        item->resource.propertyid = propid;
+
+        strncpy(item->resource.type.id, typeid, TF_CATALOG_RESOURCE_TYPE_MAXLEN);
+        strncpy(item->resource.type.name, typename, TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
+        item->resource.type.description = !typedesc_ind ? strdup(typedesc) : NULL;
 
         free(resdesc);
         free(typedesc);
@@ -384,19 +382,19 @@ error:
 
 /**
  * Retrieves catalog service references from the database. Calling functions
- * should call tf_catalog_free_service_array() prior to freeing "result".
+ * should call tf_free_service_ref_array() to free "result".
  *
- * @param nodes     an array of nodes to lookup services for
- * @param result    pre-allocated output buffer for the results
+ * @param nodes     a null-terminated array of nodes to lookup services for
+ * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_service_array_t *result)
+tf_error tf_fetch_service_refs(tf_node **nodes, tf_service_ref ***result)
 {
-    if (nodes.count < 1 || result == NULL)
+    if (nodes == NULL || nodes[0] == NULL || result == NULL || *result != NULL)
         return TF_ERROR_BAD_PARAMETER;
 
-    gcslog_debug("looking up catalog services for %d node(s)", nodes.count);
+    gcslog_debug("looking up service references for catalog node(s)");
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = NULL;
@@ -418,7 +416,7 @@ tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_s
 
     bzero(&residlst, residlen);
 
-    for (i = 0; i < nodes.count; i++) {
+    for (i = 0; nodes[i] != NULL; i++) {
         if (i > 0) {
             if (snprintf(residlst + curpos, r, ", ") >= r) {
                 gcs_pgctx_release(ctx);
@@ -429,7 +427,7 @@ tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_s
             r = residlen - curpos;
         }
 
-        if (snprintf(residlst + curpos, r, "'%s'", nodes.items[i].resource.id) >= r) {
+        if (snprintf(residlst + curpos, r, "'%s'", nodes[i]->resource.id) >= r) {
             gcs_pgctx_release(ctx);
             return TF_ERROR_PARAM_TOO_LONG;
         }
@@ -457,15 +455,12 @@ tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_s
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
 
     gcslog_debug("found %d catalog service(s)", count);
-    bzero(result, sizeof(tf_catalog_service_array_t));
+    *result = (tf_service_ref **)calloc(count + 1, sizeof(tf_service_ref *));
 
     if (count == 0) {
         gcs_pgctx_release(ctx);
         return TF_ERROR_SUCCESS;
     }
-
-    result->items = (tf_catalog_service_t *)calloc(count, sizeof(tf_catalog_service_t));
-    result->count = count;
 
     sprintf(selstmt, 
         "SELECT csr.resource_identifier, csr.association_key, \
@@ -508,21 +503,24 @@ tf_error_t tf_catalog_fetch_services(tf_catalog_node_array_t nodes, tf_catalog_s
             INTO :resid, :assockey, :svcid, :svctype, :svcname, :reltosetting,
                  :relpath:relpath_ind, :singleton, :svcdesc:svcdesc_ind, :tooltype;
 
-        strncpy(result->items[i].id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
-        strncpy(result->items[i].assockey, assockey, TF_CATALOG_ASSOCIATION_KEY_MAXLEN);
+        tf_service_ref *item = (*result)[i] = (tf_service_ref *)malloc(sizeof(tf_service_ref));
+        bzero(item, sizeof(tf_service_ref));
 
-        strncpy(result->items[i].service.id, svcid, TF_LOCATION_SERVICE_ID_MAXLEN);
-        strncpy(result->items[i].service.type, svctype, TF_LOCATION_SERVICE_TYPE_MAXLEN);
-        strncpy(result->items[i].service.name, svcname, TF_LOCATION_SERVICE_NAME_MAXLEN);
-        strncpy(result->items[i].service.tooltype, tooltype, TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN);
+        strncpy(item->id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+        strncpy(item->assockey, assockey, TF_CATALOG_ASSOCIATION_KEY_MAXLEN);
 
-        result->items[i].service.reltosetting = reltosetting;
-        result->items[i].service.singleton = singleton;
+        strncpy(item->service.id, svcid, TF_LOCATION_SERVICE_ID_MAXLEN);
+        strncpy(item->service.type, svctype, TF_LOCATION_SERVICE_TYPE_MAXLEN);
+        strncpy(item->service.name, svcname, TF_LOCATION_SERVICE_NAME_MAXLEN);
+        strncpy(item->service.tooltype, tooltype, TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN);
+
+        item->service.reltosetting = reltosetting;
+        item->service.singleton = singleton;
 
         if (!relpath_ind)
-            strncpy(result->items[i].service.relpath, relpath, TF_LOCATION_SERVICE_REL_PATH_MAXLEN);
+            strncpy(item->service.relpath, relpath, TF_LOCATION_SERVICE_REL_PATH_MAXLEN);
 
-        result->items[i].service.description = !svcdesc_ind ? strdup(svcdesc) : NULL;
+        item->service.description = !svcdesc_ind ? strdup(svcdesc) : NULL;
 
         free(svcdesc);
     }
@@ -540,19 +538,20 @@ error:
 }
 
 /**
- * Retrieves properties for the given catalog nodes.
+ * Retrieves properties for the given catalog nodes. Calling functions
+ * should call tf_free_property_array() to free "result".
  *
- * @param nodes     an array of nodes to lookup services for
- * @param result    pre-allocated output buffer for the results
+ * @param nodes     a null-terminated array of nodes to lookup services for
+ * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error_t tf_catalog_fetch_properties(tf_catalog_node_array_t nodes, tf_catalog_property_array_t *result)
+tf_error tf_fetch_properties(tf_node **nodes, tf_property ***result)
 {
-    if (nodes.count < 1 || result == NULL)
+    if (nodes == NULL || nodes[0] == NULL || result == NULL || *result != NULL)
         return TF_ERROR_BAD_PARAMETER;
 
-    gcslog_debug("looking up resource properties for %d node(s)", nodes.count);
+    gcslog_debug("looking up resource properties for catalog node(s)");
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = NULL;
@@ -574,7 +573,7 @@ tf_error_t tf_catalog_fetch_properties(tf_catalog_node_array_t nodes, tf_catalog
 
     bzero(&idlst, idlen);
 
-    for (i = 0; i < nodes.count; i++) {
+    for (i = 0; nodes[i] != NULL; i++) {
         if (i > 0) {
             if (snprintf(idlst + curpos, r, ", ") >= r) {
                 gcs_pgctx_release(ctx);
@@ -585,7 +584,7 @@ tf_error_t tf_catalog_fetch_properties(tf_catalog_node_array_t nodes, tf_catalog
             r = idlen - curpos;
         }
 
-        if (snprintf(idlst + curpos, r, "%d", nodes.items[i].resource.propertyid) >= r) {
+        if (snprintf(idlst + curpos, r, "%d", nodes[i]->resource.propertyid) >= r) {
             gcs_pgctx_release(ctx);
             return TF_ERROR_PARAM_TOO_LONG;
         }
@@ -610,15 +609,12 @@ tf_error_t tf_catalog_fetch_properties(tf_catalog_node_array_t nodes, tf_catalog
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
 
     gcslog_debug("found %d resource properties", count);
-    bzero(result, sizeof(tf_catalog_property_array_t));
+    *result = (tf_property **)calloc(count + 1, sizeof(tf_property **));
 
     if (count == 0) {
         gcs_pgctx_release(ctx);
         return TF_ERROR_SUCCESS;
     }
-
-    result->items = (tf_catalog_property_t *)calloc(count, sizeof(tf_catalog_property_t));
-    result->count = count;
 
     sprintf(selstmt, 
         "SELECT pv.artifact_id, pv.\"version\", pv.internal_kind_id, pv.value, \
@@ -651,12 +647,15 @@ tf_error_t tf_catalog_fetch_properties(tf_catalog_node_array_t nodes, tf_catalog
             INTO :artifactid, :version, :kindid, :value:value_ind,
                  :property, :typeid;
 
-        result->items[i].artifactid = artifactid;
-        result->items[i].version = version;
-        result->items[i].kindid = kindid;
+        tf_property *item = (*result)[i] = (tf_property *)malloc(sizeof(tf_property));
+        bzero(item, sizeof(tf_property));
 
-        strncpy(result->items[i].property, property, TF_CATALOG_PROPERTY_NAME_MAXLEN);
-        result->items[i].value = !value_ind ? strdup(value) : NULL;
+        item->artifactid = artifactid;
+        item->version = version;
+        item->kindid = kindid;
+
+        strncpy(item->property, property, TF_CATALOG_PROPERTY_NAME_MAXLEN);
+        item->value = !value_ind ? strdup(value) : NULL;
 
         free(value);
     }

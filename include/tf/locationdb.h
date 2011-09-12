@@ -22,6 +22,6 @@
 #include <tf/locationtypes.h>
 #include <tf/errors.h>
 
-tf_error_t tf_location_fetch_accmap(tf_location_accmap_array_t *);
-tf_error_t tf_location_fetch_services(tf_location_service_array_t *);
+tf_error tf_fetch_access_map(tf_access_map ***);
+tf_error tf_fetch_services(tf_service ***);
 

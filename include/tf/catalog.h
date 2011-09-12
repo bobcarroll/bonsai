@@ -56,12 +56,11 @@
 #define TF_CATALOG_TYPE_TEAM_PROJECT        "48577A4A-801E-412C-B8AE-CF7EF3529616"
 #define TF_CATALOG_TYPE_TEAM_WEB_ACCESS     "47FA57A4-8157-4FB5-9A64-A7A4954BD284"
 
-void tf_catalog_free_node_array(tf_catalog_node_array_t);
-void tf_catalog_free_pathspec_array(tf_catalog_pathspec_array_t);
-void tf_catalog_free_property(tf_catalog_property_t);
-void tf_catalog_free_property_array(tf_catalog_property_array_t);
-void tf_catalog_free_resource(tf_catalog_resource_t);
-void tf_catalog_free_service_array(tf_catalog_service_array_t);
-tf_error_t tf_catalog_query_nodes(const char * const *, const char * const *, 
-    tf_catalog_node_array_t *);
+void *tf_free_node_array(tf_node **);
+void *tf_free_path_spec_array(tf_path_spec **);
+void tf_free_property(tf_property *);
+void *tf_free_property_array(tf_property **);
+void tf_free_resource(tf_resource);
+void *tf_free_service_ref_array(tf_service_ref **);
+tf_error tf_query_nodes(const char * const *, const char * const *, tf_node ***);
 

@@ -19,5 +19,5 @@
 
 #pragma once
 
-tf_error_t tf_db_build_list(const char * const *, char *, const int, int *);
+tf_error tf_db_build_list(const char * const *, char *, const int, int *);
 

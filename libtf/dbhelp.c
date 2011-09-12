@@ -41,7 +41,7 @@
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error_t tf_db_build_list(const char * const *list, char *buf, const int buflen, int *curpos)
+tf_error tf_db_build_list(const char * const *list, char *buf, const int buflen, int *curpos)
 {
     int r = buflen - *curpos, i = 0;
 

@@ -121,12 +121,11 @@ static void _build_authz_node(xmlNode *parent)
  * @param accmaparr     access mapping array
  * @param inclall       flag to include all service definitions
  */
-static void _append_location_data(xmlNode *parent, tf_location_service_array_t svcarr, 
-    tf_location_accmap_array_t accmaparr, int inclall)
+static void _append_location_data(xmlNode *parent, tf_service **svcarr, tf_access_map **accmaparr, int inclall)
 {
     int i;
 
-    char *defmoniker = tf_location_find_default_accmap(accmaparr);
+    char *defmoniker = tf_find_default_moniker(accmaparr);
     if (defmoniker) {
         xmlNewProp(parent, "DefaultAccessMappingMoniker", defmoniker);
         free(defmoniker);
@@ -139,19 +138,17 @@ static void _append_location_data(xmlNode *parent, tf_location_service_array_t s
     xmlNode *svcdefs = xmlNewChild(parent, NULL, "ServiceDefinitions", NULL);
 
     if (inclall) {
-        for (i = 0; i < svcarr.count; i++ )
-            location_append_service(svcdefs, svcarr.items[i]);
+        for (i = 0; svcarr[i] != NULL; i++ )
+            location_append_service(svcdefs, svcarr[i]);
     }
 
     xmlNode *accessmappings = xmlNewChild(parent, NULL, "AccessMappings", NULL);
 
-    for (i = 0; i < accmaparr.count; i++) {
-        tf_location_accmap_t accmap = accmaparr.items[i];
-
+    for (i = 0; accmaparr[i] != NULL; i++) {
         xmlNode *am = xmlNewChild(accessmappings, NULL, "AccessMapping", NULL);
-        xmlNewProp(am, "DisplayName", accmap.name);
-        xmlNewProp(am, "Moniker", accmap.moniker);
-        xmlNewProp(am, "AccessPoint", accmap.apuri);
+        xmlNewProp(am, "DisplayName", accmaparr[i]->name);
+        xmlNewProp(am, "Moniker", accmaparr[i]->moniker);
+        xmlNewProp(am, "AccessPoint", accmaparr[i]->apuri);
     }
 }
 
@@ -161,22 +158,22 @@ static void _append_location_data(xmlNode *parent, tf_location_service_array_t s
  * @param parent    the parent node to attach to
  * @param ref       service info for the new node
  */
-void location_append_service(xmlNode *parent, tf_location_service_t svcdef)
+void location_append_service(xmlNode *parent, tf_service *svcdef)
 {
     char reltosettingstr[6];
-    snprintf(reltosettingstr, 6, "%d", svcdef.reltosetting);
+    snprintf(reltosettingstr, 6, "%d", svcdef->reltosetting);
 
     xmlNode *sdnode = xmlNewChild(parent, NULL, "ServiceDefinition", NULL);
-    xmlNewProp(sdnode, "serviceType", svcdef.type);
-    xmlNewProp(sdnode, "identifier", svcdef.id);
-    xmlNewProp(sdnode, "displayName", svcdef.name);
+    xmlNewProp(sdnode, "serviceType", svcdef->type);
+    xmlNewProp(sdnode, "identifier", svcdef->id);
+    xmlNewProp(sdnode, "displayName", svcdef->name);
     xmlNewProp(sdnode, "relativeToSetting", reltosettingstr);
 
-    if (strcmp(svcdef.relpath, "") != 0)
-        xmlNewProp(sdnode, "relativePath", svcdef.relpath);
+    if (strcmp(svcdef->relpath, "") != 0)
+        xmlNewProp(sdnode, "relativePath", svcdef->relpath);
 
-    xmlNewProp(sdnode, "description", svcdef.description);
-    xmlNewProp(sdnode, "toolId", svcdef.tooltype);
+    xmlNewProp(sdnode, "description", svcdef->description);
+    xmlNewProp(sdnode, "toolId", svcdef->tooltype);
 
     /* TODO */
     xmlNewChild(sdnode, NULL, "LocationMappings", NULL);
@@ -195,10 +192,10 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     xmlNode *body = req->env->body;
     xmlXPathObject *xpres;
     xmlNode *arg;
-    tf_location_service_array_t svcarr;
-    tf_location_accmap_array_t accmaparr;
-    tf_catalog_node_array_t nodearr;
-    tf_error_t dberr;
+    tf_service **svcarr = NULL;
+    tf_access_map **accmaparr = NULL;
+    tf_node **nodearr = NULL;
+    tf_error dberr;
     int inclservices = 0;
     int lastchgid = -1;
 
@@ -223,12 +220,9 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     }
 
-    bzero(&svcarr, sizeof(tf_location_service_array_t));
-    bzero(&accmaparr, sizeof(tf_location_accmap_array_t));
-
     if (inclservices) {
         /* TODO check last changed ID */
-        dberr = tf_location_fetch_services(&svcarr);
+        dberr = tf_fetch_services(&svcarr);
 
         /* TODO free service type filters */
 
@@ -242,9 +236,9 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         }
     }
 
-    dberr = tf_location_fetch_accmap(&accmaparr);
+    dberr = tf_fetch_access_map(&accmaparr);
     if (dberr != TF_ERROR_SUCCESS) {
-        tf_location_free_service_array(svcarr);
+        svcarr = tf_free_service_array(svcarr);
         tf_fault_env(
                 Fault_Server, 
                 "Failed to retrieve service definitions from the database", 
@@ -260,7 +254,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     char **typearr = (char **)calloc(2, sizeof(char *));
     typearr[0] = TF_CATALOG_TYPE_SERVER_INSTANCE;
 
-    dberr = tf_catalog_query_nodes(
+    dberr = tf_query_nodes(
         (const char * const *)pathspec,
         (const char * const *)typearr,
         &nodearr);
@@ -268,9 +262,10 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     free(pathspec);
     free(typearr);
 
-    if (dberr != TF_ERROR_SUCCESS || nodearr.count == 0) {
-        tf_location_free_service_array(svcarr);
-        tf_location_free_accmap_array(accmaparr);
+    if (dberr != TF_ERROR_SUCCESS || nodearr[0] == NULL) {
+        svcarr = tf_free_service_array(svcarr);
+        accmaparr = tf_free_access_map_array(accmaparr);
+        nodearr = tf_free_node_array(nodearr);
         tf_fault_env(
                 Fault_Server, 
                 "Failed to retrieve the server instance ID from the database", 
@@ -284,7 +279,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
 
     xmlNode *connresult = xmlNewChild(res->env->body->children->next, NULL, "ConnectResult", NULL);
     xmlNewProp(connresult, "InstanceId", "bed36b22-8b2a-464b-8702-8df2dbc413fe"); /* TODO */
-    xmlNewProp(connresult, "CatalogResourceId", nodearr.items[0].resource.id);
+    xmlNewProp(connresult, "CatalogResourceId", nodearr[0]->resource.id);
 
     _build_auth_node(connresult); /* TODO */
     _build_authz_node(connresult); /* TODO */
@@ -292,9 +287,9 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     xmlNode *locdata = xmlNewChild(connresult, NULL, "LocationServiceData", NULL);
     _append_location_data(locdata, svcarr, accmaparr, inclservices);
 
-    tf_location_free_service_array(svcarr);
-    tf_location_free_accmap_array(accmaparr);
-    tf_catalog_free_node_array(nodearr);
+    svcarr = tf_free_service_array(svcarr);
+    accmaparr = tf_free_access_map_array(accmaparr);
+    nodearr = tf_free_node_array(nodearr);
 
     return H_OK;
 }
@@ -311,9 +306,9 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
 {
     xmlNode *body = req->env->body;
     xmlXPathObject *xpres;
-    tf_location_service_array_t svcarr;
-    tf_location_accmap_array_t accmaparr;
-    tf_error_t dberr;
+    tf_service **svcarr = NULL;
+    tf_access_map **accmaparr = NULL;
+    tf_error dberr;
     int lastchgid = -1;
 
     xmlNode *arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:lastChangeId/text()");
@@ -334,7 +329,7 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
     }
 
     /* TODO check last changed ID */
-    dberr = tf_location_fetch_services(&svcarr);
+    dberr = tf_fetch_services(&svcarr);
 
     /* TODO free service type filters */
 
@@ -347,9 +342,9 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    dberr = tf_location_fetch_accmap(&accmaparr);
+    dberr = tf_fetch_access_map(&accmaparr);
     if (dberr != TF_ERROR_SUCCESS) {
-        tf_location_free_service_array(svcarr);
+        svcarr = tf_free_service_array(svcarr);
         tf_fault_env(
                 Fault_Server, 
                 "Failed to retrieve service definitions from the database", 
@@ -364,8 +359,8 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
     xmlNode *result = xmlNewChild(res->env->body->children->next, NULL, "QueryServicesResult", NULL);
     _append_location_data(result, svcarr, accmaparr, 1);
 
-    tf_location_free_service_array(svcarr);
-    tf_location_free_accmap_array(accmaparr);
+    svcarr = tf_free_service_array(svcarr);
+    accmaparr = tf_free_access_map_array(accmaparr);
 
     return H_OK;
 }

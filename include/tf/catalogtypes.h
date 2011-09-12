@@ -34,48 +34,33 @@ typedef struct {
     char id[TF_CATALOG_RESOURCE_TYPE_MAXLEN];
     char name[TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN];
     char *description;
-} tf_catalog_resource_type_t;
+} tf_resource_type;
 
 typedef struct {
     char id[TF_CATALOG_RESOURCE_ID_MAXLEN];
-    tf_catalog_resource_type_t type;
+    tf_resource_type type;
     char name[TF_CATALOG_RESOURCE_NAME_MAXLEN];
     char *description;
     int propertyid;
-} tf_catalog_resource_t;
+} tf_resource;
 
 typedef struct {
     char parent[TF_CATALOG_PARENT_PATH_MAXLEN];
     char child[TF_CATALOG_CHILD_ITEM_MAXLEN];
-    tf_catalog_resource_t resource;
+    tf_resource resource;
     int fdefault;
-} tf_catalog_node_t;
-
-typedef struct {
-    tf_catalog_node_t *items;
-    int count;
-} tf_catalog_node_array_t;
+} tf_node;
 
 typedef struct {
     char id[TF_CATALOG_RESOURCE_ID_MAXLEN];
     char assockey[TF_CATALOG_ASSOCIATION_KEY_MAXLEN];
-    tf_location_service_t service;
-} tf_catalog_service_t;
-
-typedef struct {
-    tf_catalog_service_t *items;
-    int count;
-} tf_catalog_service_array_t;
+    tf_service service;
+} tf_service_ref;
 
 typedef struct {
     char *path;
     int depth;
-} tf_catalog_pathspec_t;
-
-typedef struct {
-    tf_catalog_pathspec_t *items;
-    int count;
-} tf_catalog_pathspec_array_t;
+} tf_path_spec;
 
 typedef struct {
     int artifactid;
@@ -84,11 +69,5 @@ typedef struct {
     int type;
     int kindid;
     char *value;
-} tf_catalog_property_t;
-
-typedef struct {
-    tf_catalog_property_t *items;
-    int count;
-} tf_catalog_property_array_t;
-
+} tf_property;
 
