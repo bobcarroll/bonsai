@@ -105,7 +105,7 @@ soap_fault_build(fault_code_t fcode,
   buffer = (char *) malloc(bufferlen);
 
   sprintf(buffer, _SOAP_FAULT_TEMPLATE_,
-          soap_env_ns, soap_env_enc, soap_xsi_ns,
+          soap_env_ns2, soap_env_enc, soap_xsi_ns,
           soap_xsd_ns, faultcode,
           faultstring ? faultstring : "error",
           faultactor ? faultactor : "", detail ? detail : "");

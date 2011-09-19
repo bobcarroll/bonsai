@@ -287,11 +287,11 @@ soap_env_new_with_method(const char *urn, const char *method, SoapEnv ** out)
   {
 #ifdef USE_XMLSTRING
     xmlStrPrintf(buffer, 1054, BAD_CAST _SOAP_MSG_TEMPLATE_EMPTY_TARGET_,
-                 soap_env_ns, soap_env_enc, soap_xsi_ns,
+                 soap_env_ns2, soap_env_enc, soap_xsi_ns,
                  soap_xsd_ns, BAD_CAST method, BAD_CAST urn, BAD_CAST method);
 #else
     sprintf(buffer, _SOAP_MSG_TEMPLATE_EMPTY_TARGET_,
-            soap_env_ns, soap_env_enc, soap_xsi_ns,
+            soap_env_ns2, soap_env_enc, soap_xsi_ns,
             soap_xsd_ns, method, urn, method);
 #endif
   }
@@ -299,11 +299,11 @@ soap_env_new_with_method(const char *urn, const char *method, SoapEnv ** out)
   {
 #ifdef USE_XMLSTRING
     xmlStrPrintf(buffer, 1054, BAD_CAST _SOAP_MSG_TEMPLATE_,
-                 soap_env_ns, soap_env_enc, soap_xsi_ns,
+                 soap_env_ns2, soap_env_enc, soap_xsi_ns,
                  soap_xsd_ns, BAD_CAST method, BAD_CAST urn, BAD_CAST method);
 #else
     sprintf(buffer, _SOAP_MSG_TEMPLATE_,
-            soap_env_ns, soap_env_enc, soap_xsi_ns,
+            soap_env_ns2, soap_env_enc, soap_xsi_ns,
             soap_xsd_ns, method, urn, method);
 #endif
 
@@ -501,7 +501,12 @@ soap_env_get_body(SoapEnv * env)
   for (node = soap_xml_get_children(env->root); node; node = soap_xml_get_next(node))
   {
     if (!xmlStrcmp(node->name, BAD_CAST "Body")
-     && !xmlStrcmp(node->ns->href, BAD_CAST soap_env_ns))
+     && !xmlStrcmp(node->ns->href, BAD_CAST soap_env_ns2))
+      return node;
+
+    /* fall back to SOAP 1.1 namespace (thanks MS) */
+    if (!xmlStrcmp(node->name, BAD_CAST "Body")
+     && !xmlStrcmp(node->ns->href, BAD_CAST soap_env_ns1))
       return node;
   }
 
@@ -530,7 +535,12 @@ soap_env_get_header(SoapEnv *env)
   for (node = soap_xml_get_children(env->root); node; node = soap_xml_get_next(node))
   {
     if (!xmlStrcmp(node->name, BAD_CAST "Header")
-     && !xmlStrcmp(node->ns->href, BAD_CAST soap_env_ns))
+     && !xmlStrcmp(node->ns->href, BAD_CAST soap_env_ns2))
+      return node;
+
+    /* fall back to SOAP 1.1 namespace (thanks MS) */
+    if (!xmlStrcmp(node->name, BAD_CAST "Header")
+     && !xmlStrcmp(node->ns->href, BAD_CAST soap_env_ns1))
       return node;
   }
 
