@@ -300,6 +300,8 @@ soap_server_entry(httpd_conn_t * conn, hrequest_t * req)
     ctx->http = req;
     soap_ctx_add_files(ctx, req->attachments);
 
+    ctx->tfctx = strdup(router->tfctx);
+
     if (ctx->env == NULL)
     {
       _soap_server_send_fault(conn, "Can not parse POST data!");

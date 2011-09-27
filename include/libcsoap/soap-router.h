@@ -37,6 +37,7 @@ typedef struct _SoapRouter
   SoapService *default_service;
   httpd_auth auth;
   xmlDocPtr wsdl;
+  char *tfctx;
 } SoapRouter;
 
 
@@ -72,6 +73,7 @@ void soap_router_register_service(SoapRouter * router,
 
 void soap_router_register_default_service(SoapRouter * router, SoapServiceFunc func, const char *method, const char *urn);
 
+void soap_router_register_tf_context(SoapRouter * router, const char *context);
 
 void soap_router_register_description(SoapRouter *router, xmlDocPtr doc);
 

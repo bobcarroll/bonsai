@@ -68,6 +68,14 @@ soap_router_register_service(SoapRouter * router,
 }
 
 void
+soap_router_register_tf_context(SoapRouter * router, const char *context)
+{
+    router->tfctx = strdup(context);
+
+    return;
+}
+
+void
 soap_router_register_security(SoapRouter * router, httpd_auth auth)
 {
   router->auth = auth;
@@ -157,6 +165,9 @@ soap_router_free(SoapRouter * router)
   }
   if (router->wsdl)
     xmlFreeDoc(router->wsdl);
+
+  if (router->tfctx)
+    free(router->tfctx);
 
   free(router);
   gcslog_debug("leave with success");

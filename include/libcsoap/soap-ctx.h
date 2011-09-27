@@ -40,6 +40,7 @@ typedef struct _SoapCtx
   char *action;
   hrequest_t *http;
   attachments_t *attachments;
+  char *tfctx;
 } SoapCtx;
 
 #ifdef __cplusplus
