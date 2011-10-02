@@ -35,13 +35,13 @@
  * @param dsn       the database source name in the form of dbname[@hostname][:port]
  * @param username  the username to connect as
  * @param passwd    the user password
- * @param maxconns  the maximum number of connections to open
+ * @param count     the number of connections to open
  *
  * @return 1 on success, 0 on failure
  *
  * @seealso http://www.postgresql.org/docs/9.0/static/ecpg-connect.html
  */
-int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, int maxconns)
+int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, int count)
 {
     gcslog_info("connecting to %s as %s", dsn, username);
 
@@ -52,13 +52,20 @@ int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, in
     char *connval = (char *)alloca(sizeof(char) * 10);
     EXEC SQL END DECLARE SECTION;
 
-    gcs_ctxpool_init(maxconns);
+    int poolsize = gcs_ctxpool_size();
+    int ctxcount = gcs_pgctx_count();
+
+    if (poolsize == 0 || (ctxcount + count) > poolsize) {
+        gcslog_debug("poolsize=%d ctxcount=%d count=%d", poolsize, ctxcount, count);
+        gcslog_error("context pool is uninitialised or not enough contexts are available");
+        return 0;
+    }
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
 
     int i;
-    for (i = 0; i < maxconns; i++) {
-        sprintf(connval, "conn%d", i);
+    for (i = 0; i < count; i++) {
+        sprintf(connval, "conn%d", ctxcount + i);
 
         EXEC SQL CONNECT TO :dsnval AS :connval USER :usernameval USING :passwdval;
         gcs_pgctx_alloc(connval);

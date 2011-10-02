@@ -31,6 +31,7 @@
 
 #include <gcs/log.h>
 #include <gcs/pgcommon.h>
+#include <gcs/pgctxpool.h>
 
 #include <cs/location.h>
 #include <cs/catalog.h>
@@ -49,7 +50,7 @@ int main(int argc, char **argv)
     const char *pgdsn = NULL;
     const char *pguser = NULL;
     const char *pgpasswd = NULL;
-    int maxconns = 1, nport;
+    int maxconns = 1, dbconns = 1, nport;
     const char *port = NULL;
     const char *prefix = NULL;
 
@@ -99,7 +100,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    config_lookup_string(&config, "pgdsn", &pgdsn);
+    config_lookup_string(&config, "configdsn", &pgdsn);
     config_lookup_string(&config, "pguser", &pguser);
     config_lookup_string(&config, "pgpasswd", &pgpasswd);
 
@@ -107,6 +108,12 @@ int main(int argc, char **argv)
     if (maxconns < 1) {
         gcslog_warn("maxconns must be at least 1 (was %d)", maxconns);
         maxconns = 1;
+    }
+
+    config_lookup_int(&config, "dbconns", &dbconns);
+    if (dbconns < 1) {
+        gcslog_warn("dbconns must be at least 1 (was %d)", dbconns);
+        dbconns = 1;
     }
 
     config_lookup_string(&config, "bindport", &port);
@@ -130,7 +137,16 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (!gcs_pg_connect(pgdsn, pguser, pgpasswd, maxconns)) {
+    if (gcs_ctxpool_init(maxconns) != maxconns) {
+        gcslog_fatal("failed to initialise PG context pool");
+
+        config_destroy(&config);
+        gcs_log_close();
+
+        return 1;
+    }
+
+    if (!gcs_pg_connect(pgdsn, pguser, pgpasswd, dbconns)) {
         gcslog_fatal("failed to connect to PG");
 
         config_destroy(&config);

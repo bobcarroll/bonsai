@@ -32,33 +32,32 @@
 
 static gcs_pgctx_t **_ctxpool = NULL;
 static int _ctxcount = 0;
-static pthread_mutex_t _ctxmtx;
+static pthread_mutex_t _ctxmtx = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * Initialises the database connection pool.
  *
- * @param count     the number of contexts to allocate
+ * @param count     the size of the context pool
+ *
+ * @return the actual size of the context pool
  */
-void gcs_ctxpool_init(int count)
+int gcs_ctxpool_init(int count)
 {
-    pthread_mutexattr_t mattr;
-
     if (_ctxpool != NULL) {
         gcslog_warn("context pool is already initialised");
-        return;
+        return 0;
     } else if (count < 1) {
         gcslog_error("context count must be at least 1 (was %d)", count);
-        return;
+        return 0;
     }
 
+    pthread_mutex_lock(&_ctxmtx);
     _ctxpool = (gcs_pgctx_t **)calloc(count, sizeof(gcs_pgctx_t *));
     _ctxcount = count;
+    pthread_mutex_unlock(&_ctxmtx);
 
-    pthread_mutexattr_init(&mattr);
-    pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED);
-
-    pthread_mutex_init(&_ctxmtx, &mattr);
-    pthread_mutexattr_destroy(&mattr);
+    gcslog_debug("initialised PG context pool with size %d", count);
+    return count;
 }
 
 /**
@@ -87,9 +86,22 @@ void gcs_ctxpool_free()
     _ctxcount = 0;
 
     pthread_mutex_unlock(&_ctxmtx);
-    pthread_mutex_destroy(&_ctxmtx);
 
     gcslog_debug("freed PG context pool");
+}
+
+/**
+ * Gets the size of the context pool.
+ *
+ * @return the pool size
+ */
+int gcs_ctxpool_size()
+{
+    pthread_mutex_lock(&_ctxmtx);
+    int result = _ctxcount;
+    pthread_mutex_unlock(&_ctxmtx);
+
+    return result;
 }
 
 /**
@@ -113,7 +125,7 @@ int gcs_pgctx_alloc(const char *conn)
             continue;
 
         _ctxpool[i] = (gcs_pgctx_t *)malloc(sizeof(gcs_pgctx_t));
-        memset(_ctxpool[i], 0, sizeof(gcs_pgctx_t));
+        bzero(_ctxpool[i], sizeof(gcs_pgctx_t));
 
         _ctxpool[i]->conn = strdup(conn);
 
@@ -127,6 +139,22 @@ int gcs_pgctx_alloc(const char *conn)
     gcslog_warn("all context slots are in use");
 
     return 0;
+}
+
+/**
+ * Gets the count of allocated PG contexts.
+ *
+ * @return the context count
+ */
+int gcs_pgctx_count()
+{
+    int count;
+
+    pthread_mutex_lock(&_ctxmtx);
+    for (count = 0; count < _ctxcount && _ctxpool[count] != NULL; count++);
+    pthread_mutex_unlock(&_ctxmtx);
+
+    return count;
 }
 
 /**
