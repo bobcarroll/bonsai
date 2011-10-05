@@ -33,8 +33,8 @@
 #include <gcs/pgcommon.h>
 #include <gcs/pgctxpool.h>
 
-#include <cs/location.h>
-#include <cs/catalog.h>
+#include <cs/tfmain.h>
+#include <cs/pcmain.h>
 
 int main(int argc, char **argv)
 {
@@ -162,8 +162,8 @@ int main(int argc, char **argv)
     soapargs[2] = strdup(port);
     soaperr = soap_server_init_args(3, soapargs);
 
-    location_service_init(&locrouter, prefix);
-    catalog_service_init(&catrouter, prefix);
+    core_services_init(prefix);
+    pc_services_init(prefix);
 
     gcslog_notice("starting SOAP server");
     soap_server_run();

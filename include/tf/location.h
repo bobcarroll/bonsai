@@ -21,6 +21,11 @@
 
 #include <tf/locationtypes.h>
 
+#define TF_SERVICE_TYPE_CATALOG         "CatalogService"
+#define TF_SERVICE_TYPE_LOCATION        "LocationService"
+#define TF_SERVICE_TYPE_REGISTRATION    "RegistrationService"
+#define TF_SERVICE_TYPE_STATUS          "StatusService"
+
 char *tf_find_default_moniker(tf_access_map **);
 void tf_free_access_map(tf_access_map *);
 void *tf_free_access_map_array(tf_access_map **);

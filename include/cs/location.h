@@ -21,9 +21,10 @@
 
 #include <csoap.h>
 
+#include <tf/catalogtypes.h>
 #include <tf/locationtypes.h>
 #include <tf/xml.h>
 
 void location_append_service(xmlNode *, tf_service *);
-void location_service_init(SoapRouter **, const char *);
+void location_service_init(SoapRouter **, const char *, tf_service_ref *);
 

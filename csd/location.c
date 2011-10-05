@@ -276,20 +276,10 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    char **pathspec = (char **)calloc(2, sizeof(char *));
-    pathspec[0] = (char *)alloca(sizeof(char) * 27);
-    snprintf(pathspec[0], 27, "%s**", TF_CATALOG_ORGANIZATION_ROOT);
-
-    char **typearr = (char **)calloc(2, sizeof(char *));
-    typearr[0] = TF_CATALOG_TYPE_SERVER_INSTANCE;
-
-    dberr = tf_query_nodes(
-        (const char * const *)pathspec,
-        (const char * const *)typearr,
+    dberr = tf_query_single_node(
+        TF_CATALOG_ORGANIZATION_ROOT,
+        TF_CATALOG_TYPE_SERVER_INSTANCE,
         &nodearr);
-
-    free(pathspec);
-    free(typearr);
 
     if (dberr != TF_ERROR_SUCCESS || nodearr[0] == NULL) {
         svcarr = tf_free_service_array(svcarr);
@@ -400,15 +390,17 @@ static int _auth_ntlm(SoapEnv *env, const char *user, const char *passwd)
  *
  * @param router    output buffer for the SOAP router
  * @param prefix    the URI prefix for this service
+ * @param ref       service reference info
  */
-void location_service_init(SoapRouter **router, const char *prefix)
+void location_service_init(SoapRouter **router, const char *prefix, tf_service_ref *ref)
 {
     char url[1024];
 
     (*router) = soap_router_new();
     soap_router_register_security(*router, (httpd_auth)_auth_ntlm);
+    soap_router_register_tf_context(*router, ref->id);
 
-    sprintf(url, "%s%s", prefix != NULL ? prefix : "", TF_LOCATION_SERVICE_ENDPOINT);
+    sprintf(url, "%s%s", prefix ? prefix : "", ref->service.relpath);
     soap_server_register_router(*router, url);
 
     soap_router_register_service(
@@ -422,6 +414,6 @@ void location_service_init(SoapRouter **router, const char *prefix)
         "QueryServices",
         TF_DEFAULT_NAMESPACE);
 
-    gcslog_info("registered location services");
+    gcslog_info("registered location service %s in context %s", url, ref->id);
 }
 

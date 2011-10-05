@@ -63,4 +63,5 @@ void *tf_free_property_array(tf_property **);
 void tf_free_resource(tf_resource);
 void *tf_free_service_ref_array(tf_service_ref **);
 tf_error tf_query_nodes(const char * const *, const char * const *, tf_node ***);
+tf_error tf_query_single_node(const char *, const char *, tf_node ***);
 

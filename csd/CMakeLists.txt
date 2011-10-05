@@ -1,8 +1,12 @@
 
 set(CSD_SRC
     csd.c
+    tfmain.c
+    pcmain.c
     location.c
-    catalog.c)
+    catalog.c
+    registration.c
+    status.c)
 
 add_executable(csd ${CSD_SRC})
 target_link_libraries(csd gcs tf ${CSOAP_LIBRARIES} ${LIBCONFIG_LIBRARY})

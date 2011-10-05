@@ -21,7 +21,5 @@
 
 #include <csoap.h>
 
-#include <tf/catalogtypes.h>
-
-void catalog_service_init(SoapRouter **, const char *, tf_service_ref *);
+void pc_services_init(const char *);
 

@@ -25,6 +25,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <tf/catalog.h>
 #include <tf/catalogdb.h>
@@ -66,6 +67,8 @@ void *tf_free_path_spec_array(tf_path_spec **result)
     for (i = 0; result[i] != NULL; i++) {
         if (result[i]->path != NULL)
             free(result[i]->path);
+
+        free(result[i]);
     }
 
     free(result);
@@ -168,7 +171,7 @@ tf_error tf_query_nodes(const char * const *patharr, const char * const *types, 
     int i;
 
     for (i = 0; patharr[i] != NULL; i++);
-    pathspecs = (tf_path_spec **)calloc(i, sizeof(tf_path_spec *));
+    pathspecs = (tf_path_spec **)calloc(i + 1, sizeof(tf_path_spec *));
 
     for (i = 0; patharr[i] != NULL; i++) {
         const char *path = patharr[i];
@@ -193,6 +196,39 @@ tf_error tf_query_nodes(const char * const *patharr, const char * const *types, 
 
     dberr = tf_fetch_nodes(pathspecs, types, result);
     pathspecs = tf_free_path_spec_array(pathspecs);
+
+    return dberr;
+}
+
+/**
+ * Queries the catalog for a node in the given path. Calling functions
+ * should call tf_free_node_array() to free "result".
+ *
+ * @param path      a catalog path, optionally with a depth marker
+ * @param type      a resource type ID strings to filter by
+ * @param result    pointer to an output buffer for the results
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_query_single_node(const char *path, const char *type, tf_node ***result)
+{
+    tf_error dberr;
+
+    char **pathspec = (char **)calloc(2, sizeof(char *));
+    pathspec[0] = (char *)alloca(sizeof(char) * 27);
+    snprintf(pathspec[0], 27, "%s**", path);
+
+    char **typearr = (char **)calloc(2, sizeof(char *));
+    typearr[0] = strdup(type);
+
+    dberr = tf_query_nodes(
+            (const char * const *)pathspec,
+            (const char * const *)typearr,
+            result);
+
+    free(pathspec);
+    free(typearr[0]);
+    free(typearr);
 
     return dberr;
 }
