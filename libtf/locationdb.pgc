@@ -54,7 +54,7 @@ tf_error tf_fetch_services(tf_service_filter **filters, tf_service ***result)
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx_t *ctx = gcs_pgctx_acquire(NULL);
+    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -214,7 +214,7 @@ tf_error tf_fetch_access_map(tf_access_map ***result)
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx_t *ctx = gcs_pgctx_acquire(NULL);
+    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;

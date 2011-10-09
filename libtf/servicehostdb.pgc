@@ -57,7 +57,7 @@ tf_error tf_fetch_hosts(const char *parent, tf_host ***result)
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx_t *ctx = gcs_pgctx_acquire(NULL);
+    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;

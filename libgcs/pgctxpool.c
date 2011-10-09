@@ -30,7 +30,7 @@
 #include <gcs/pgctxpool.h>
 #include <gcs/log.h>
 
-static gcs_pgctx_t **_ctxpool = NULL;
+static gcs_pgctx **_ctxpool = NULL;
 static int _ctxcount = 0;
 static pthread_mutex_t _ctxmtx = PTHREAD_MUTEX_INITIALIZER;
 
@@ -52,7 +52,7 @@ int gcs_ctxpool_init(int count)
     }
 
     pthread_mutex_lock(&_ctxmtx);
-    _ctxpool = (gcs_pgctx_t **)calloc(count, sizeof(gcs_pgctx_t *));
+    _ctxpool = (gcs_pgctx **)calloc(count, sizeof(gcs_pgctx *));
     _ctxcount = count;
     pthread_mutex_unlock(&_ctxmtx);
 
@@ -128,8 +128,8 @@ int gcs_pgctx_alloc(const char *conn, const char *tag)
         } else if (_ctxpool[i] != NULL)
             continue;
 
-        _ctxpool[i] = (gcs_pgctx_t *)malloc(sizeof(gcs_pgctx_t));
-        bzero(_ctxpool[i], sizeof(gcs_pgctx_t));
+        _ctxpool[i] = (gcs_pgctx *)malloc(sizeof(gcs_pgctx));
+        bzero(_ctxpool[i], sizeof(gcs_pgctx));
 
         _ctxpool[i]->conn = strdup(conn);
 
@@ -172,9 +172,9 @@ int gcs_pgctx_count()
 
  * @return a connection context
  */
-gcs_pgctx_t *gcs_pgctx_acquire(const char *tag)
+gcs_pgctx *gcs_pgctx_acquire(const char *tag)
 {
-    gcs_pgctx_t *result = NULL;
+    gcs_pgctx *result = NULL;
     int i = 0, m;
 
     pthread_mutex_lock(&_ctxmtx);
@@ -231,7 +231,7 @@ gcs_pgctx_t *gcs_pgctx_acquire(const char *tag)
  *
  * @param context
  */
-void gcs_pgctx_release(gcs_pgctx_t *context)
+void gcs_pgctx_release(gcs_pgctx *context)
 {
     int i;
 

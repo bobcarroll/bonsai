@@ -57,7 +57,7 @@ tf_error tf_fetch_nodes(tf_path_spec **pathspecs, const char * const *types, tf_
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx_t *ctx = gcs_pgctx_acquire(NULL);
+    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -261,7 +261,7 @@ tf_error tf_fetch_resources(const char * const *idarr, int types, tf_node ***res
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx_t *ctx = gcs_pgctx_acquire(NULL);
+    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -404,7 +404,7 @@ tf_error tf_fetch_pc_service_refs(const char *instid, tf_service_ref ***result)
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx_t *ctx = gcs_pgctx_acquire(NULL);
+    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -555,7 +555,7 @@ tf_error tf_fetch_service_refs(tf_node **nodes, tf_service_ref ***result)
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx_t *ctx = gcs_pgctx_acquire(NULL);
+    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -712,7 +712,7 @@ tf_error tf_fetch_properties(tf_node **nodes, tf_property ***result)
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx_t *ctx = gcs_pgctx_acquire(NULL);
+    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
