@@ -38,11 +38,11 @@
  */
 void *tf_free_node_array(tf_node **result)
 {
-    if (result == NULL)
+    if (!result)
         return NULL;
 
     int i;
-    for (i = 0; result[i] != NULL; i++) {
+    for (i = 0; result[i]; i++) {
         tf_free_resource(result[i]->resource);
         free(result[i]);
     }
@@ -60,12 +60,12 @@ void *tf_free_node_array(tf_node **result)
  */
 void *tf_free_path_spec_array(tf_path_spec **result)
 {
-    if (result == NULL)
+    if (!result)
         return NULL;
 
     int i;
-    for (i = 0; result[i] != NULL; i++) {
-        if (result[i]->path != NULL)
+    for (i = 0; result[i]; i++) {
+        if (result[i]->path)
             free(result[i]->path);
 
         free(result[i]);
@@ -83,10 +83,10 @@ void *tf_free_path_spec_array(tf_path_spec **result)
  */
 void tf_free_property(tf_property *result)
 {
-    if (result == NULL)
+    if (!result)
         return;
 
-    if (result->value != NULL)
+    if (result->value)
         free(result->value);
 
     result->value = NULL;
@@ -101,11 +101,11 @@ void tf_free_property(tf_property *result)
  */
 void *tf_free_property_array(tf_property **result)
 {
-    if (result == NULL)
+    if (!result)
         return NULL;
 
     int i;
-    for (i = 0; result[i] != NULL; i++) {
+    for (i = 0; result[i]; i++) {
         tf_free_property(result[i]);
         free(result[i]);
     }
@@ -122,10 +122,10 @@ void *tf_free_property_array(tf_property **result)
  */
 void tf_free_resource(tf_resource result)
 {
-    if (result.description != NULL)
+    if (result.description)
         free(result.description);
 
-    if (result.type.description != NULL)
+    if (result.type.description)
         free(result.type.description);
 
     result.description = NULL;
@@ -141,11 +141,11 @@ void tf_free_resource(tf_resource result)
  */
 void *tf_free_service_ref_array(tf_service_ref **result)
 {
-    if (result == NULL)
+    if (!result)
         return NULL;
 
     int i;
-    for (i = 0; result[i] != NULL; i++) {
+    for (i = 0; result[i]; i++) {
         tf_free_service(&result[i]->service);
         free(result[i]);
     }
@@ -170,10 +170,10 @@ tf_error tf_query_nodes(const char * const *patharr, const char * const *types, 
     tf_error dberr;
     int i;
 
-    for (i = 0; patharr[i] != NULL; i++);
+    for (i = 0; patharr[i]; i++);
     pathspecs = (tf_path_spec **)calloc(i + 1, sizeof(tf_path_spec *));
 
-    for (i = 0; patharr[i] != NULL; i++) {
+    for (i = 0; patharr[i]; i++) {
         const char *path = patharr[i];
         int pathlen = strlen(path);
 

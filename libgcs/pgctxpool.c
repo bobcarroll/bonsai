@@ -43,7 +43,7 @@ static pthread_mutex_t _ctxmtx = PTHREAD_MUTEX_INITIALIZER;
  */
 int gcs_ctxpool_init(int count)
 {
-    if (_ctxpool != NULL) {
+    if (_ctxpool) {
         gcslog_warn("context pool is already initialised");
         return 0;
     } else if (count < 1) {
@@ -67,11 +67,11 @@ void gcs_ctxpool_free()
 {
     pthread_mutex_lock(&_ctxmtx);
 
-    if (_ctxpool != NULL) {
+    if (_ctxpool) {
         int i;
         for (i = 0; i < _ctxcount; i++) {
-            if (_ctxpool[i] != NULL) {
-                if (_ctxpool[i]->tag != NULL)
+            if (_ctxpool[i]) {
+                if (_ctxpool[i]->tag)
                     free(_ctxpool[i]->tag);
 
                 free(_ctxpool[i]->conn);
@@ -121,11 +121,11 @@ int gcs_pgctx_alloc(const char *conn, const char *tag)
 
     int i;
     for (i = 0; i < _ctxcount; i++) {
-        if (_ctxpool[i] != NULL && strcmp(_ctxpool[i]->conn, conn) == 0) {
+        if (_ctxpool[i] && strcmp(_ctxpool[i]->conn, conn) == 0) {
             pthread_mutex_unlock(&_ctxmtx);
             gcslog_warn("a PG context is already allocated for %s", conn);
             return 1;
-        } else if (_ctxpool[i] != NULL)
+        } else if (_ctxpool[i])
             continue;
 
         _ctxpool[i] = (gcs_pgctx *)malloc(sizeof(gcs_pgctx));
@@ -158,7 +158,7 @@ int gcs_pgctx_count()
     int count;
 
     pthread_mutex_lock(&_ctxmtx);
-    for (count = 0; count < _ctxcount && _ctxpool[count] != NULL; count++);
+    for (count = 0; count < _ctxcount && _ctxpool[count]; count++);
     pthread_mutex_unlock(&_ctxmtx);
 
     return count;
@@ -178,11 +178,11 @@ gcs_pgctx *gcs_pgctx_acquire(const char *tag)
     int i = 0, m;
 
     pthread_mutex_lock(&_ctxmtx);
-    for (i = 0; i < _ctxcount && _ctxpool[i] != NULL; i++) {
-        m = ((tag == NULL && _ctxpool[i]->tag == NULL) || 
-             (tag != NULL && _ctxpool[i] != NULL && strcmp(_ctxpool[i]->tag, tag) == 0));
+    for (i = 0; i < _ctxcount && _ctxpool[i]; i++) {
+        m = ((!tag && !_ctxpool[i]->tag) || 
+             (tag && _ctxpool[i] && strcmp(_ctxpool[i]->tag, tag) == 0));
 
-        if (_ctxpool[i] != NULL && _ctxpool[i]->owner == (unsigned long)pthread_self() && m) {
+        if (_ctxpool[i] && _ctxpool[i]->owner == (unsigned long)pthread_self() && m) {
             gcslog_debug("got PG context %d (reused)", i);
 
             _ctxpool[i]->refcount++;
@@ -193,16 +193,16 @@ gcs_pgctx *gcs_pgctx_acquire(const char *tag)
     }
     pthread_mutex_unlock(&_ctxmtx);
 
-    if (result != NULL)
+    if (result)
         return result;
 
     i = 0;
     while (1) {
         pthread_mutex_lock(&_ctxmtx);
-        m = ((tag == NULL && _ctxpool[i]->tag == NULL) || 
-             (tag != NULL && _ctxpool[i] != NULL && strcmp(_ctxpool[i]->tag, tag) == 0));
+        m = ((!tag && !_ctxpool[i]->tag) || 
+             (tag && _ctxpool[i] && strcmp(_ctxpool[i]->tag, tag) == 0));
 
-        if (_ctxpool[i] != NULL && _ctxpool[i]->owner == 0 && m) {
+        if (_ctxpool[i] && _ctxpool[i]->owner == 0 && m) {
             gcslog_debug("got PG context %d", i);
 
             _ctxpool[i]->owner = (unsigned long)pthread_self();
@@ -211,11 +211,11 @@ gcs_pgctx *gcs_pgctx_acquire(const char *tag)
         }
         pthread_mutex_unlock(&_ctxmtx);
 
-        if (result != NULL)
+        if (result)
             break;
 
         i++;
-        if (i == _ctxcount || _ctxpool[i] == NULL) {
+        if (i == _ctxcount || !_ctxpool[i]) {
             gcslog_info("No available PG context, sleeping...");
             sleep(5);
             i = 0;
@@ -237,7 +237,7 @@ void gcs_pgctx_release(gcs_pgctx *context)
 
     pthread_mutex_lock(&_ctxmtx);
     for (i = 0; i < _ctxcount; i++) {
-        if (_ctxpool[i] != NULL && strcmp(_ctxpool[i]->conn, context->conn) == 0) {
+        if (_ctxpool[i] && strcmp(_ctxpool[i]->conn, context->conn) == 0) {
             context->refcount--;
 
             if (context->refcount == 0) {

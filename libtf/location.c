@@ -38,11 +38,11 @@
  */
 char *tf_find_default_moniker(tf_access_map **accmaparr)
 {
-    if (accmaparr == NULL || accmaparr[0] == NULL)
+    if (!accmaparr || !accmaparr[0])
         return NULL;
 
     int i;
-    for (i = 0; accmaparr[i] != NULL; i++) {
+    for (i = 0; accmaparr[i]; i++) {
         if (accmaparr[i]->fdefault)
             return strdup(accmaparr[i]->moniker);
     }
@@ -58,10 +58,10 @@ char *tf_find_default_moniker(tf_access_map **accmaparr)
  */
 void tf_free_access_map(tf_access_map *result)
 {
-    if (result == NULL)
+    if (!result)
         return;
 
-    if (result->apuri != NULL)
+    if (result->apuri)
         free(result->apuri);
 
     result->apuri = NULL;
@@ -76,11 +76,11 @@ void tf_free_access_map(tf_access_map *result)
  */
 void *tf_free_access_map_array(tf_access_map **result)
 {
-    if (result == NULL)
+    if (!result)
         return NULL;
 
     int i;
-    for (i = 0; result[i] != NULL; i++) {
+    for (i = 0; result[i]; i++) {
         tf_free_access_map(result[i]);
         free(result[i]);
     }
@@ -97,10 +97,10 @@ void *tf_free_access_map_array(tf_access_map **result)
  */
 void tf_free_service(tf_service *result)
 {
-    if (result == NULL)
+    if (!result)
         return;
 
-    if (result->description != NULL)
+    if (result->description)
         free(result->description);
 
     result->description = NULL;
@@ -115,11 +115,11 @@ void tf_free_service(tf_service *result)
  */
 void *tf_free_service_array(tf_service **result)
 {
-    if (result == NULL)
+    if (!result)
         return NULL;
 
     int i;
-    for (i = 0; result[i] != NULL; i++) {
+    for (i = 0; result[i]; i++) {
         tf_free_service(result[i]);
         free(result[i]);
     }
@@ -137,15 +137,15 @@ void *tf_free_service_array(tf_service **result)
  */
 void *tf_free_service_filter_array(tf_service_filter **result)
 {
-    if (result == NULL)
+    if (!result)
         return NULL;
 
     int i;
-    for (i = 0; result[i] != NULL; i++) {
-        if (result[i]->id != NULL)
+    for (i = 0; result[i]; i++) {
+        if (result[i]->id)
             free(result[i]->id);
 
-        if (result[i]->type != NULL)
+        if (result[i]->type)
             free(result[i]->type);
 
         free(result[i]);

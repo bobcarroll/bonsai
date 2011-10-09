@@ -138,13 +138,13 @@ static void _append_location_data(xmlNode *parent, tf_service **svcarr, tf_acces
     xmlNode *svcdefs = xmlNewChild(parent, NULL, "ServiceDefinitions", NULL);
 
     if (inclall) {
-        for (i = 0; svcarr[i] != NULL; i++ )
+        for (i = 0; svcarr[i]; i++ )
             location_append_service(svcdefs, svcarr[i]);
     }
 
     xmlNode *accessmappings = xmlNewChild(parent, NULL, "AccessMappings", NULL);
 
-    for (i = 0; accmaparr[i] != NULL; i++) {
+    for (i = 0; accmaparr[i]; i++) {
         xmlNode *am = xmlNewChild(accessmappings, NULL, "AccessMapping", NULL);
         xmlNewProp(am, "DisplayName", accmaparr[i]->name);
         xmlNewProp(am, "Moniker", accmaparr[i]->moniker);
@@ -233,18 +233,18 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     int lastchgid = -1;
 
     arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:connectOptions/text()");
-    if (arg != NULL)
+    if (arg)
         inclservices = atoi(arg->content);
 
     arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:lastChangeId/text()");
-    if (arg != NULL)
+    if (arg)
         lastchgid = atoi(arg->content);
 
     xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:serviceTypeFilters/m:ServiceTypeFilter");
-    if (xpres != NULL && xpres->nodesetval != NULL) {
+    if (xpres && xpres->nodesetval) {
         filters = _build_service_filters(xpres);
         xmlXPathFreeObject(xpres);
-    } else if (xpres != NULL) {
+    } else if (xpres) {
         filters = (tf_service_filter **)calloc(1, sizeof(tf_service_filter));
         xmlXPathFreeObject(xpres);
     }
@@ -281,7 +281,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         TF_CATALOG_TYPE_SERVER_INSTANCE,
         &nodearr);
 
-    if (dberr != TF_ERROR_SUCCESS || nodearr[0] == NULL) {
+    if (dberr != TF_ERROR_SUCCESS || !nodearr[0]) {
         svcarr = tf_free_service_array(svcarr);
         accmaparr = tf_free_access_map_array(accmaparr);
         nodearr = tf_free_node_array(nodearr);
@@ -332,14 +332,14 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
     int lastchgid = -1;
 
     xmlNode *arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:lastChangeId/text()");
-    if (arg != NULL)
+    if (arg)
         lastchgid = atoi(arg->content);
 
     xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:serviceTypeFilters/m:ServiceTypeFilter");
-    if (xpres != NULL && xpres->nodesetval != NULL) {
+    if (xpres && xpres->nodesetval) {
         filters = _build_service_filters(xpres);
         xmlXPathFreeObject(xpres);
-    } else if (xpres != NULL) {
+    } else if (xpres) {
         filters = (tf_service_filter **)calloc(1, sizeof(tf_service_filter));
         xmlXPathFreeObject(xpres);
     }

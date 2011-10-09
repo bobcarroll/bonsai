@@ -45,7 +45,7 @@ tf_error tf_db_build_list(const char * const *list, char *buf, const int buflen,
 {
     int r = buflen - *curpos, i = 0;
 
-    for (i = 0; list[i] != NULL; i++) {
+    for (i = 0; list[i]; i++) {
         if (i > 0) {
             if (snprintf(buf + *curpos, r, ", ") >= r)
                 return TF_ERROR_PARAM_TOO_LONG;

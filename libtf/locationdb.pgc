@@ -42,7 +42,7 @@
  */
 tf_error tf_fetch_services(tf_service_filter **filters, tf_service ***result)
 {
-    if (filters == NULL || filters[0] == NULL || result == NULL || *result != NULL)
+    if (!filters || !filters[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up service definitions");
@@ -68,7 +68,7 @@ tf_error tf_fetch_services(tf_service_filter **filters, tf_service ***result)
 
     bzero(&idtypelst, idtypelen);
 
-    for (i = 0; filters[i] != NULL; i++) {
+    for (i = 0; filters[i]; i++) {
         if (strcmp(filters[i]->id, TF_LOCATION_FILTER_SERVICE_ID) == 0 &&
             strcmp(filters[i]->type, TF_LOCATION_FILTER_SERVICE_TYPE) == 0)
             continue;
@@ -202,7 +202,7 @@ error:
  */
 tf_error tf_fetch_access_map(tf_access_map ***result)
 {
-    if (result == NULL || *result != NULL)
+    if (!result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up access mappings");

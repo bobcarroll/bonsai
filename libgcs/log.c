@@ -96,7 +96,7 @@ int gcs_log_open(const char *filename, int ll, int fg)
     _loglevel = (ll >= GCS_LOG_FATAL) ? ll : GCS_LOG_FATAL;
     _foreground = fg;
 
-    if (filename != NULL && (_logfile = fopen(filename, "a")) == NULL) {
+    if (filename && !(_logfile = fopen(filename, "a"))) {
         gcslog_fatal("failed to open log file");
         return 0;
     }
@@ -111,7 +111,7 @@ int gcs_log_open(const char *filename, int ll, int fg)
  */
 void gcs_log_close()
 {
-    if (_logfile == NULL)
+    if (!_logfile)
         return;
 
     fclose(_logfile);
@@ -169,7 +169,7 @@ void gcs_log_write(int lev, const char *fn, int ln, const char *format, ...)
         fflush(stdout);
     }
 
-    if (_logfile != NULL) {
+    if (_logfile) {
         timestamp = time(NULL);
         datestr = ctime(&timestamp);
         datestr[strlen(datestr) - 1] = '\0';

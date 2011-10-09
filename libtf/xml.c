@@ -40,11 +40,11 @@ xmlXPathObject *tf_xml_find_all(xmlNode *parent, xmlChar *nsname, xmlChar *nshre
     xmlXPathContextPtr xpctx;
     xmlXPathObjectPtr xpres;
 
-    if (parent == NULL || parent->doc == NULL || expr == NULL)
+    if (!parent || !parent->doc || !expr)
         return NULL;
 
     xpctx = xmlXPathNewContext(parent->doc);
-    if (nsname != NULL)
+    if (nsname)
         xmlXPathRegisterNs(xpctx, nsname, nshref);
 
     xpres = xmlXPathEvalExpression(expr, xpctx);

@@ -45,7 +45,7 @@
  */
 tf_error tf_fetch_nodes(tf_path_spec **pathspecs, const char * const *types, tf_node ***result)
 {
-    if (pathspecs == NULL || pathspecs[0] == NULL || types == NULL || result == NULL || *result != NULL)
+    if (!pathspecs || !pathspecs[0] || !types || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up catalog nodes with path(s)");
@@ -71,7 +71,7 @@ tf_error tf_fetch_nodes(tf_path_spec **pathspecs, const char * const *types, tf_
 
     bzero(&where, wherelen);
 
-    for (i = 0; pathspecs[i] != NULL; i++) {
+    for (i = 0; pathspecs[i]; i++) {
         char *pathval = NULL;
         int oldpathlen = strlen(pathspecs[i]->path);
         int newpathlen = 0;
@@ -112,7 +112,7 @@ tf_error tf_fetch_nodes(tf_path_spec **pathspecs, const char * const *types, tf_
         curpos += strlen(where + curpos);
     }
 
-    if (types[0] != NULL) {
+    if (types[0]) {
         if (curpos >= wherelen - 28) {
             gcs_pgctx_release(ctx);
             return TF_ERROR_PARAM_TOO_LONG;
@@ -249,7 +249,7 @@ error:
  */
 tf_error tf_fetch_resources(const char * const *idarr, int types, tf_node ***result)
 {
-    if (idarr == NULL || idarr[0] == NULL || result == NULL || *result != NULL)
+    if (!idarr || !idarr[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up catalog resources");
@@ -392,7 +392,7 @@ error:
  */
 tf_error tf_fetch_pc_service_refs(const char *instid, tf_service_ref ***result)
 {
-    if (instid == NULL || result == NULL || *result != NULL)
+    if (!instid || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up service references for host instance %s", instid);
@@ -543,7 +543,7 @@ error:
  */
 tf_error tf_fetch_service_refs(tf_node **nodes, tf_service_ref ***result)
 {
-    if (nodes == NULL || nodes[0] == NULL || result == NULL || *result != NULL)
+    if (!nodes || !nodes[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up service references for catalog node(s)");
@@ -568,7 +568,7 @@ tf_error tf_fetch_service_refs(tf_node **nodes, tf_service_ref ***result)
 
     bzero(&residlst, residlen);
 
-    for (i = 0; nodes[i] != NULL; i++) {
+    for (i = 0; nodes[i]; i++) {
         if (i > 0) {
             if (snprintf(residlst + curpos, r, ", ") >= r) {
                 gcs_pgctx_release(ctx);
@@ -700,7 +700,7 @@ error:
  */
 tf_error tf_fetch_properties(tf_node **nodes, tf_property ***result)
 {
-    if (nodes == NULL || nodes[0] == NULL || result == NULL || *result != NULL)
+    if (!nodes || !nodes[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up resource properties for catalog node(s)");
@@ -725,7 +725,7 @@ tf_error tf_fetch_properties(tf_node **nodes, tf_property ***result)
 
     bzero(&idlst, idlen);
 
-    for (i = 0; nodes[i] != NULL; i++) {
+    for (i = 0; nodes[i]; i++) {
         if (i > 0) {
             if (snprintf(idlst + curpos, r, ", ") >= r) {
                 gcs_pgctx_release(ctx);

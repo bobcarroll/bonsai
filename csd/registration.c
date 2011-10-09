@@ -46,7 +46,7 @@ static herror_t _get_registration_entries(SoapCtx *req, SoapCtx *res)
     soap_env_new_with_method(cmd->ns->href, "GetRegistrationEntriesResponse", &res->env);
 
     xmlNode *arg = tf_xml_find_first(req->env->body, "m", TF_REGISTRATION_NAMESPACE, "//m:toolId/text()");
-    int vsts = (arg != NULL && strcmp(arg->content, "vsts") == 0);
+    int vsts = (arg && strcmp(arg->content, "vsts") == 0);
 
     xmlNode *result = xmlNewChild(res->env->body->children->next, NULL, "GetRegistrationEntriesResult", NULL);
     xmlNode *entry = xmlNewChild(result, NULL, "RegistrationEntry", NULL);

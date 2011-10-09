@@ -84,7 +84,7 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
 
     dberr = tf_fetch_hosts(instid, &hostarr);
 
-    if (dberr != TF_ERROR_SUCCESS || hostarr[0] == NULL) {
+    if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {
         gcslog_warn("no project collections were found for instance %s", instid);
         hostarr = tf_free_host_array(hostarr);
         return;
@@ -92,7 +92,7 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
 
     _routers = (SoapRouter **)calloc(MAX_ROUTERS, sizeof(SoapRouter *));
 
-    for (i = 0; hostarr[i] != NULL; i++) {
+    for (i = 0; hostarr[i]; i++) {
         if (!gcs_pg_connect(hostarr[i]->connstr, pguser, pgpasswd, dbconns, hostarr[i]->id)) {
             gcslog_error("failed to connect to PG");
             continue;
@@ -102,13 +102,13 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
 
         dberr = tf_fetch_pc_service_refs(hostarr[i]->id, &refarr);
 
-        if (dberr != TF_ERROR_SUCCESS || refarr[0] == NULL) {
+        if (dberr != TF_ERROR_SUCCESS || !refarr[0]) {
             gcslog_warn("failed to retrieve project collection services for %s", hostarr[i]->id);
             refarr = tf_free_service_ref_array(refarr);
             continue;
         }
 
-        for (n = 0; refarr[n] != NULL; n++) {
+        for (n = 0; refarr[n]; n++) {
             if (n == MAX_ROUTERS) {
                 gcslog_error(
                     "unable to start service because the maximum count was reached (%d)", 

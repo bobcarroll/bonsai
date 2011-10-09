@@ -35,10 +35,10 @@
  */
 void tf_free_host(tf_host *result)
 {
-    if (result == NULL)
+    if (!result)
         return;
 
-    if (result->description != NULL)
+    if (result->description)
         free(result->description);
 
     result->description = NULL;
@@ -53,11 +53,11 @@ void tf_free_host(tf_host *result)
  */
 void *tf_free_host_array(tf_host **result)
 {
-    if (result == NULL)
+    if (!result)
         return NULL;
 
     int i;
-    for (i = 0; result[i] != NULL; i++) {
+    for (i = 0; result[i]; i++) {
         tf_free_host(result[i]);
         free(result[i]);
     }

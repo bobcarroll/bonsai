@@ -45,7 +45,7 @@
  */
 tf_error tf_fetch_hosts(const char *parent, tf_host ***result)
 {
-    if (result == NULL || *result != NULL)
+    if (!result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up service hosts");

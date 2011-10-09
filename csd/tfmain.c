@@ -75,7 +75,7 @@ char *core_services_init(const char *prefix)
 
     dberr = tf_fetch_hosts(NULL, &hostarr);
 
-    if (dberr != TF_ERROR_SUCCESS || hostarr[0] == NULL) {
+    if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {
         gcslog_error("no team foundation instances were found!");
         hostarr = tf_free_host_array(hostarr);
         return NULL;
@@ -97,7 +97,7 @@ char *core_services_init(const char *prefix)
         TF_CATALOG_TYPE_SERVER_INSTANCE,
         &nodearr);
 
-    if (dberr != TF_ERROR_SUCCESS || nodearr[0] == NULL) {
+    if (dberr != TF_ERROR_SUCCESS || !nodearr[0]) {
         gcslog_warn("failed to retrieve team foundation catalog nodes");
         nodearr = tf_free_node_array(nodearr);
         free(result);
@@ -107,17 +107,17 @@ char *core_services_init(const char *prefix)
     dberr = tf_fetch_service_refs(nodearr, &refarr);
     nodearr = tf_free_node_array(nodearr);
 
-    if (dberr != TF_ERROR_SUCCESS || refarr[0] == NULL) {
+    if (dberr != TF_ERROR_SUCCESS || !refarr[0]) {
         gcslog_warn("failed to retrieve team foundation services");
         refarr = tf_free_service_ref_array(refarr);
         free(result);
         return NULL;
     }
 
-    for (i = 0; refarr[i] != NULL; i++);
+    for (i = 0; refarr[i]; i++);
     _routers = (SoapRouter **)calloc(i, sizeof(SoapRouter *));
 
-    for (i = 0; refarr[i] != NULL; i++)
+    for (i = 0; refarr[i]; i++)
         _start_service(refarr[i], &_routers[i], prefix);
 
     refarr = tf_free_service_ref_array(refarr);

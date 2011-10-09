@@ -77,7 +77,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if (argc < 2 || cfgfile == NULL || err) {
+    if (argc < 2 || !cfgfile || err) {
         printf("USAGE: csd -c <file> [-f] [-d <level>]\n");
         return 1;
     }
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
     }
 
     config_lookup_string(&config, "bindport", &port);
-    nport = (port != NULL) ? atoi(port) : 0;
+    nport = (port) ? atoi(port) : 0;
     if (nport == 0 || nport != (nport & 0xffff)) {
         gcslog_fatal("bindport must be a valid TCP port number (was %d)", nport);
 
@@ -129,7 +129,7 @@ int main(int argc, char **argv)
     }
 
     config_lookup_string(&config, "prefix", &prefix);
-    if (prefix == NULL || strcmp(prefix, "") == 0 || prefix[0] != '/') {
+    if (!prefix || strcmp(prefix, "") == 0 || prefix[0] != '/') {
         gcslog_fatal("prefix must be a valid URI (was %s)", prefix);
 
         config_destroy(&config);

@@ -45,7 +45,7 @@ static void _append_resource_type(xmlNode *parent, tf_resource_type type)
     xmlNewProp(crtnode, "Identifier", type.id);
     xmlNewProp(crtnode, "DisplayName", type.name);
 
-    if (type.description != NULL)
+    if (type.description)
         xmlNewChild(crtnode, NULL, "Description", type.description);
 }
 
@@ -92,7 +92,7 @@ static void _append_resource(xmlNode *parent, const char *path, tf_resource reso
 
     xmlNode *refsnode = xmlNewChild(crnode, NULL, "CatalogServiceReferences", NULL);
 
-    for (i = 0; services[i] != NULL; i++) {
+    for (i = 0; services[i]; i++) {
         if (strcmp(resource.id, services[i]->id) != 0)
             continue;
 
@@ -101,7 +101,7 @@ static void _append_resource(xmlNode *parent, const char *path, tf_resource reso
 
     xmlNode *propsnode = xmlNewChild(crnode, NULL, "Properties", NULL);
 
-    for (i = 0; properties[i] != NULL; i++) {
+    for (i = 0; properties[i]; i++) {
         if (resource.propertyid != properties[i]->artifactid)
             continue;
 
@@ -156,18 +156,18 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
     int ftypes = 0, i;
 
     xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:resourceIdentifiers/m:guid/text()");
-    if (xpres != NULL && xpres->nodesetval != NULL) {
+    if (xpres && xpres->nodesetval) {
         idarr = (char **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(char *));
 
         for (i = 0; i < xpres->nodesetval->nodeNr; i++)
             idarr[i] = strdup(xpres->nodesetval->nodeTab[i]->content);
 
         xmlXPathFreeObject(xpres);
-    } else if (xpres != NULL)
+    } else if (xpres)
         xmlXPathFreeObject(xpres);
 
     xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:resourceTypeIdentifiers/m:guid/text()");
-    if (xpres != NULL && xpres->nodesetval != NULL && idarr == NULL) {
+    if (xpres && xpres->nodesetval && !idarr) {
         idarr = (char **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(char *));
         ftypes = 1;
 
@@ -175,13 +175,13 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
             idarr[i] = strdup(xpres->nodesetval->nodeTab[i]->content);
 
         xmlXPathFreeObject(xpres);
-    } else if (xpres != NULL) {
-        if (xpres->nodesetval != NULL)
+    } else if (xpres) {
+        if (xpres->nodesetval)
             gcslog_warn("skipping resourceTypeIdentifiers because resourceIdentifiers was found");
         xmlXPathFreeObject(xpres);
     }
 
-    if (idarr == NULL) { 
+    if (!idarr) { 
         tf_fault_env(
             Fault_Client, 
             "No resourceIdentifiers or resourceTypeIdentifiers were found in the message", 
@@ -195,7 +195,7 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
 
     dberr = tf_fetch_resources((const char * const *)idarr, ftypes, &nodearr);
 
-    for (i = 0; idarr[i] != NULL; i++)
+    for (i = 0; idarr[i]; i++)
         free(idarr[i]);
     free(idarr);
 
@@ -243,7 +243,7 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
     xmlNewChild(result, NULL, "DeletedNodes", NULL);
     xmlNewChild(result, NULL, "LocationServiceLastChangeId", "2565"); /* TODO */
 
-    for (i = 0; nodearr[i] != NULL; i++) {
+    for (i = 0; nodearr[i]; i++) {
         char *noderefpath = (char *)alloca(sizeof(char) * 
             (strlen(nodearr[i]->parent) + strlen(nodearr[i]->child) + 1));
         sprintf(noderefpath, "%s%s", nodearr[i]->parent, nodearr[i]->child);
@@ -281,27 +281,27 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
     int i;
 
     xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:pathSpecs/m:string/text()");
-    if (xpres != NULL && xpres->nodesetval != NULL) {
+    if (xpres && xpres->nodesetval) {
         pathspec = (char **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(char *));
 
         for (i = 0; i < xpres->nodesetval->nodeNr; i++)
             pathspec[i] = strdup(xpres->nodesetval->nodeTab[i]->content);
 
         xmlXPathFreeObject(xpres);
-    } else if (xpres != NULL) {
+    } else if (xpres) {
         pathspec = (char **)calloc(1, sizeof(char *));
         xmlXPathFreeObject(xpres);
     }
 
     xpres = tf_xml_find_all(body, "m", TF_DEFAULT_NAMESPACE, "//m:resourceTypeFilters/m:guid/text()");
-    if (xpres != NULL && xpres->nodesetval != NULL) {
+    if (xpres && xpres->nodesetval) {
         typefilter = (char **)calloc(xpres->nodesetval->nodeNr + 1, sizeof(char *));
 
         for (i = 0; i < xpres->nodesetval->nodeNr; i++)
             typefilter[i] = strdup(xpres->nodesetval->nodeTab[i]->content);
 
         xmlXPathFreeObject(xpres);
-    } else if (xpres != NULL) {
+    } else if (xpres) {
         typefilter = (char **)calloc(1, sizeof(char *));
         xmlXPathFreeObject(xpres);
     }
@@ -314,11 +314,11 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
         (const char * const *)typefilter, 
         &nodearr);
 
-    for (i = 0; pathspec[i] != NULL; i++)
+    for (i = 0; pathspec[i]; i++)
         free(pathspec[i]);
     free(pathspec);
 
-    for (i = 0; typefilter[i] != NULL; i++)
+    for (i = 0; typefilter[i]; i++)
         free(typefilter[i]);
     free(typefilter);
 
@@ -366,7 +366,7 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
     xmlNewChild(result, NULL, "DeletedNodes", NULL);
     xmlNewChild(result, NULL, "LocationServiceLastChangeId", "2565");
 
-    for (i = 0; nodearr[i] != NULL; i++) {
+    for (i = 0; nodearr[i]; i++) {
         char *noderefpath = (char *)alloca(sizeof(char) * 
             (strlen(nodearr[i]->parent) + strlen(nodearr[i]->child) + 1));
         sprintf(noderefpath, "%s%s", nodearr[i]->parent, nodearr[i]->child);
