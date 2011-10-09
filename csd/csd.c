@@ -53,6 +53,7 @@ int main(int argc, char **argv)
     int maxconns = 1, dbconns = 1, nport;
     const char *port = NULL;
     const char *prefix = NULL;
+    char *instid = NULL;
 
     while (err == 0 && (opt = getopt(argc, argv, "c:fd:")) != -1) {
 
@@ -146,7 +147,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (!gcs_pg_connect(pgdsn, pguser, pgpasswd, dbconns)) {
+    if (!gcs_pg_connect(pgdsn, pguser, pgpasswd, dbconns, NULL)) {
         gcslog_fatal("failed to connect to PG");
 
         config_destroy(&config);
@@ -162,8 +163,18 @@ int main(int argc, char **argv)
     soapargs[2] = strdup(port);
     soaperr = soap_server_init_args(3, soapargs);
 
-    core_services_init(prefix);
-    pc_services_init(prefix);
+    instid = core_services_init(prefix);
+    if (!instid) {
+        gcslog_fatal("core services failed to start!");
+
+        gcs_pg_disconnect();
+        config_destroy(&config);
+        gcs_log_close();
+
+        return 1;
+    }
+
+    pc_services_init(prefix, instid, pguser, pgpasswd, dbconns);
 
     gcslog_notice("starting SOAP server");
     soap_server_run();
@@ -178,6 +189,8 @@ int main(int argc, char **argv)
 
     gcs_pg_disconnect();
     gcs_log_close();
+
+    free(instid);
 
     return 0;
 }

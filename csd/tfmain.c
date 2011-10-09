@@ -32,6 +32,8 @@
 #include <tf/catalog.h>
 #include <tf/catalogdb.h>
 #include <tf/location.h>
+#include <tf/servicehost.h>
+#include <tf/servicehostdb.h>
 #include <tf/webservices.h>
 #include <tf/xml.h>
 
@@ -55,16 +57,38 @@ static void _start_service(tf_service_ref *ref, SoapRouter **router, const char 
 }
 
 /**
- * Team Foundation services initialisation.
+ * Team Foundation services initialisation. If the return value
+ * is NULL then initialisation has failed.
  *
  * @param prefix    the URI prefix for services.
+ *
+ * @return the team foundation instance ID
  */
-void core_services_init(const char *prefix)
+char *core_services_init(const char *prefix)
 {
     tf_node **nodearr = NULL;
     tf_service_ref **refarr = NULL;
+    tf_host **hostarr = NULL;
     tf_error dberr;
+    char *result = NULL;
     int i;
+
+    dberr = tf_fetch_hosts(NULL, &hostarr);
+
+    if (dberr != TF_ERROR_SUCCESS || hostarr[0] == NULL) {
+        gcslog_error("no team foundation instances were found!");
+        hostarr = tf_free_host_array(hostarr);
+        return NULL;
+    }
+
+    result = strdup(hostarr[0]->id); /* TODO support more than one host */
+    gcslog_debug("team foundation instance ID is %s", result);
+    hostarr = tf_free_host_array(hostarr);
+
+    if (_routers) {
+        gcslog_warn("core services are already initialised!");
+        return result;
+    }
 
     gcslog_info("initialising team foundation services");
 
@@ -76,7 +100,8 @@ void core_services_init(const char *prefix)
     if (dberr != TF_ERROR_SUCCESS || nodearr[0] == NULL) {
         gcslog_warn("failed to retrieve team foundation catalog nodes");
         nodearr = tf_free_node_array(nodearr);
-        return;
+        free(result);
+        return NULL;
     }
 
     dberr = tf_fetch_service_refs(nodearr, &refarr);
@@ -85,7 +110,8 @@ void core_services_init(const char *prefix)
     if (dberr != TF_ERROR_SUCCESS || refarr[0] == NULL) {
         gcslog_warn("failed to retrieve team foundation services");
         refarr = tf_free_service_ref_array(refarr);
-        return;
+        free(result);
+        return NULL;
     }
 
     for (i = 0; refarr[i] != NULL; i++);
@@ -95,5 +121,6 @@ void core_services_init(const char *prefix)
         _start_service(refarr[i], &_routers[i], prefix);
 
     refarr = tf_free_service_ref_array(refarr);
+    return result;
 }
 

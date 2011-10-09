@@ -32,8 +32,12 @@
 #include <tf/catalog.h>
 #include <tf/catalogdb.h>
 #include <tf/location.h>
+#include <tf/servicehost.h>
+#include <tf/servicehostdb.h>
 #include <tf/webservices.h>
 #include <tf/xml.h>
+
+#define MAX_ROUTERS     1024
 
 static SoapRouter **_routers = NULL;
 
@@ -60,42 +64,64 @@ static void _start_service(tf_service_ref *ref, SoapRouter **router, const char 
  * Project Collection services initialisation.
  *
  * @param prefix    the URI prefix for services.
+ * @param instid    team foundation instance ID
+ * @param pguser    database connection user ID
+ * @param pgpasswd  database connection password
+ * @param dbconns   database connection count
  */
-void pc_services_init(const char *prefix)
+void pc_services_init(const char *prefix, const char *instid, const char *pguser, 
+    const char *pgpasswd, int dbconns)
 {
-    tf_node **nodearr = NULL;
+    tf_host **hostarr = NULL;
     tf_service_ref **refarr = NULL;
     tf_error dberr;
-    int i;
+    int i, n;
 
-    gcslog_info("initialising project collection services");
-
-    dberr = tf_query_single_node(
-        TF_CATALOG_ORGANIZATION_ROOT,
-        TF_CATALOG_TYPE_TEAM_PRJ_COLLECITON,
-        &nodearr);
-
-    if (dberr != TF_ERROR_SUCCESS || nodearr[0] == NULL) {
-        gcslog_warn("failed to retrieve project collection catalog nodes");
-        nodearr = tf_free_node_array(nodearr);
+    if (_routers) {
+        gcslog_warn("project collection services are already initialised!");
         return;
     }
 
-    dberr = tf_fetch_service_refs(nodearr, &refarr);
-    nodearr = tf_free_node_array(nodearr);
+    dberr = tf_fetch_hosts(instid, &hostarr);
 
-    if (dberr != TF_ERROR_SUCCESS || refarr[0] == NULL) {
-        gcslog_warn("failed to retrieve project collection services");
+    if (dberr != TF_ERROR_SUCCESS || hostarr[0] == NULL) {
+        gcslog_warn("no project collections were found for instance %s", instid);
+        hostarr = tf_free_host_array(hostarr);
+        return;
+    }
+
+    _routers = (SoapRouter **)calloc(MAX_ROUTERS, sizeof(SoapRouter *));
+
+    for (i = 0; hostarr[i] != NULL; i++) {
+        if (!gcs_pg_connect(hostarr[i]->connstr, pguser, pgpasswd, dbconns, hostarr[i]->id)) {
+            gcslog_error("failed to connect to PG");
+            continue;
+        }
+
+        gcslog_info("initialising project collection services for %s", hostarr[i]->name);
+
+        dberr = tf_fetch_pc_service_refs(hostarr[i]->id, &refarr);
+
+        if (dberr != TF_ERROR_SUCCESS || refarr[0] == NULL) {
+            gcslog_warn("failed to retrieve project collection services for %s", hostarr[i]->id);
+            refarr = tf_free_service_ref_array(refarr);
+            continue;
+        }
+
+        for (n = 0; refarr[n] != NULL; n++) {
+            if (n == MAX_ROUTERS) {
+                gcslog_error(
+                    "unable to start service because the maximum count was reached (%d)", 
+                    MAX_ROUTERS);
+                break;
+            }
+
+            _start_service(refarr[n], &_routers[n], prefix);
+        }
+
         refarr = tf_free_service_ref_array(refarr);
-        return;
     }
 
-    for (i = 0; refarr[i] != NULL; i++);
-    _routers = (SoapRouter **)calloc(i, sizeof(SoapRouter *));
-
-    for (i = 0; refarr[i] != NULL; i++)
-        _start_service(refarr[i], &_routers[i], prefix);
-
-    refarr = tf_free_service_ref_array(refarr);
+    hostarr = tf_free_host_array(hostarr);
 }
 

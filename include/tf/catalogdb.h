@@ -28,6 +28,7 @@
 
 tf_error tf_fetch_nodes(tf_path_spec **, const char * const *, tf_node ***);
 tf_error tf_fetch_resources(const char * const *, int, tf_node ***);
+tf_error tf_fetch_pc_service_refs(const char *, tf_service_ref ***);
 tf_error tf_fetch_service_refs(tf_node **, tf_service_ref ***);
 tf_error tf_fetch_properties(tf_node **, tf_property ***);
 

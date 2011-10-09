@@ -19,7 +19,8 @@
 
 #pragma once
 
-#include <csoap.h>
+#include <tf/servicehosttypes.h>
 
-char *core_services_init(const char *);
+void tf_free_host(tf_host *);
+void *tf_free_host_array(tf_host **);
 

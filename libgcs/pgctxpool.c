@@ -71,6 +71,9 @@ void gcs_ctxpool_free()
         int i;
         for (i = 0; i < _ctxcount; i++) {
             if (_ctxpool[i] != NULL) {
+                if (_ctxpool[i]->tag != NULL)
+                    free(_ctxpool[i]->tag);
+
                 free(_ctxpool[i]->conn);
                 free(_ctxpool[i]);
             }
@@ -108,10 +111,11 @@ int gcs_ctxpool_size()
  * Allocates a new database context.
  *
  * @param conn  the PG connection name
+ * @param tag   a marker for PG contexts for targeting queries
  *
  * @return 1 on success, 0 on failure
  */
-int gcs_pgctx_alloc(const char *conn)
+int gcs_pgctx_alloc(const char *conn, const char *tag)
 {
     pthread_mutex_lock(&_ctxmtx);
 
@@ -128,6 +132,9 @@ int gcs_pgctx_alloc(const char *conn)
         bzero(_ctxpool[i], sizeof(gcs_pgctx_t));
 
         _ctxpool[i]->conn = strdup(conn);
+
+        if (tag)
+            _ctxpool[i]->tag = strdup(tag);
 
         pthread_mutex_unlock(&_ctxmtx);
         gcslog_debug("allocated PG connection %s as context %d", conn, i);
@@ -161,16 +168,21 @@ int gcs_pgctx_count()
  * Acquires a thread-exclusive database connection. This function will
  * block until a connection becomes available.
  *
+ * @param tag   an optional marker for PG contexts for targeting queries
+
  * @return a connection context
  */
-gcs_pgctx_t *gcs_pgctx_acquire()
+gcs_pgctx_t *gcs_pgctx_acquire(const char *tag)
 {
     gcs_pgctx_t *result = NULL;
-    int i = 0;
+    int i = 0, m;
 
     pthread_mutex_lock(&_ctxmtx);
-    for (i = 0; i < _ctxcount; i++) {
-        if (_ctxpool[i] != NULL && _ctxpool[i]->owner == (unsigned long)pthread_self()) {
+    for (i = 0; i < _ctxcount && _ctxpool[i] != NULL; i++) {
+        m = ((tag == NULL && _ctxpool[i]->tag == NULL) || 
+             (tag != NULL && _ctxpool[i] != NULL && strcmp(_ctxpool[i]->tag, tag) == 0));
+
+        if (_ctxpool[i] != NULL && _ctxpool[i]->owner == (unsigned long)pthread_self() && m) {
             gcslog_debug("got PG context %d (reused)", i);
 
             _ctxpool[i]->refcount++;
@@ -187,7 +199,10 @@ gcs_pgctx_t *gcs_pgctx_acquire()
     i = 0;
     while (1) {
         pthread_mutex_lock(&_ctxmtx);
-        if (_ctxpool[i] != NULL && _ctxpool[i]->owner == 0) {
+        m = ((tag == NULL && _ctxpool[i]->tag == NULL) || 
+             (tag != NULL && _ctxpool[i] != NULL && strcmp(_ctxpool[i]->tag, tag) == 0));
+
+        if (_ctxpool[i] != NULL && _ctxpool[i]->owner == 0 && m) {
             gcslog_debug("got PG context %d", i);
 
             _ctxpool[i]->owner = (unsigned long)pthread_self();
@@ -200,7 +215,7 @@ gcs_pgctx_t *gcs_pgctx_acquire()
             break;
 
         i++;
-        if (i == _ctxcount) {
+        if (i == _ctxcount || _ctxpool[i] == NULL) {
             gcslog_info("No available PG context, sleeping...");
             sleep(5);
             i = 0;

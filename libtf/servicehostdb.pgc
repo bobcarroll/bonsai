@@ -1,0 +1,184 @@
+/**
+ * Bonsai - open source group collaboration and application lifecycle management
+ * Copyright (c) 2011 Bob Carroll
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+/**
+ * @brief   Team Foundation service host database functions
+ *
+ * @author  Bob Carroll (bob.carroll@alum.rit.edu)
+ */
+
+#include <string.h>
+#include <stdlib.h>
+
+#include <gcs/pgctxpool.h>
+#include <gcs/log.h>
+
+#include <tf/servicehostdb.h>
+
+/**
+ * Retrieves service hosts from the database. Calling functions should
+ * call tf_free_host_array() to free "result"..
+ *
+ * If parent is NULL then only TEAM FOUDATAION hosts will be returned.
+ * Otherwise, hosts with the given parent will be returned.
+ *
+ * @param parent    optional parent ID to filter on
+ * @param result    pointer to an output buffer for the results
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_fetch_hosts(const char *parent, tf_host ***result)
+{
+    if (result == NULL || *result != NULL)
+        return TF_ERROR_BAD_PARAMETER;
+
+    gcslog_debug("looking up service hosts");
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = NULL;
+    char countstmt[20480];
+    char selstmt[20480];
+    int count = 0;
+    EXEC SQL END DECLARE SECTION;
+
+    gcs_pgctx_t *ctx = gcs_pgctx_acquire(NULL);
+    conn = ctx->conn;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL SET CONNECTION :conn;
+
+    char where[1024];
+
+    if (parent)
+        snprintf(where, 1024, "WHERE parent_host_id = '%s'", parent);
+    else
+        sprintf(where, "WHERE parent_host_id IS NULL");
+
+    sprintf(countstmt, 
+        "SELECT COUNT(*) \
+        FROM service_hosts \
+        %s",
+        where);
+    gcslog_trace("fetch service hosts SQL: %s", countstmt);
+
+    EXEC SQL PREPARE sqlstmt FROM :countstmt;
+
+    EXEC SQL WHENEVER NOT FOUND CONTINUE;
+    EXEC SQL EXECUTE sqlstmt INTO :count;
+    EXEC SQL DEALLOCATE PREPARE sqlstmt;
+
+    gcslog_debug("found %d service host(s)", count);
+    *result = (tf_host **)calloc(count + 1, sizeof(tf_host *));
+
+    if (count == 0) {
+        gcs_pgctx_release(ctx);
+        return TF_ERROR_SUCCESS;
+    }
+
+    sprintf(selstmt, 
+        "SELECT host_id, parent_host_id, \"name\", description, \
+                virtual_directory, resource_directory, \
+                connection_string, status, status_reason, \
+                supported_features \
+        FROM service_hosts \
+        %s",
+        where);
+
+    EXEC SQL WHENEVER SQLERROR GOTO error_cur;
+    EXEC SQL PREPARE sqlstmt FROM :selstmt;
+
+    EXEC SQL DECLARE cur1 CURSOR FOR sqlstmt;
+    EXEC SQL OPEN cur1;
+
+    int i;
+    for (i = 0; ; i++) {
+        EXEC SQL WHENEVER NOT FOUND DO BREAK;
+
+        EXEC SQL BEGIN DECLARE SECTION;
+        char id[TF_SERVICE_HOST_ID_MAXLEN];
+        char parent[TF_SERVICE_HOST_ID_MAXLEN];
+        int parent_ind;
+        char name[TF_SERVICE_HOST_NAME_MAXLEN];
+        char *description = NULL;
+        int desc_ind;
+        char vdir[TF_SERVICE_HOST_PATH_MAXLEN];
+        int vdir_ind;
+        char rsrcdir[TF_SERVICE_HOST_PATH_MAXLEN];
+        int rsrcdir_ind;
+        char connstr[TF_SERVICE_HOST_CONN_STR_MAXLEN];
+        int status;
+        int status_ind;
+        char reason[TF_SERVICE_HOST_STATUS_REASON_MAXLEN];
+        int reason_ind;
+        int features;
+        EXEC SQL END DECLARE SECTION;
+
+        EXEC SQL FETCH NEXT FROM cur1
+            INTO :id, :parent:parent_ind, :name, :description:desc_ind, 
+                 :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr, 
+                 :status:status_ind, :reason:reason_ind, :features;
+
+        tf_host *item = (*result)[i] = (tf_host *)malloc(sizeof(tf_host));
+        bzero(item, sizeof(tf_host));
+
+        strncpy(item->id, id, TF_SERVICE_HOST_ID_MAXLEN);
+
+        if (!parent_ind)
+            strncpy(item->parent, parent, TF_SERVICE_HOST_ID_MAXLEN);
+
+        strncpy(item->name, name, TF_SERVICE_HOST_NAME_MAXLEN);
+
+        item->description = !desc_ind ? strdup(description) : NULL;
+
+        if (!vdir_ind)
+            strncpy(item->vdir, vdir, TF_SERVICE_HOST_PATH_MAXLEN);
+
+        if (!rsrcdir_ind)
+            strncpy(item->rsrcdir, rsrcdir, TF_SERVICE_HOST_PATH_MAXLEN);
+
+        strncpy(item->connstr, connstr, TF_SERVICE_HOST_CONN_STR_MAXLEN);
+        item->status = !status_ind ? status : 0;
+
+        if (!reason_ind)
+            strncpy(item->reason, reason, TF_SERVICE_HOST_STATUS_REASON_MAXLEN);
+
+        item->features = features;
+
+        free(description);
+    }
+
+    EXEC SQL CLOSE cur1;
+    EXEC SQL DEALLOCATE PREPARE sqlstmt;
+    gcs_pgctx_release(ctx);
+
+    return TF_ERROR_SUCCESS;
+
+error_cur:
+    gcs_pgctx_release(ctx);
+    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+
+    EXEC SQL CLOSE cur1;
+    EXEC SQL DEALLOCATE PREPARE sqlstmt;
+    return TF_ERROR_PG_FAILURE;
+
+error:
+    gcs_pgctx_release(ctx);
+    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    return TF_ERROR_PG_FAILURE;
+}

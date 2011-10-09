@@ -21,5 +21,5 @@
 
 #include <csoap.h>
 
-void pc_services_init(const char *);
+void pc_services_init(const char *, const char *, const char *, const char *, int);
 

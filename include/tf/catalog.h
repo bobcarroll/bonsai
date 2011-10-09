@@ -56,6 +56,9 @@
 #define TF_CATALOG_TYPE_TEAM_PROJECT        "48577A4A-801E-412C-B8AE-CF7EF3529616"
 #define TF_CATALOG_TYPE_TEAM_WEB_ACCESS     "47FA57A4-8157-4FB5-9A64-A7A4954BD284"
 
+#define TF_CATALOG_PROPERTY_INSTANCE_ID_ID      10
+#define TF_CATALOG_PROPERTY_INSTANCE_ID_VALUE   "InstanceId"
+
 void *tf_free_node_array(tf_node **);
 void *tf_free_path_spec_array(tf_path_spec **);
 void tf_free_property(tf_property *);

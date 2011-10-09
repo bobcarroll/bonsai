@@ -19,7 +19,8 @@
 
 #pragma once
 
-#include <csoap.h>
+#include <tf/servicehosttypes.h>
+#include <tf/errors.h>
 
-char *core_services_init(const char *);
+tf_error tf_fetch_hosts(const char *, tf_host ***);
 

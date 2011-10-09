@@ -36,12 +36,13 @@
  * @param username  the username to connect as
  * @param passwd    the user password
  * @param count     the number of connections to open
+ * @param tag       an optional marker for PG contexts for targeting queries
  *
  * @return 1 on success, 0 on failure
  *
  * @seealso http://www.postgresql.org/docs/9.0/static/ecpg-connect.html
  */
-int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, int count)
+int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, int count, const char *tag)
 {
     gcslog_info("connecting to %s as %s", dsn, username);
 
@@ -68,7 +69,7 @@ int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, in
         sprintf(connval, "conn%d", ctxcount + i);
 
         EXEC SQL CONNECT TO :dsnval AS :connval USER :usernameval USING :passwdval;
-        gcs_pgctx_alloc(connval);
+        gcs_pgctx_alloc(connval, tag);
     }
 
     gcslog_notice("connected to PG (%s)", dsn);

@@ -19,7 +19,22 @@
 
 #pragma once
 
-#include <csoap.h>
+#define TF_SERVICE_HOST_CONN_STR_MAXLEN         521
+#define TF_SERVICE_HOST_ID_MAXLEN               37
+#define TF_SERVICE_HOST_NAME_MAXLEN             129
+#define TF_SERVICE_HOST_PATH_MAXLEN             261
+#define TF_SERVICE_HOST_STATUS_REASON_MAXLEN    2049
 
-char *core_services_init(const char *);
+typedef struct {
+    char id[TF_SERVICE_HOST_ID_MAXLEN];
+    char parent[TF_SERVICE_HOST_ID_MAXLEN];
+    char name[TF_SERVICE_HOST_NAME_MAXLEN];
+    char *description;
+    char vdir[TF_SERVICE_HOST_PATH_MAXLEN];
+    char rsrcdir[TF_SERVICE_HOST_PATH_MAXLEN];
+    char connstr[TF_SERVICE_HOST_CONN_STR_MAXLEN];
+    int status;
+    char reason[TF_SERVICE_HOST_STATUS_REASON_MAXLEN];
+    int features;
+} tf_host;
 
