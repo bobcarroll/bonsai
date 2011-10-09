@@ -43,6 +43,9 @@
  */
 tf_error tf_db_build_list(const char * const *list, char *buf, const int buflen, int *curpos)
 {
+    if (!list || buflen < 0 || !curpos || buflen - *curpos < 0)
+        return TF_ERROR_BAD_PARAMETER;
+
     int r = buflen - *curpos, i = 0;
 
     for (i = 0; list[i]; i++) {

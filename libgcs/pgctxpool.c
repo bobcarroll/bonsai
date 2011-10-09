@@ -117,6 +117,9 @@ int gcs_ctxpool_size()
  */
 int gcs_pgctx_alloc(const char *conn, const char *tag)
 {
+    if (!conn)
+        return 0;
+
     pthread_mutex_lock(&_ctxmtx);
 
     int i;
@@ -234,6 +237,9 @@ gcs_pgctx *gcs_pgctx_acquire(const char *tag)
 void gcs_pgctx_release(gcs_pgctx *context)
 {
     int i;
+
+    if (!context)
+        return;
 
     pthread_mutex_lock(&_ctxmtx);
     for (i = 0; i < _ctxcount; i++) {

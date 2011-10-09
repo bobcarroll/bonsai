@@ -73,6 +73,11 @@ char *core_services_init(const char *prefix)
     char *result = NULL;
     int i;
 
+    if (!prefix) {
+        gcslog_error("prefix cannot be NULL");
+        return NULL;
+    }
+
     dberr = tf_fetch_hosts(NULL, &hostarr);
 
     if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {

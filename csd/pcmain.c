@@ -77,6 +77,9 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
     tf_error dberr;
     int i, n;
 
+    if (!prefix || !instid || !pguser || !pgpasswd || dbconns < 1)
+        return;
+
     if (_routers) {
         gcslog_warn("project collection services are already initialised!");
         return;

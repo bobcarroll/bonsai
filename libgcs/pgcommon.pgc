@@ -44,6 +44,9 @@
  */
 int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, int count, const char *tag)
 {
+    if (!dsn || !username || !passwd)
+        return 0;
+
     gcslog_info("connecting to %s as %s", dsn, username);
 
     EXEC SQL BEGIN DECLARE SECTION;

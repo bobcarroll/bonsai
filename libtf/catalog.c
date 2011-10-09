@@ -170,6 +170,9 @@ tf_error tf_query_nodes(const char * const *patharr, const char * const *types, 
     tf_error dberr;
     int i;
 
+    if (!patharr || !types || !result)
+        return TF_ERROR_BAD_PARAMETER;
+
     for (i = 0; patharr[i]; i++);
     pathspecs = (tf_path_spec **)calloc(i + 1, sizeof(tf_path_spec *));
 
@@ -213,6 +216,9 @@ tf_error tf_query_nodes(const char * const *patharr, const char * const *types, 
 tf_error tf_query_single_node(const char *path, const char *type, tf_node ***result)
 {
     tf_error dberr;
+
+    if (!path || !type || !result)
+        return TF_ERROR_BAD_PARAMETER;
 
     char **pathspec = (char **)calloc(2, sizeof(char *));
     pathspec[0] = (char *)alloca(sizeof(char) * 27);
