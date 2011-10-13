@@ -148,6 +148,7 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
 {
     xmlNode *body = req->env->body;
     xmlXPathObject *xpres;
+    pgctx *ctx;
     char **idarr = NULL;
     tf_node **nodearr = NULL;
     tf_service_ref **svcarr = NULL;
@@ -190,16 +191,19 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
+    ctx = gcs_pgctx_acquire(req->tag);
+
     /* TODO property filters */
     /* TODO query options */
 
-    dberr = tf_fetch_resources((const char * const *)idarr, ftypes, &nodearr);
+    dberr = tf_fetch_resources(ctx, (const char * const *)idarr, ftypes, &nodearr);
 
     for (i = 0; idarr[i]; i++)
         free(idarr[i]);
     free(idarr);
 
     if (dberr != TF_ERROR_SUCCESS) {
+        gcs_pgctx_release(ctx);
         tf_fault_env(
             Fault_Server, 
             "Failed to retrieve catalog resources from the database", 
@@ -208,9 +212,10 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    dberr = tf_fetch_service_refs(nodearr, &svcarr);
+    dberr = tf_fetch_service_refs(ctx, nodearr, &svcarr);
     if (dberr != TF_ERROR_SUCCESS) {
         nodearr = tf_free_node_array(nodearr);
+        gcs_pgctx_release(ctx);
         tf_fault_env(
             Fault_Server, 
             "Failed to retrieve service definitions from the database", 
@@ -219,10 +224,11 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    dberr = tf_fetch_properties(nodearr, &proparr);
+    dberr = tf_fetch_properties(ctx, nodearr, &proparr);
     if (dberr != TF_ERROR_SUCCESS) {
         nodearr = tf_free_node_array(nodearr);
         svcarr = tf_free_service_ref_array(svcarr);
+        gcs_pgctx_release(ctx);
         tf_fault_env(
             Fault_Server, 
             "Failed to retrieve resource properties from the database", 
@@ -257,6 +263,8 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
     svcarr = tf_free_service_ref_array(svcarr);
     proparr = tf_free_property_array(proparr);
 
+    gcs_pgctx_release(ctx);
+
     return H_OK;
 }
 
@@ -272,6 +280,7 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
 {
     xmlNode *body = req->env->body;
     xmlXPathObject *xpres;
+    pgctx *ctx;
     char **pathspec = NULL;
     char **typefilter = NULL;
     tf_node **nodearr = NULL;
@@ -306,10 +315,13 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     }
 
+    ctx = gcs_pgctx_acquire(req->tag);
+
     /* TODO property filter */
     /* TODO query options */
 
     dberr = tf_query_nodes(
+        ctx,
         (const char * const *)pathspec, 
         (const char * const *)typefilter, 
         &nodearr);
@@ -323,6 +335,7 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
     free(typefilter);
 
     if (dberr != TF_ERROR_SUCCESS) {
+        gcs_pgctx_release(ctx);
         tf_fault_env(
             Fault_Server, 
             "Failed to retrieve catalog nodes from the database", 
@@ -331,9 +344,10 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    dberr = tf_fetch_service_refs(nodearr, &svcarr);
+    dberr = tf_fetch_service_refs(ctx, nodearr, &svcarr);
     if (dberr != TF_ERROR_SUCCESS) {
         nodearr = tf_free_node_array(nodearr);
+        gcs_pgctx_release(ctx);
         tf_fault_env(
             Fault_Server, 
             "Failed to retrieve service definitions from the database", 
@@ -342,10 +356,11 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    dberr = tf_fetch_properties(nodearr, &proparr);
+    dberr = tf_fetch_properties(ctx, nodearr, &proparr);
     if (dberr != TF_ERROR_SUCCESS) {
         nodearr = tf_free_node_array(nodearr);
         svcarr = tf_free_service_ref_array(svcarr);
+        gcs_pgctx_release(ctx);
         tf_fault_env(
             Fault_Server, 
             "Failed to retrieve resource properties from the database", 
@@ -380,6 +395,8 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
     svcarr = tf_free_service_ref_array(svcarr);
     proparr = tf_free_property_array(proparr);
 
+    gcs_pgctx_release(ctx);
+
     return H_OK;
 }
 
@@ -394,14 +411,16 @@ static int _auth_ntlm(SoapEnv *env, const char *user, const char *passwd)
  * @param router    output buffer for the SOAP router
  * @param prefix    the URI prefix for this service
  * @param ref       service reference info
+ * @param instid    host instance ID
  */
-void catalog_service_init(SoapRouter **router, const char *prefix, tf_service_ref *ref)
+void catalog_service_init(SoapRouter **router, const char *prefix, tf_service_ref *ref,
+    const char *instid)
 {
     char url[1024];
 
     (*router) = soap_router_new();
     soap_router_register_security(*router, (httpd_auth)_auth_ntlm);
-    soap_router_register_tf_context(*router, ref->id);
+    soap_router_set_tag(*router, instid);
 
     sprintf(url, "%s%s", prefix ? prefix : "", ref->service.relpath);
     soap_server_register_router(*router, url);
@@ -417,6 +436,6 @@ void catalog_service_init(SoapRouter **router, const char *prefix, tf_service_re
         "QueryNodes",
         TF_DEFAULT_NAMESPACE);
 
-    gcslog_info("registered catalog service %s in context %s", url, ref->id);
+    gcslog_info("registered catalog service %s for host %s", url, instid);
 }
 

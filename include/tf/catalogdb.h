@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <gcs/pgctxpool.h>
+
 #include <tf/catalogtypes.h>
 #include <tf/errors.h>
 
@@ -26,9 +28,9 @@
 #define TF_CATALOG_NODE_DEPTH_SINGLE    1
 #define TF_CATALOG_NODE_DEPTH_FULL      2
 
-tf_error tf_fetch_nodes(tf_path_spec **, const char * const *, tf_node ***);
-tf_error tf_fetch_resources(const char * const *, int, tf_node ***);
-tf_error tf_fetch_pc_service_refs(const char *, tf_service_ref ***);
-tf_error tf_fetch_service_refs(tf_node **, tf_service_ref ***);
-tf_error tf_fetch_properties(tf_node **, tf_property ***);
+tf_error tf_fetch_nodes(pgctx *, tf_path_spec **, const char * const *, tf_node ***);
+tf_error tf_fetch_resources(pgctx *, const char * const *, int, tf_node ***);
+tf_error tf_fetch_pc_service_refs(pgctx *, const char *, tf_service_ref ***);
+tf_error tf_fetch_service_refs(pgctx *, tf_node **, tf_service_ref ***);
+tf_error tf_fetch_properties(pgctx *, tf_node **, tf_property ***);
 

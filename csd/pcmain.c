@@ -27,6 +27,7 @@
 #include <cs/registration.h>
 #include <cs/status.h>
 
+#include <gcs/pgcommon.h>
 #include <gcs/log.h>
 
 #include <tf/catalog.h>
@@ -47,15 +48,19 @@ static SoapRouter **_routers = NULL;
  * @param service   service to start
  * @param router    SOAP router
  * @param prefix    service path prefix
+ * @param instid    host instance ID
  */
-static void _start_service(tf_service_ref *ref, SoapRouter **router, const char *prefix)
+static void _start_service(tf_service_ref *ref, SoapRouter **router, const char *prefix,
+    const char *instid)
 {
     if (strcmp(ref->service.type, TF_SERVICE_TYPE_LOCATION) == 0)
-        location_service_init(router, prefix, ref);
+        location_service_init(router, prefix, ref, instid);
+    else if (strcmp(ref->service.type, TF_SERVICE_TYPE_CATALOG) == 0)
+        catalog_service_init(router, prefix, ref, instid);
     else if (strcmp(ref->service.type, TF_SERVICE_TYPE_REGISTRATION) == 0)
-        registration_service_init(router, prefix, ref);
+        registration_service_init(router, prefix, ref, instid);
     else if (strcmp(ref->service.type, TF_SERVICE_TYPE_STATUS) == 0)
-        status_service_init(router, prefix, ref);
+        status_service_init(router, prefix, ref, instid);
     else
         gcslog_warn("cannot start unknown service type %s", ref->service.type);
 }
@@ -72,6 +77,7 @@ static void _start_service(tf_service_ref *ref, SoapRouter **router, const char 
 void pc_services_init(const char *prefix, const char *instid, const char *pguser, 
     const char *pgpasswd, int dbconns)
 {
+    pgctx *ctx;
     tf_host **hostarr = NULL;
     tf_service_ref **refarr = NULL;
     tf_error dberr;
@@ -85,7 +91,9 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
         return;
     }
 
-    dberr = tf_fetch_hosts(instid, &hostarr);
+    ctx = gcs_pgctx_acquire(NULL);
+    dberr = tf_fetch_hosts(ctx, instid, &hostarr);
+    gcs_pgctx_release(ctx);
 
     if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {
         gcslog_warn("no project collections were found for instance %s", instid);
@@ -103,7 +111,9 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
 
         gcslog_info("initialising project collection services for %s", hostarr[i]->name);
 
-        dberr = tf_fetch_pc_service_refs(hostarr[i]->id, &refarr);
+        ctx = gcs_pgctx_acquire(hostarr[i]->id);
+        dberr = tf_fetch_pc_service_refs(ctx, hostarr[i]->id, &refarr);
+        gcs_pgctx_release(ctx);
 
         if (dberr != TF_ERROR_SUCCESS || !refarr[0]) {
             gcslog_warn("failed to retrieve project collection services for %s", hostarr[i]->id);
@@ -119,7 +129,7 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
                 break;
             }
 
-            _start_service(refarr[n], &_routers[n], prefix);
+            _start_service(refarr[n], &_routers[n], prefix, hostarr[i]->id);
         }
 
         refarr = tf_free_service_ref_array(refarr);

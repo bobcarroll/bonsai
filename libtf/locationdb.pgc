@@ -35,14 +35,15 @@
  * Retrieves service defitions from the database. Calling functions should
  * call tf_free_service_array() to free "result"..
  *
+ * @param ctx       current database context
  * @param filters   a null-terminated array of service filters
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_services(tf_service_filter **filters, tf_service ***result)
+tf_error tf_fetch_services(pgctx *ctx, tf_service_filter **filters, tf_service ***result)
 {
-    if (!filters || !filters[0] || !result || *result)
+    if (!ctx || !filters || !filters[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up service definitions");
@@ -54,7 +55,6 @@ tf_error tf_fetch_services(tf_service_filter **filters, tf_service ***result)
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -75,10 +75,8 @@ tf_error tf_fetch_services(tf_service_filter **filters, tf_service ***result)
 
         if (fwhere && i > 0) {
             r = snprintf(idtypelst + curpos, idtypelen - curpos, " OR ");
-            if (r >= idtypelen - curpos) {
-                gcs_pgctx_release(ctx);
+            if (r >= idtypelen - curpos)
                 return TF_ERROR_PARAM_TOO_LONG;
-            }
 
             curpos += 4;
         }
@@ -89,10 +87,8 @@ tf_error tf_fetch_services(tf_service_filter **filters, tf_service ***result)
             "(sd.identifier = '%s' AND sd.service_type = '%s')",
             filters[i]->id,
             filters[i]->type);
-        if (r >= idtypelen - curpos) {
-            gcs_pgctx_release(ctx);
+        if (r >= idtypelen - curpos)
             return TF_ERROR_PARAM_TOO_LONG;
-        }
 
         curpos += strlen(idtypelst + curpos);
         fwhere = 1;
@@ -121,10 +117,8 @@ tf_error tf_fetch_services(tf_service_filter **filters, tf_service ***result)
     gcslog_debug("found %d service definition(s)", count);
     *result = (tf_service **)calloc(count + 1, sizeof(tf_service *));
 
-    if (count == 0) {
-        gcs_pgctx_release(ctx);
+    if (count == 0)
         return TF_ERROR_SUCCESS;
-    }
 
     sprintf(selstmt, 
         "SELECT sd.identifier, sd.service_type, sd.display_name, \
@@ -182,12 +176,10 @@ tf_error tf_fetch_services(tf_service_filter **filters, tf_service ***result)
 
     EXEC SQL CLOSE cur1;
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
-    gcs_pgctx_release(ctx);
 
     return TF_ERROR_SUCCESS;
 
 error:
-    gcs_pgctx_release(ctx);
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
@@ -196,13 +188,14 @@ error:
  * Retrieves access mappings from the database. Calling functions should
  * call tf_free_access_map_array() to free "result".
  *
+ * @param ctx       current database context
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_access_map(tf_access_map ***result)
+tf_error tf_fetch_access_map(pgctx *ctx, tf_access_map ***result)
 {
-    if (!result || *result)
+    if (!ctx || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up access mappings");
@@ -214,7 +207,6 @@ tf_error tf_fetch_access_map(tf_access_map ***result)
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -234,10 +226,8 @@ tf_error tf_fetch_access_map(tf_access_map ***result)
     gcslog_debug("found %d access mapping(s)", count);
     *result = (tf_access_map **)calloc(count + 1, sizeof(tf_access_map *));
 
-    if (count == 0) {
-        gcs_pgctx_release(ctx);
+    if (count == 0)
         return TF_ERROR_SUCCESS;
-    }
 
     sprintf(selstmt, 
         "SELECT moniker, display_name, access_point, is_default \
@@ -276,12 +266,10 @@ tf_error tf_fetch_access_map(tf_access_map ***result)
 
     EXEC SQL CLOSE cur2;
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
-    gcs_pgctx_release(ctx);
 
     return TF_ERROR_SUCCESS;
 
 error:
-    gcs_pgctx_release(ctx);
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }

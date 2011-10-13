@@ -24,7 +24,7 @@ typedef struct {
     int refcount;
     unsigned long owner;
     char *tag;
-} gcs_pgctx;
+} pgctx;
 
 int gcs_ctxpool_init(int);
 void gcs_ctxpool_free();
@@ -32,6 +32,6 @@ int gcs_ctxpool_size();
 
 int gcs_pgctx_alloc(const char *, const char *);
 int gcs_pgctx_count();
-gcs_pgctx *gcs_pgctx_acquire(const char *);
-void gcs_pgctx_release(gcs_pgctx *);
+pgctx *gcs_pgctx_acquire(const char *);
+void gcs_pgctx_release(pgctx *);
 

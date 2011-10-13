@@ -37,15 +37,16 @@
  * Retrieves catalog nodes from the database. Calling functions should
  * call tf_catalog_free_node_array() prior to freeing "result".
  *
+ * @param ctx           current database context
  * @param pathspecs     a null-terminated array of catalog paths without depth markers
  * @param types         a null-terminated array of resource type ID strings to filter by
  * @param result        pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_nodes(tf_path_spec **pathspecs, const char * const *types, tf_node ***result)
+tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const *types, tf_node ***result)
 {
-    if (!pathspecs || !pathspecs[0] || !types || !result || *result)
+    if (!ctx || !pathspecs || !pathspecs[0] || !types || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up catalog nodes with path(s)");
@@ -57,7 +58,6 @@ tf_error tf_fetch_nodes(tf_path_spec **pathspecs, const char * const *types, tf_
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -104,19 +104,15 @@ tf_error tf_fetch_nodes(tf_path_spec **pathspecs, const char * const *types, tf_
             "(cn.parent_path || cn.child_item LIKE '%s' AND char_length(cn.parent_path) <= %d)", 
             pathval,
             newpathlen);
-        if (r >= wherelen - curpos) {
-            gcs_pgctx_release(ctx);
+        if (r >= wherelen - curpos)
             return TF_ERROR_PARAM_TOO_LONG;
-        }
 
         curpos += strlen(where + curpos);
     }
 
     if (types[0]) {
-        if (curpos >= wherelen - 28) {
-            gcs_pgctx_release(ctx);
+        if (curpos >= wherelen - 28)
             return TF_ERROR_PARAM_TOO_LONG;
-        }
 
         memmove(where + 1, where, curpos + 1);
         curpos++;
@@ -126,15 +122,11 @@ tf_error tf_fetch_nodes(tf_path_spec **pathspecs, const char * const *types, tf_
         curpos += 26;
 
         dberr = tf_db_build_list(types, where, wherelen, &curpos);
-        if (dberr != TF_ERROR_SUCCESS) {
-            gcs_pgctx_release(ctx);
+        if (dberr != TF_ERROR_SUCCESS)
             return dberr;
-        }
 
-        if (snprintf(where + curpos, wherelen - curpos, "))") >= wherelen - curpos) {
-            gcs_pgctx_release(ctx);
+        if (snprintf(where + curpos, wherelen - curpos, "))") >= wherelen - curpos)
             return TF_ERROR_PARAM_TOO_LONG;
-        }
 
         curpos += strlen(where + curpos);
     }
@@ -159,10 +151,8 @@ tf_error tf_fetch_nodes(tf_path_spec **pathspecs, const char * const *types, tf_
     gcslog_debug("found %d matching catalog node(s)", count);
     *result = (tf_node **)calloc(count + 1, sizeof(tf_node *));
 
-    if (count == 0) {
-        gcs_pgctx_release(ctx);
+    if (count == 0)
         return TF_ERROR_SUCCESS;
-    }
 
     sprintf(selstmt, 
         "SELECT cn.parent_path, cn.child_item, cn.\"default\", \
@@ -227,12 +217,10 @@ tf_error tf_fetch_nodes(tf_path_spec **pathspecs, const char * const *types, tf_
 
     EXEC SQL CLOSE cur1;
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
-    gcs_pgctx_release(ctx);
 
     return TF_ERROR_SUCCESS;
 
 error:
-    gcs_pgctx_release(ctx);
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
@@ -241,15 +229,16 @@ error:
  * Retrieves catalog nodes from the database by resource ID. Calling functions
  * should call tf_free_node_array() to free "result".
  *
+ * @param ctx       current database context
  * @param idarr     a null-terminated array of resource ID strings to lookup
  * @param types     flag to indicate if idarr has resource type ID strings
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_resources(const char * const *idarr, int types, tf_node ***result)
+tf_error tf_fetch_resources(pgctx *ctx, const char * const *idarr, int types, tf_node ***result)
 {
-    if (!idarr || !idarr[0] || !result || *result)
+    if (!ctx || !idarr || !idarr[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up catalog resources");
@@ -261,7 +250,6 @@ tf_error tf_fetch_resources(const char * const *idarr, int types, tf_node ***res
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -275,10 +263,8 @@ tf_error tf_fetch_resources(const char * const *idarr, int types, tf_node ***res
     bzero(&residlst, residlen);
 
     dberr = tf_db_build_list(idarr, residlst, residlen, &curpos);
-    if (dberr != TF_ERROR_SUCCESS) {
-        gcs_pgctx_release(ctx);
+    if (dberr != TF_ERROR_SUCCESS)
         return dberr;
-    }
 
     sprintf(countstmt, 
         "SELECT COUNT(*) \
@@ -301,10 +287,8 @@ tf_error tf_fetch_resources(const char * const *idarr, int types, tf_node ***res
     gcslog_debug("found %d matching resource(s)", count);
     *result = (tf_node **)calloc(count + 1, sizeof(tf_node *));
 
-    if (count == 0) {
-        gcs_pgctx_release(ctx);
+    if (count == 0)
         return TF_ERROR_SUCCESS;
-    }
 
     sprintf(selstmt, 
         "SELECT cn.parent_path, cn.child_item, cn.\"default\", \
@@ -371,12 +355,10 @@ tf_error tf_fetch_resources(const char * const *idarr, int types, tf_node ***res
 
     EXEC SQL CLOSE cur2;
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
-    gcs_pgctx_release(ctx);
 
     return TF_ERROR_SUCCESS;
 
 error:
-    gcs_pgctx_release(ctx);
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
@@ -385,14 +367,15 @@ error:
  * Retrieves catalog service references from the database. Calling functions
  * should call tf_free_service_ref_array() to free "result".
  *
+ * @param ctx       current database context
  * @param instid    project collection instance ID
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_pc_service_refs(const char *instid, tf_service_ref ***result)
+tf_error tf_fetch_pc_service_refs(pgctx *ctx, const char *instid, tf_service_ref ***result)
 {
-    if (!instid || !result || *result)
+    if (!ctx || !instid || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up service references for host instance %s", instid);
@@ -404,7 +387,6 @@ tf_error tf_fetch_pc_service_refs(const char *instid, tf_service_ref ***result)
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -441,10 +423,8 @@ tf_error tf_fetch_pc_service_refs(const char *instid, tf_service_ref ***result)
     gcslog_debug("found %d catalog service(s)", count);
     *result = (tf_service_ref **)calloc(count + 1, sizeof(tf_service_ref *));
 
-    if (count == 0) {
-        gcs_pgctx_release(ctx);
+    if (count == 0)
         return TF_ERROR_SUCCESS;
-    }
 
     sprintf(selstmt, 
         "SELECT csr.resource_identifier, csr.association_key, \
@@ -522,12 +502,10 @@ tf_error tf_fetch_pc_service_refs(const char *instid, tf_service_ref ***result)
 
     EXEC SQL CLOSE cur5;
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
-    gcs_pgctx_release(ctx);
 
     return TF_ERROR_SUCCESS;
 
 error:
-    gcs_pgctx_release(ctx);
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
@@ -536,14 +514,15 @@ error:
  * Retrieves catalog service references from the database. Calling functions
  * should call tf_free_service_ref_array() to free "result".
  *
+ * @param ctx       current database context
  * @param nodes     a null-terminated array of nodes to lookup services for
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_service_refs(tf_node **nodes, tf_service_ref ***result)
+tf_error tf_fetch_service_refs(pgctx *ctx, tf_node **nodes, tf_service_ref ***result)
 {
-    if (!nodes || !nodes[0] || !result || *result)
+    if (!ctx || !nodes || !nodes[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up service references for catalog node(s)");
@@ -555,7 +534,6 @@ tf_error tf_fetch_service_refs(tf_node **nodes, tf_service_ref ***result)
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -570,19 +548,15 @@ tf_error tf_fetch_service_refs(tf_node **nodes, tf_service_ref ***result)
 
     for (i = 0; nodes[i]; i++) {
         if (i > 0) {
-            if (snprintf(residlst + curpos, r, ", ") >= r) {
-                gcs_pgctx_release(ctx);
+            if (snprintf(residlst + curpos, r, ", ") >= r)
                 return TF_ERROR_PARAM_TOO_LONG;
-            }
 
             curpos += 2;
             r = residlen - curpos;
         }
 
-        if (snprintf(residlst + curpos, r, "'%s'", nodes[i]->resource.id) >= r) {
-            gcs_pgctx_release(ctx);
+        if (snprintf(residlst + curpos, r, "'%s'", nodes[i]->resource.id) >= r)
             return TF_ERROR_PARAM_TOO_LONG;
-        }
 
         curpos += strlen(residlst + curpos);
         r = residlen - curpos;
@@ -609,10 +583,8 @@ tf_error tf_fetch_service_refs(tf_node **nodes, tf_service_ref ***result)
     gcslog_debug("found %d catalog service(s)", count);
     *result = (tf_service_ref **)calloc(count + 1, sizeof(tf_service_ref *));
 
-    if (count == 0) {
-        gcs_pgctx_release(ctx);
+    if (count == 0)
         return TF_ERROR_SUCCESS;
-    }
 
     sprintf(selstmt, 
         "SELECT csr.resource_identifier, csr.association_key, \
@@ -679,12 +651,10 @@ tf_error tf_fetch_service_refs(tf_node **nodes, tf_service_ref ***result)
 
     EXEC SQL CLOSE cur3;
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
-    gcs_pgctx_release(ctx);
 
     return TF_ERROR_SUCCESS;
 
 error:
-    gcs_pgctx_release(ctx);
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
@@ -693,14 +663,15 @@ error:
  * Retrieves properties for the given catalog nodes. Calling functions
  * should call tf_free_property_array() to free "result".
  *
+ * @param ctx       current database context
  * @param nodes     a null-terminated array of nodes to lookup services for
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_properties(tf_node **nodes, tf_property ***result)
+tf_error tf_fetch_properties(pgctx *ctx, tf_node **nodes, tf_property ***result)
 {
-    if (!nodes || !nodes[0] || !result || *result)
+    if (!ctx || !nodes || !nodes[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up resource properties for catalog node(s)");
@@ -712,7 +683,6 @@ tf_error tf_fetch_properties(tf_node **nodes, tf_property ***result)
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -727,19 +697,15 @@ tf_error tf_fetch_properties(tf_node **nodes, tf_property ***result)
 
     for (i = 0; nodes[i]; i++) {
         if (i > 0) {
-            if (snprintf(idlst + curpos, r, ", ") >= r) {
-                gcs_pgctx_release(ctx);
+            if (snprintf(idlst + curpos, r, ", ") >= r)
                 return TF_ERROR_PARAM_TOO_LONG;
-            }
 
             curpos += 2;
             r = idlen - curpos;
         }
 
-        if (snprintf(idlst + curpos, r, "%d", nodes[i]->resource.propertyid) >= r) {
-            gcs_pgctx_release(ctx);
+        if (snprintf(idlst + curpos, r, "%d", nodes[i]->resource.propertyid) >= r)
             return TF_ERROR_PARAM_TOO_LONG;
-        }
 
         curpos += strlen(idlst + curpos);
         r = idlen - curpos;
@@ -763,10 +729,8 @@ tf_error tf_fetch_properties(tf_node **nodes, tf_property ***result)
     gcslog_debug("found %d resource properties", count);
     *result = (tf_property **)calloc(count + 1, sizeof(tf_property **));
 
-    if (count == 0) {
-        gcs_pgctx_release(ctx);
+    if (count == 0)
         return TF_ERROR_SUCCESS;
-    }
 
     sprintf(selstmt, 
         "SELECT pv.artifact_id, pv.\"version\", pv.internal_kind_id, pv.value, \
@@ -814,12 +778,10 @@ tf_error tf_fetch_properties(tf_node **nodes, tf_property ***result)
 
     EXEC SQL CLOSE cur4;
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
-    gcs_pgctx_release(ctx);
 
     return TF_ERROR_SUCCESS;
 
 error:
-    gcs_pgctx_release(ctx);
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }

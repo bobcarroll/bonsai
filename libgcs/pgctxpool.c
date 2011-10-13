@@ -30,7 +30,7 @@
 #include <gcs/pgctxpool.h>
 #include <gcs/log.h>
 
-static gcs_pgctx **_ctxpool = NULL;
+static pgctx **_ctxpool = NULL;
 static int _ctxcount = 0;
 static pthread_mutex_t _ctxmtx = PTHREAD_MUTEX_INITIALIZER;
 
@@ -52,7 +52,7 @@ int gcs_ctxpool_init(int count)
     }
 
     pthread_mutex_lock(&_ctxmtx);
-    _ctxpool = (gcs_pgctx **)calloc(count, sizeof(gcs_pgctx *));
+    _ctxpool = (pgctx **)calloc(count, sizeof(pgctx *));
     _ctxcount = count;
     pthread_mutex_unlock(&_ctxmtx);
 
@@ -131,8 +131,8 @@ int gcs_pgctx_alloc(const char *conn, const char *tag)
         } else if (_ctxpool[i])
             continue;
 
-        _ctxpool[i] = (gcs_pgctx *)malloc(sizeof(gcs_pgctx));
-        bzero(_ctxpool[i], sizeof(gcs_pgctx));
+        _ctxpool[i] = (pgctx *)malloc(sizeof(pgctx));
+        bzero(_ctxpool[i], sizeof(pgctx));
 
         _ctxpool[i]->conn = strdup(conn);
 
@@ -175,15 +175,17 @@ int gcs_pgctx_count()
 
  * @return a connection context
  */
-gcs_pgctx *gcs_pgctx_acquire(const char *tag)
+pgctx *gcs_pgctx_acquire(const char *tag)
 {
-    gcs_pgctx *result = NULL;
+    pgctx *result = NULL;
     int i = 0, m;
+
+    gcslog_debug("acquiring PG context with tag %s", tag);
 
     pthread_mutex_lock(&_ctxmtx);
     for (i = 0; i < _ctxcount && _ctxpool[i]; i++) {
         m = ((!tag && !_ctxpool[i]->tag) || 
-             (tag && _ctxpool[i] && strcmp(_ctxpool[i]->tag, tag) == 0));
+             (tag && _ctxpool[i]->tag && strcmp(_ctxpool[i]->tag, tag) == 0));
 
         if (_ctxpool[i] && _ctxpool[i]->owner == (unsigned long)pthread_self() && m) {
             gcslog_debug("got PG context %d (reused)", i);
@@ -203,7 +205,7 @@ gcs_pgctx *gcs_pgctx_acquire(const char *tag)
     while (1) {
         pthread_mutex_lock(&_ctxmtx);
         m = ((!tag && !_ctxpool[i]->tag) || 
-             (tag && _ctxpool[i] && strcmp(_ctxpool[i]->tag, tag) == 0));
+             (tag && _ctxpool[i]->tag && strcmp(_ctxpool[i]->tag, tag) == 0));
 
         if (_ctxpool[i] && _ctxpool[i]->owner == 0 && m) {
             gcslog_debug("got PG context %d", i);
@@ -234,7 +236,7 @@ gcs_pgctx *gcs_pgctx_acquire(const char *tag)
  *
  * @param context
  */
-void gcs_pgctx_release(gcs_pgctx *context)
+void gcs_pgctx_release(pgctx *context)
 {
     int i;
 

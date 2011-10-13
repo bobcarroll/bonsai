@@ -26,5 +26,5 @@
 #include <tf/xml.h>
 
 void location_append_service(xmlNode *, tf_service *);
-void location_service_init(SoapRouter **, const char *, tf_service_ref *);
+void location_service_init(SoapRouter **, const char *, tf_service_ref *, const char *);
 

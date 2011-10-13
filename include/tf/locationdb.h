@@ -19,12 +19,14 @@
 
 #pragma once
 
+#include <gcs/pgctxpool.h>
+
 #include <tf/locationtypes.h>
 #include <tf/errors.h>
 
 #define TF_LOCATION_FILTER_SERVICE_ID       "567713db-d56d-4bb0-8f35-604e0e116174"
 #define TF_LOCATION_FILTER_SERVICE_TYPE     "*"
 
-tf_error tf_fetch_access_map(tf_access_map ***);
-tf_error tf_fetch_services(tf_service_filter **, tf_service ***);
+tf_error tf_fetch_access_map(pgctx *, tf_access_map ***);
+tf_error tf_fetch_services(pgctx *, tf_service_filter **, tf_service ***);
 

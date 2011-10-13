@@ -23,5 +23,5 @@
 
 #include <tf/catalogtypes.h>
 
-void registration_service_init(SoapRouter **, const char *, tf_service_ref *);
+void registration_service_init(SoapRouter **, const char *, tf_service_ref *, const char *);
 

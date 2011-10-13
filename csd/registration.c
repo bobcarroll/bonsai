@@ -120,14 +120,16 @@ static int _auth_ntlm(SoapEnv *env, const char *user, const char *passwd)
  * @param router    output buffer for the SOAP router
  * @param prefix    the URI prefix for this service
  * @param ref       service reference info
+ * @param instid    host instance ID
  */
-void registration_service_init(SoapRouter **router, const char *prefix, tf_service_ref *ref)
+void registration_service_init(SoapRouter **router, const char *prefix, tf_service_ref *ref,
+    const char *instid)
 {
     char url[1024];
 
     (*router) = soap_router_new();
     //soap_router_register_security(*router, (httpd_auth)_auth_ntlm);
-    soap_router_register_tf_context(*router, ref->id);
+    soap_router_set_tag(*router, instid);
 
     sprintf(url, "%s%s", prefix ? prefix : "", ref->service.relpath);
     soap_server_register_router(*router, url);
@@ -138,6 +140,6 @@ void registration_service_init(SoapRouter **router, const char *prefix, tf_servi
         "GetRegistrationEntries",
         TF_REGISTRATION_NAMESPACE);
 
-    gcslog_info("registered registration service %s in context %s", url, ref->id);
+    gcslog_info("registered registration service %s for host %s", url, instid);
 }
 

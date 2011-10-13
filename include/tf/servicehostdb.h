@@ -19,8 +19,10 @@
 
 #pragma once
 
+#include <gcs/pgctxpool.h>
+
 #include <tf/servicehosttypes.h>
 #include <tf/errors.h>
 
-tf_error tf_fetch_hosts(const char *, tf_host ***);
+tf_error tf_fetch_hosts(pgctx *, const char *, tf_host ***);
 

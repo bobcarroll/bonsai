@@ -300,7 +300,7 @@ soap_server_entry(httpd_conn_t * conn, hrequest_t * req)
     ctx->http = req;
     soap_ctx_add_files(ctx, req->attachments);
 
-    ctx->tfctx = strdup(router->tfctx);
+    ctx->tag = router->tag ? strdup(router->tag) : NULL;
 
     if (ctx->env == NULL)
     {

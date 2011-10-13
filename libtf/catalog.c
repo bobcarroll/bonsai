@@ -158,19 +158,20 @@ void *tf_free_service_ref_array(tf_service_ref **result)
  * Queries the catalog for nodes in the given path. Calling functions
  * should call tf_free_node_array() to free "result".
  *
+ * @param ctx       current database context
  * @param patharr   a null-terminated array of catalog paths, optionally with depth markers
  * @param types     a null-terminated array of resource type ID strings to filter by
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_query_nodes(const char * const *patharr, const char * const *types, tf_node ***result)
+tf_error tf_query_nodes(pgctx *ctx, const char * const *patharr, const char * const *types, tf_node ***result)
 {
     tf_path_spec **pathspecs = NULL;
     tf_error dberr;
     int i;
 
-    if (!patharr || !types || !result)
+    if (!ctx || !patharr || !types || !result)
         return TF_ERROR_BAD_PARAMETER;
 
     for (i = 0; patharr[i]; i++);
@@ -197,7 +198,7 @@ tf_error tf_query_nodes(const char * const *patharr, const char * const *types, 
             pathspecs[i]->path = strdup(path);
     }
 
-    dberr = tf_fetch_nodes(pathspecs, types, result);
+    dberr = tf_fetch_nodes(ctx, pathspecs, types, result);
     pathspecs = tf_free_path_spec_array(pathspecs);
 
     return dberr;
@@ -207,17 +208,18 @@ tf_error tf_query_nodes(const char * const *patharr, const char * const *types, 
  * Queries the catalog for a node in the given path. Calling functions
  * should call tf_free_node_array() to free "result".
  *
+ * @param ctx       current database context
  * @param path      a catalog path, optionally with a depth marker
  * @param type      a resource type ID strings to filter by
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_query_single_node(const char *path, const char *type, tf_node ***result)
+tf_error tf_query_single_node(pgctx *ctx, const char *path, const char *type, tf_node ***result)
 {
     tf_error dberr;
 
-    if (!path || !type || !result)
+    if (!ctx || !path || !type || !result)
         return TF_ERROR_BAD_PARAMETER;
 
     char **pathspec = (char **)calloc(2, sizeof(char *));
@@ -228,6 +230,7 @@ tf_error tf_query_single_node(const char *path, const char *type, tf_node ***res
     typearr[0] = strdup(type);
 
     dberr = tf_query_nodes(
+            ctx,
             (const char * const *)pathspec,
             (const char * const *)typearr,
             result);

@@ -68,9 +68,9 @@ soap_router_register_service(SoapRouter * router,
 }
 
 void
-soap_router_register_tf_context(SoapRouter * router, const char *context)
+soap_router_set_tag(SoapRouter * router, const char *tag)
 {
-    router->tfctx = strdup(context);
+    router->tag = tag ? strdup(tag) : NULL;
 
     return;
 }
@@ -166,8 +166,8 @@ soap_router_free(SoapRouter * router)
   if (router->wsdl)
     xmlFreeDoc(router->wsdl);
 
-  if (router->tfctx)
-    free(router->tfctx);
+  if (router->tag)
+    free(router->tag);
 
   free(router);
   gcslog_debug("leave with success");

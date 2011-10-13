@@ -26,7 +26,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <gcs/pgctxpool.h>
 #include <gcs/log.h>
 
 #include <tf/servicehostdb.h>
@@ -38,14 +37,15 @@
  * If parent is NULL then only TEAM FOUDATAION hosts will be returned.
  * Otherwise, hosts with the given parent will be returned.
  *
+ * @param ctx       current database context
  * @param parent    optional parent ID to filter on
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_hosts(const char *parent, tf_host ***result)
+tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
 {
-    if (!result || *result)
+    if (!ctx || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     gcslog_debug("looking up service hosts");
@@ -57,7 +57,6 @@ tf_error tf_fetch_hosts(const char *parent, tf_host ***result)
     int count = 0;
     EXEC SQL END DECLARE SECTION;
 
-    gcs_pgctx *ctx = gcs_pgctx_acquire(NULL);
     conn = ctx->conn;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -86,10 +85,8 @@ tf_error tf_fetch_hosts(const char *parent, tf_host ***result)
     gcslog_debug("found %d service host(s)", count);
     *result = (tf_host **)calloc(count + 1, sizeof(tf_host *));
 
-    if (count == 0) {
-        gcs_pgctx_release(ctx);
+    if (count == 0)
         return TF_ERROR_SUCCESS;
-    }
 
     sprintf(selstmt, 
         "SELECT host_id, parent_host_id, \"name\", description, \
@@ -165,12 +162,10 @@ tf_error tf_fetch_hosts(const char *parent, tf_host ***result)
 
     EXEC SQL CLOSE cur1;
     EXEC SQL DEALLOCATE PREPARE sqlstmt;
-    gcs_pgctx_release(ctx);
 
     return TF_ERROR_SUCCESS;
 
 error_cur:
-    gcs_pgctx_release(ctx);
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL CLOSE cur1;
@@ -178,7 +173,6 @@ error_cur:
     return TF_ERROR_PG_FAILURE;
 
 error:
-    gcs_pgctx_release(ctx);
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }

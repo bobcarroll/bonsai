@@ -49,9 +49,9 @@ static SoapRouter **_routers = NULL;
 static void _start_service(tf_service_ref *ref, SoapRouter **router, const char *prefix)
 {
     if (strcmp(ref->service.type, TF_SERVICE_TYPE_LOCATION) == 0)
-        location_service_init(router, prefix, ref);
+        location_service_init(router, prefix, ref, NULL);
     else if (strcmp(ref->service.type, TF_SERVICE_TYPE_CATALOG) == 0)
-        catalog_service_init(router, prefix, ref);
+        catalog_service_init(router, prefix, ref, NULL);
     else
         gcslog_warn("cannot start unknown service type %s", ref->service.type);
 }
@@ -66,6 +66,7 @@ static void _start_service(tf_service_ref *ref, SoapRouter **router, const char 
  */
 char *core_services_init(const char *prefix)
 {
+    pgctx *ctx;
     tf_node **nodearr = NULL;
     tf_service_ref **refarr = NULL;
     tf_host **hostarr = NULL;
@@ -78,11 +79,13 @@ char *core_services_init(const char *prefix)
         return NULL;
     }
 
-    dberr = tf_fetch_hosts(NULL, &hostarr);
+    ctx = gcs_pgctx_acquire(NULL);
+    dberr = tf_fetch_hosts(ctx, NULL, &hostarr);
 
     if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {
         gcslog_error("no team foundation instances were found!");
         hostarr = tf_free_host_array(hostarr);
+        gcs_pgctx_release(ctx);
         return NULL;
     }
 
@@ -92,12 +95,14 @@ char *core_services_init(const char *prefix)
 
     if (_routers) {
         gcslog_warn("core services are already initialised!");
+        gcs_pgctx_release(ctx);
         return result;
     }
 
     gcslog_info("initialising team foundation services");
 
     dberr = tf_query_single_node(
+        ctx,
         TF_CATALOG_ORGANIZATION_ROOT,
         TF_CATALOG_TYPE_SERVER_INSTANCE,
         &nodearr);
@@ -105,16 +110,18 @@ char *core_services_init(const char *prefix)
     if (dberr != TF_ERROR_SUCCESS || !nodearr[0]) {
         gcslog_warn("failed to retrieve team foundation catalog nodes");
         nodearr = tf_free_node_array(nodearr);
+        gcs_pgctx_release(ctx);
         free(result);
         return NULL;
     }
 
-    dberr = tf_fetch_service_refs(nodearr, &refarr);
+    dberr = tf_fetch_service_refs(ctx, nodearr, &refarr);
     nodearr = tf_free_node_array(nodearr);
 
     if (dberr != TF_ERROR_SUCCESS || !refarr[0]) {
         gcslog_warn("failed to retrieve team foundation services");
         refarr = tf_free_service_ref_array(refarr);
+        gcs_pgctx_release(ctx);
         free(result);
         return NULL;
     }
@@ -126,6 +133,8 @@ char *core_services_init(const char *prefix)
         _start_service(refarr[i], &_routers[i], prefix);
 
     refarr = tf_free_service_ref_array(refarr);
+    gcs_pgctx_release(ctx);
+
     return result;
 }
 

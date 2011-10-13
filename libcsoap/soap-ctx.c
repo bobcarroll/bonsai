@@ -44,7 +44,7 @@ soap_ctx_new(SoapEnv * env)     /* should only be used internally */
   ctx->env = env;
   ctx->attachments = NULL;
   ctx->action = NULL;
-  ctx->tfctx = NULL;
+  ctx->tag = NULL;
 
   return ctx;
 }
@@ -152,8 +152,8 @@ soap_ctx_free(SoapCtx * ctx)
   if (ctx->action)
     free(ctx->action);
 
-  if (ctx->tfctx)
-    free(ctx->tfctx);
+  if (ctx->tag)
+    free(ctx->tag);
 
   free(ctx);
 

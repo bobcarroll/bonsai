@@ -224,6 +224,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     xmlNode *body = req->env->body;
     xmlXPathObject *xpres;
     xmlNode *arg;
+    pgctx *ctx;
     tf_service_filter **filters = NULL;
     tf_service **svcarr = NULL;
     tf_access_map **accmaparr = NULL;
@@ -249,12 +250,15 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     }
 
+    ctx = gcs_pgctx_acquire(req->tag);
+
     if (inclservices) {
         /* TODO check last changed ID */
-        dberr = tf_fetch_services(filters, &svcarr);
+        dberr = tf_fetch_services(ctx, filters, &svcarr);
         filters = tf_free_service_filter_array(filters);
 
         if (dberr != TF_ERROR_SUCCESS) {
+            gcs_pgctx_release(ctx);
             tf_fault_env(
                     Fault_Server, 
                     "Failed to retrieve service definitions from the database", 
@@ -265,9 +269,10 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     } else
         filters = tf_free_service_filter_array(filters);
 
-    dberr = tf_fetch_access_map(&accmaparr);
+    dberr = tf_fetch_access_map(ctx, &accmaparr);
     if (dberr != TF_ERROR_SUCCESS) {
         svcarr = tf_free_service_array(svcarr);
+        gcs_pgctx_release(ctx);
         tf_fault_env(
                 Fault_Server, 
                 "Failed to retrieve service definitions from the database", 
@@ -277,6 +282,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     }
 
     dberr = tf_query_single_node(
+        ctx,
         TF_CATALOG_ORGANIZATION_ROOT,
         TF_CATALOG_TYPE_SERVER_INSTANCE,
         &nodearr);
@@ -285,6 +291,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         svcarr = tf_free_service_array(svcarr);
         accmaparr = tf_free_access_map_array(accmaparr);
         nodearr = tf_free_node_array(nodearr);
+        gcs_pgctx_release(ctx);
         tf_fault_env(
                 Fault_Server, 
                 "Failed to retrieve the server instance ID from the database", 
@@ -310,6 +317,8 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     accmaparr = tf_free_access_map_array(accmaparr);
     nodearr = tf_free_node_array(nodearr);
 
+    gcs_pgctx_release(ctx);
+
     return H_OK;
 }
 
@@ -325,6 +334,7 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
 {
     xmlNode *body = req->env->body;
     xmlXPathObject *xpres;
+    pgctx *ctx;
     tf_service_filter **filters = NULL;
     tf_service **svcarr = NULL;
     tf_access_map **accmaparr = NULL;
@@ -344,11 +354,14 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     }
 
+    ctx = gcs_pgctx_acquire(req->tag);
+
     /* TODO check last changed ID */
-    dberr = tf_fetch_services(filters, &svcarr);
+    dberr = tf_fetch_services(ctx, filters, &svcarr);
     filters = tf_free_service_filter_array(filters);
 
     if (dberr != TF_ERROR_SUCCESS) {
+        gcs_pgctx_release(ctx);
         tf_fault_env(
                 Fault_Server, 
                 "Failed to retrieve service definitions from the database", 
@@ -357,9 +370,10 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    dberr = tf_fetch_access_map(&accmaparr);
+    dberr = tf_fetch_access_map(ctx, &accmaparr);
     if (dberr != TF_ERROR_SUCCESS) {
         svcarr = tf_free_service_array(svcarr);
+        gcs_pgctx_release(ctx);
         tf_fault_env(
                 Fault_Server, 
                 "Failed to retrieve service definitions from the database", 
@@ -377,6 +391,8 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
     svcarr = tf_free_service_array(svcarr);
     accmaparr = tf_free_access_map_array(accmaparr);
 
+    gcs_pgctx_release(ctx);
+
     return H_OK;
 }
 
@@ -391,14 +407,16 @@ static int _auth_ntlm(SoapEnv *env, const char *user, const char *passwd)
  * @param router    output buffer for the SOAP router
  * @param prefix    the URI prefix for this service
  * @param ref       service reference info
+ * @param instid    host instance ID
  */
-void location_service_init(SoapRouter **router, const char *prefix, tf_service_ref *ref)
+void location_service_init(SoapRouter **router, const char *prefix, tf_service_ref *ref,
+    const char *instid)
 {
     char url[1024];
 
     (*router) = soap_router_new();
     soap_router_register_security(*router, (httpd_auth)_auth_ntlm);
-    soap_router_register_tf_context(*router, ref->id);
+    soap_router_set_tag(*router, instid);
 
     sprintf(url, "%s%s", prefix ? prefix : "", ref->service.relpath);
     soap_server_register_router(*router, url);
@@ -414,6 +432,6 @@ void location_service_init(SoapRouter **router, const char *prefix, tf_service_r
         "QueryServices",
         TF_DEFAULT_NAMESPACE);
 
-    gcslog_info("registered location service %s in context %s", url, ref->id);
+    gcslog_info("registered location service %s for host %s", url, instid);
 }
 
