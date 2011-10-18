@@ -23,6 +23,8 @@
 #define TF_ERROR_BAD_PARAMETER      1
 #define TF_ERROR_PARAM_TOO_LONG     2
 #define TF_ERROR_PG_FAILURE         3
+#define TF_ERROR_NOT_FOUND          4
+#define TF_ERROR_INTERNAL           5
 
 typedef int tf_error;
 

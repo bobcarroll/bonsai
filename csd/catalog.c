@@ -191,7 +191,7 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    ctx = gcs_pgctx_acquire(req->tag);
+    ctx = gcs_pgctx_acquire(NULL);
 
     /* TODO property filters */
     /* TODO query options */
@@ -315,7 +315,7 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     }
 
-    ctx = gcs_pgctx_acquire(req->tag);
+    ctx = gcs_pgctx_acquire(NULL);
 
     /* TODO property filter */
     /* TODO query options */

@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <tf/catalogtypes.h>
+
 #define TF_SERVICE_HOST_CONN_STR_MAXLEN         521
 #define TF_SERVICE_HOST_ID_MAXLEN               37
 #define TF_SERVICE_HOST_NAME_MAXLEN             129
@@ -36,5 +38,6 @@ typedef struct {
     int status;
     char reason[TF_SERVICE_HOST_STATUS_REASON_MAXLEN];
     int features;
+    char resource[TF_CATALOG_RESOURCE_ID_MAXLEN];
 } tf_host;
 

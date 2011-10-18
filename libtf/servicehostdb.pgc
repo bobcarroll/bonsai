@@ -32,7 +32,7 @@
 
 /**
  * Retrieves service hosts from the database. Calling functions should
- * call tf_free_host_array() to free "result"..
+ * call tf_free_host_array() to free "result".
  *
  * If parent is NULL then only TEAM FOUDATAION hosts will be returned.
  * Otherwise, hosts with the given parent will be returned.
@@ -92,7 +92,7 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
         "SELECT host_id, parent_host_id, \"name\", description, \
                 virtual_directory, resource_directory, \
                 connection_string, status, status_reason, \
-                supported_features \
+                supported_features, fk_resource_identifier \
         FROM service_hosts \
         %s",
         where);
@@ -124,12 +124,13 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
         char reason[TF_SERVICE_HOST_STATUS_REASON_MAXLEN];
         int reason_ind;
         int features;
+        char resource[TF_CATALOG_RESOURCE_ID_MAXLEN];
         EXEC SQL END DECLARE SECTION;
 
         EXEC SQL FETCH NEXT FROM cur1
             INTO :id, :parent:parent_ind, :name, :description:desc_ind, 
                  :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr, 
-                 :status:status_ind, :reason:reason_ind, :features;
+                 :status:status_ind, :reason:reason_ind, :features, :resource;
 
         tf_host *item = (*result)[i] = (tf_host *)malloc(sizeof(tf_host));
         bzero(item, sizeof(tf_host));
@@ -156,6 +157,7 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
             strncpy(item->reason, reason, TF_SERVICE_HOST_STATUS_REASON_MAXLEN);
 
         item->features = features;
+        strncpy(item->resource, resource, TF_CATALOG_RESOURCE_ID_MAXLEN);
 
         free(description);
     }
@@ -176,3 +178,115 @@ error:
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
+
+/**
+ * Retrieves the given host from the database. Calling functions should
+ * call tf_free_host() to free "result".
+ *
+ * @param ctx       current database context
+ * @param id        host ID to match
+ * @param result    pointer to an output buffer for the result
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
+{
+    if (!ctx || !hostid || !result || *result)
+        return TF_ERROR_BAD_PARAMETER;
+
+    gcslog_debug("looking up service host %s", hostid);
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = NULL;
+    char selstmt[20480];
+    EXEC SQL END DECLARE SECTION;
+
+    conn = ctx->conn;
+
+    EXEC SQL WHENEVER NOT FOUND GOTO not_found;
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL SET CONNECTION :conn;
+
+    sprintf(selstmt, 
+        "SELECT host_id, parent_host_id, \"name\", description, \
+                virtual_directory, resource_directory, \
+                connection_string, status, status_reason, \
+                supported_features, fk_resource_identifier \
+        FROM service_hosts \
+        WHERE host_id = '%s'",
+        hostid);
+    gcslog_trace("fetch single service host SQL: %s", selstmt);
+
+    EXEC SQL PREPARE sqlstmt FROM :selstmt;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    char id[TF_SERVICE_HOST_ID_MAXLEN];
+    char parent[TF_SERVICE_HOST_ID_MAXLEN];
+    int parent_ind;
+    char name[TF_SERVICE_HOST_NAME_MAXLEN];
+    char *description = NULL;
+    int desc_ind;
+    char vdir[TF_SERVICE_HOST_PATH_MAXLEN];
+    int vdir_ind;
+    char rsrcdir[TF_SERVICE_HOST_PATH_MAXLEN];
+    int rsrcdir_ind;
+    char connstr[TF_SERVICE_HOST_CONN_STR_MAXLEN];
+    int status;
+    int status_ind;
+    char reason[TF_SERVICE_HOST_STATUS_REASON_MAXLEN];
+    int reason_ind;
+    int features;
+    char resource[TF_CATALOG_RESOURCE_ID_MAXLEN];
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL EXECUTE sqlstmt
+        INTO :id, :parent:parent_ind, :name, :description:desc_ind, 
+             :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr, 
+             :status:status_ind, :reason:reason_ind, :features, :resource;
+
+    tf_host *item = *result = (tf_host *)malloc(sizeof(tf_host));
+    bzero(item, sizeof(tf_host));
+
+    strncpy(item->id, id, TF_SERVICE_HOST_ID_MAXLEN);
+
+    if (!parent_ind)
+        strncpy(item->parent, parent, TF_SERVICE_HOST_ID_MAXLEN);
+
+    strncpy(item->name, name, TF_SERVICE_HOST_NAME_MAXLEN);
+
+    item->description = !desc_ind ? strdup(description) : NULL;
+
+    if (!vdir_ind)
+        strncpy(item->vdir, vdir, TF_SERVICE_HOST_PATH_MAXLEN);
+
+    if (!rsrcdir_ind)
+        strncpy(item->rsrcdir, rsrcdir, TF_SERVICE_HOST_PATH_MAXLEN);
+
+    strncpy(item->connstr, connstr, TF_SERVICE_HOST_CONN_STR_MAXLEN);
+    item->status = !status_ind ? status : 0;
+
+    if (!reason_ind)
+        strncpy(item->reason, reason, TF_SERVICE_HOST_STATUS_REASON_MAXLEN);
+
+    item->features = features;
+    strncpy(item->resource, resource, TF_CATALOG_RESOURCE_ID_MAXLEN);
+
+    free(description);
+
+    EXEC SQL DEALLOCATE PREPARE sqlstmt;
+
+    return TF_ERROR_SUCCESS;
+
+not_found:
+    EXEC SQL DEALLOCATE PREPARE sqlstmt;
+    gcslog_debug("no matching service host found");
+
+    return TF_ERROR_NOT_FOUND;
+
+error:
+    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    EXEC SQL DEALLOCATE PREPARE sqlstmt;
+
+    return TF_ERROR_PG_FAILURE;
+}
+

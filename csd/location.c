@@ -30,6 +30,8 @@
 #include <tf/catalog.h>
 #include <tf/location.h>
 #include <tf/locationdb.h>
+#include <tf/servicehost.h>
+#include <tf/servicehostdb.h>
 #include <tf/webservices.h>
 #include <tf/xml.h>
 
@@ -229,9 +231,20 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     tf_service **svcarr = NULL;
     tf_access_map **accmaparr = NULL;
     tf_node **nodearr = NULL;
+    tf_host *host = NULL;
     tf_error dberr;
+    const char *hostid = req->tag;
     int inclservices = 0;
     int lastchgid = -1;
+
+    if (!hostid) {
+        tf_fault_env(
+            Fault_Server, 
+            "service host instance ID was NULL!", 
+            TF_ERROR_INTERNAL, 
+            &res->env);
+        return H_OK;
+    }
 
     arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:connectOptions/text()");
     if (arg)
@@ -250,7 +263,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     }
 
-    ctx = gcs_pgctx_acquire(req->tag);
+    ctx = gcs_pgctx_acquire(NULL);
 
     if (inclservices) {
         /* TODO check last changed ID */
@@ -281,11 +294,30 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    dberr = tf_query_single_node(
-        ctx,
-        TF_CATALOG_ORGANIZATION_ROOT,
-        TF_CATALOG_TYPE_SERVER_INSTANCE,
-        &nodearr);
+    dberr = tf_fetch_single_host(ctx, hostid, &host);
+
+    if (dberr != TF_ERROR_SUCCESS || !host) {
+        svcarr = tf_free_service_array(svcarr);
+        accmaparr = tf_free_access_map_array(accmaparr);
+        gcs_pgctx_release(ctx);
+        tf_fault_env(
+                Fault_Server, 
+                "Failed to retrieve the host instance from the database", 
+                dberr, 
+                &res->env);
+        return H_OK;
+    }
+
+    char **idarr = (char **)calloc(2, sizeof(char *));
+    idarr[0] = strdup(host->resource);
+
+    tf_free_host(host);
+    free(host);
+
+    dberr = tf_fetch_resources(ctx, (const char * const *)idarr, 0, &nodearr);
+
+    free(idarr[0]);
+    free(idarr);
 
     if (dberr != TF_ERROR_SUCCESS || !nodearr[0]) {
         svcarr = tf_free_service_array(svcarr);
@@ -294,7 +326,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         gcs_pgctx_release(ctx);
         tf_fault_env(
                 Fault_Server, 
-                "Failed to retrieve the server instance ID from the database", 
+                "Failed to retrieve catalog resource for host", 
                 dberr, 
                 &res->env);
         return H_OK;
@@ -304,7 +336,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     soap_env_new_with_method(cmd->ns->href, "ConnectResponse", &res->env);
 
     xmlNode *connresult = xmlNewChild(res->env->body->children->next, NULL, "ConnectResult", NULL);
-    xmlNewProp(connresult, "InstanceId", "bed36b22-8b2a-464b-8702-8df2dbc413fe"); /* TODO */
+    xmlNewProp(connresult, "InstanceId", hostid);
     xmlNewProp(connresult, "CatalogResourceId", nodearr[0]->resource.id);
 
     _build_auth_node(connresult); /* TODO */
@@ -354,7 +386,7 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     }
 
-    ctx = gcs_pgctx_acquire(req->tag);
+    ctx = gcs_pgctx_acquire(NULL);
 
     /* TODO check last changed ID */
     dberr = tf_fetch_services(ctx, filters, &svcarr);

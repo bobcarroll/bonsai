@@ -45,13 +45,15 @@ static SoapRouter **_routers = NULL;
  * @param service   service to start
  * @param router    SOAP router
  * @param prefix    service path prefix
+ * @param instid    host instance ID
  */
-static void _start_service(tf_service_ref *ref, SoapRouter **router, const char *prefix)
+static void _start_service(tf_service_ref *ref, SoapRouter **router, const char *prefix,
+    const char *instid)
 {
     if (strcmp(ref->service.type, TF_SERVICE_TYPE_LOCATION) == 0)
-        location_service_init(router, prefix, ref, NULL);
+        location_service_init(router, prefix, ref, instid);
     else if (strcmp(ref->service.type, TF_SERVICE_TYPE_CATALOG) == 0)
-        catalog_service_init(router, prefix, ref, NULL);
+        catalog_service_init(router, prefix, ref, instid);
     else
         gcslog_warn("cannot start unknown service type %s", ref->service.type);
 }
@@ -130,7 +132,7 @@ char *core_services_init(const char *prefix)
     _routers = (SoapRouter **)calloc(i, sizeof(SoapRouter *));
 
     for (i = 0; refarr[i]; i++)
-        _start_service(refarr[i], &_routers[i], prefix);
+        _start_service(refarr[i], &_routers[i], prefix, result);
 
     refarr = tf_free_service_ref_array(refarr);
     gcs_pgctx_release(ctx);
