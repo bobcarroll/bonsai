@@ -55,8 +55,6 @@ static void _start_service(tf_service_ref *ref, SoapRouter **router, const char 
 {
     if (strcmp(ref->service.type, TF_SERVICE_TYPE_LOCATION) == 0)
         location_service_init(router, prefix, ref, instid);
-    else if (strcmp(ref->service.type, TF_SERVICE_TYPE_CATALOG) == 0)
-        catalog_service_init(router, prefix, ref, instid);
     else if (strcmp(ref->service.type, TF_SERVICE_TYPE_REGISTRATION) == 0)
         registration_service_init(router, prefix, ref, instid);
     else if (strcmp(ref->service.type, TF_SERVICE_TYPE_STATUS) == 0)
@@ -93,7 +91,6 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
 
     ctx = gcs_pgctx_acquire(NULL);
     dberr = tf_fetch_hosts(ctx, instid, &hostarr);
-    gcs_pgctx_release(ctx);
 
     if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {
         gcslog_warn("no project collections were found for instance %s", instid);
@@ -110,10 +107,7 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
         }
 
         gcslog_info("initialising project collection services for %s", hostarr[i]->name);
-
-        ctx = gcs_pgctx_acquire(hostarr[i]->id);
         dberr = tf_fetch_pc_service_refs(ctx, hostarr[i]->id, &refarr);
-        gcs_pgctx_release(ctx);
 
         if (dberr != TF_ERROR_SUCCESS || !refarr[0]) {
             gcslog_warn("failed to retrieve project collection services for %s", hostarr[i]->id);
@@ -136,5 +130,6 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
     }
 
     hostarr = tf_free_host_array(hostarr);
+    gcs_pgctx_release(ctx);
 }
 

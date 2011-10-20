@@ -174,6 +174,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    gcs_pgctx_retag_default(instid);
     pc_services_init(prefix, instid, pguser, pgpasswd, dbconns);
 
     gcslog_notice("starting SOAP server");

@@ -134,23 +134,23 @@ static void _append_location_data(xmlNode *parent, tf_service **svcarr, tf_acces
     }
 
     xmlNewProp(parent, "LastChangeId", "2565"); /* TODO */
-    xmlNewProp(parent, "ClientCacheFresh", "true"); /* TODO */
+    xmlNewProp(parent, "ClientCacheFresh", inclall ? "false" : "true"); /* TODO */
     xmlNewProp(parent, "AccessPointsDoNotIncludeWebAppRelativeDirectory", "false"); /* TODO */
 
-    xmlNode *svcdefs = xmlNewChild(parent, NULL, "ServiceDefinitions", NULL);
-
     if (inclall) {
-        for (i = 0; svcarr[i]; i++ )
+        xmlNode *svcdefs = xmlNewChild(parent, NULL, "ServiceDefinitions", NULL);
+
+        for (i = 0; svcarr[i]; i++)
             location_append_service(svcdefs, svcarr[i]);
-    }
 
-    xmlNode *accessmappings = xmlNewChild(parent, NULL, "AccessMappings", NULL);
+        xmlNode *accessmappings = xmlNewChild(parent, NULL, "AccessMappings", NULL);
 
-    for (i = 0; accmaparr[i]; i++) {
-        xmlNode *am = xmlNewChild(accessmappings, NULL, "AccessMapping", NULL);
-        xmlNewProp(am, "DisplayName", accmaparr[i]->name);
-        xmlNewProp(am, "Moniker", accmaparr[i]->moniker);
-        xmlNewProp(am, "AccessPoint", accmaparr[i]->apuri);
+        for (i = 0; accmaparr[i]; i++) {
+            xmlNode *am = xmlNewChild(accessmappings, NULL, "AccessMapping", NULL);
+            xmlNewProp(am, "DisplayName", accmaparr[i]->name);
+            xmlNewProp(am, "Moniker", accmaparr[i]->moniker);
+            xmlNewProp(am, "AccessPoint", accmaparr[i]->apuri);
+        }
     }
 }
 
@@ -264,41 +264,9 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     }
 
     ctx = gcs_pgctx_acquire(NULL);
-
-    if (inclservices) {
-        /* TODO check last changed ID */
-        dberr = tf_fetch_services(ctx, filters, &svcarr);
-        filters = tf_free_service_filter_array(filters);
-
-        if (dberr != TF_ERROR_SUCCESS) {
-            gcs_pgctx_release(ctx);
-            tf_fault_env(
-                    Fault_Server, 
-                    "Failed to retrieve service definitions from the database", 
-                    dberr, 
-                    &res->env);
-            return H_OK;
-        }
-    } else
-        filters = tf_free_service_filter_array(filters);
-
-    dberr = tf_fetch_access_map(ctx, &accmaparr);
-    if (dberr != TF_ERROR_SUCCESS) {
-        svcarr = tf_free_service_array(svcarr);
-        gcs_pgctx_release(ctx);
-        tf_fault_env(
-                Fault_Server, 
-                "Failed to retrieve service definitions from the database", 
-                dberr, 
-                &res->env);
-        return H_OK;
-    }
-
     dberr = tf_fetch_single_host(ctx, hostid, &host);
 
     if (dberr != TF_ERROR_SUCCESS || !host) {
-        svcarr = tf_free_service_array(svcarr);
-        accmaparr = tf_free_access_map_array(accmaparr);
         gcs_pgctx_release(ctx);
         tf_fault_env(
                 Fault_Server, 
@@ -311,22 +279,64 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     char **idarr = (char **)calloc(2, sizeof(char *));
     idarr[0] = strdup(host->resource);
 
-    tf_free_host(host);
-    free(host);
-
     dberr = tf_fetch_resources(ctx, (const char * const *)idarr, 0, &nodearr);
 
     free(idarr[0]);
     free(idarr);
 
     if (dberr != TF_ERROR_SUCCESS || !nodearr[0]) {
-        svcarr = tf_free_service_array(svcarr);
-        accmaparr = tf_free_access_map_array(accmaparr);
-        nodearr = tf_free_node_array(nodearr);
+        tf_free_host(host);
+        free(host);
+
         gcs_pgctx_release(ctx);
+
         tf_fault_env(
                 Fault_Server, 
                 "Failed to retrieve catalog resource for host", 
+                dberr, 
+                &res->env);
+        return H_OK;
+    }
+
+    if (host->parent) {
+        gcs_pgctx_release(ctx);
+        ctx = gcs_pgctx_acquire(hostid);
+    }
+
+    if (inclservices) {
+        /* TODO check last changed ID */
+        dberr = tf_fetch_services(ctx, filters, &svcarr);
+        filters = tf_free_service_filter_array(filters);
+
+        if (dberr != TF_ERROR_SUCCESS) {
+            tf_free_host(host);
+            free(host);
+
+            nodearr = tf_free_node_array(nodearr);
+            gcs_pgctx_release(ctx);
+
+            tf_fault_env(
+                    Fault_Server, 
+                    "Failed to retrieve service definitions from the database", 
+                    dberr, 
+                    &res->env);
+            return H_OK;
+        }
+    } else
+        filters = tf_free_service_filter_array(filters);
+
+    dberr = tf_fetch_access_map(ctx, &accmaparr);
+    if (dberr != TF_ERROR_SUCCESS) {
+        tf_free_host(host);
+        free(host);
+
+        nodearr = tf_free_node_array(nodearr);
+        svcarr = tf_free_service_array(svcarr);
+        gcs_pgctx_release(ctx);
+
+        tf_fault_env(
+                Fault_Server, 
+                "Failed to retrieve service definitions from the database", 
                 dberr, 
                 &res->env);
         return H_OK;
@@ -339,6 +349,9 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     xmlNewProp(connresult, "InstanceId", hostid);
     xmlNewProp(connresult, "CatalogResourceId", nodearr[0]->resource.id);
 
+    if (host->vdir)
+        xmlNewProp(connresult, "WebApplicationRelativeDirectory", host->vdir);
+
     _build_auth_node(connresult); /* TODO */
     _build_authz_node(connresult); /* TODO */
 
@@ -348,6 +361,9 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     svcarr = tf_free_service_array(svcarr);
     accmaparr = tf_free_access_map_array(accmaparr);
     nodearr = tf_free_node_array(nodearr);
+
+    tf_free_host(host);
+    free(host);
 
     gcs_pgctx_release(ctx);
 
@@ -371,6 +387,7 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
     tf_service **svcarr = NULL;
     tf_access_map **accmaparr = NULL;
     tf_error dberr;
+    const char *hostid = req->tag;
     int lastchgid = -1;
 
     xmlNode *arg = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:lastChangeId/text()");
@@ -386,7 +403,7 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     }
 
-    ctx = gcs_pgctx_acquire(NULL);
+    ctx = gcs_pgctx_acquire(hostid);
 
     /* TODO check last changed ID */
     dberr = tf_fetch_services(ctx, filters, &svcarr);
