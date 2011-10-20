@@ -34,4 +34,5 @@ int gcs_pgctx_alloc(const char *, const char *);
 int gcs_pgctx_count();
 pgctx *gcs_pgctx_acquire(const char *);
 void gcs_pgctx_release(pgctx *);
+int gcs_pgctx_retag_default(const char *);
 

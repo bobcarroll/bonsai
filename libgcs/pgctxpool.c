@@ -33,6 +33,7 @@
 static pgctx **_ctxpool = NULL;
 static int _ctxcount = 0;
 static pthread_mutex_t _ctxmtx = PTHREAD_MUTEX_INITIALIZER;
+static char *_nulltag = NULL;
 
 /**
  * Initialises the database connection pool.
@@ -171,6 +172,10 @@ int gcs_pgctx_count()
  * Acquires a thread-exclusive database connection. This function will
  * block until a connection becomes available.
  *
+ * Passing NULL for the tag argument will always return bootstrapping
+ * contexts (as in, contexts created without a tag) even if the contexts
+ * were retagged by calling gcs_pgctx_retag_default().
+ *
  * @param tag   an optional marker for PG contexts for targeting queries
 
  * @return a connection context
@@ -185,6 +190,7 @@ pgctx *gcs_pgctx_acquire(const char *tag)
     pthread_mutex_lock(&_ctxmtx);
     for (i = 0; i < _ctxcount && _ctxpool[i]; i++) {
         m = ((!tag && !_ctxpool[i]->tag) || 
+             (!tag && _nulltag && _ctxpool[i]->tag && strcmp(_ctxpool[i]->tag, _nulltag) == 0) || 
              (tag && _ctxpool[i]->tag && strcmp(_ctxpool[i]->tag, tag) == 0));
 
         if (_ctxpool[i] && _ctxpool[i]->owner == (unsigned long)pthread_self() && m) {
@@ -205,6 +211,7 @@ pgctx *gcs_pgctx_acquire(const char *tag)
     while (1) {
         pthread_mutex_lock(&_ctxmtx);
         m = ((!tag && !_ctxpool[i]->tag) || 
+             (!tag && _nulltag && _ctxpool[i]->tag && strcmp(_ctxpool[i]->tag, _nulltag) == 0) || 
              (tag && _ctxpool[i]->tag && strcmp(_ctxpool[i]->tag, tag) == 0));
 
         if (_ctxpool[i] && _ctxpool[i]->owner == 0 && m) {
@@ -258,5 +265,38 @@ void gcs_pgctx_release(pgctx *context)
         }
     }
     pthread_mutex_unlock(&_ctxmtx);
+}
+
+/**
+ * Sets the tag for bootstrapping connections.
+ *
+ * @param tag   the new tag
+ *
+ * @return true on success, false otherwise
+ */
+int gcs_pgctx_retag_default(const char *tag)
+{
+    if (!tag)
+        return 0;
+
+    pthread_mutex_lock(&_ctxmtx);
+
+    int i;
+    for (i = 0; i < _ctxcount && _ctxpool[i]; i++) {
+        if (!_ctxpool[i]->tag)
+            _ctxpool[i]->tag = strdup(tag);
+        else if (_ctxpool[i]->tag && _nulltag && strcmp(_nulltag, tag) == 0) {
+            free(_ctxpool[i]->tag);
+            _ctxpool[i]->tag = strdup(tag);
+        }
+    }
+
+    if (_nulltag)
+        free(_nulltag);
+    _nulltag = strdup(tag);
+
+    pthread_mutex_unlock(&_ctxmtx);
+
+    return 1;
 }
 
