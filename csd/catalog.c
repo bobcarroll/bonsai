@@ -344,29 +344,34 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    dberr = tf_fetch_service_refs(ctx, nodearr, &svcarr);
-    if (dberr != TF_ERROR_SUCCESS) {
-        nodearr = tf_free_node_array(nodearr);
-        gcs_pgctx_release(ctx);
-        tf_fault_env(
-            Fault_Server, 
-            "Failed to retrieve service definitions from the database", 
-            dberr, 
-            &res->env);
-        return H_OK;
-    }
+    if (nodearr[0]) {
+        dberr = tf_fetch_service_refs(ctx, nodearr, &svcarr);
+        if (dberr != TF_ERROR_SUCCESS) {
+            nodearr = tf_free_node_array(nodearr);
+            gcs_pgctx_release(ctx);
+            tf_fault_env(
+                    Fault_Server, 
+                    "Failed to retrieve service definitions from the database", 
+                    dberr, 
+                    &res->env);
+            return H_OK;
+        }
 
-    dberr = tf_fetch_properties(ctx, nodearr, &proparr);
-    if (dberr != TF_ERROR_SUCCESS) {
-        nodearr = tf_free_node_array(nodearr);
-        svcarr = tf_free_service_ref_array(svcarr);
-        gcs_pgctx_release(ctx);
-        tf_fault_env(
-            Fault_Server, 
-            "Failed to retrieve resource properties from the database", 
-            dberr, 
-            &res->env);
-        return H_OK;
+        dberr = tf_fetch_properties(ctx, nodearr, &proparr);
+        if (dberr != TF_ERROR_SUCCESS) {
+            nodearr = tf_free_node_array(nodearr);
+            svcarr = tf_free_service_ref_array(svcarr);
+            gcs_pgctx_release(ctx);
+            tf_fault_env(
+                    Fault_Server, 
+                    "Failed to retrieve resource properties from the database", 
+                    dberr, 
+                    &res->env);
+            return H_OK;
+        }
+    } else {
+        svcarr = (tf_service_ref **)calloc(1, sizeof(tf_service_ref *));
+        proparr = (tf_property **)calloc(1, sizeof(tf_property *));
     }
 
     xmlNode *cmd = soap_env_get_method(req->env);
