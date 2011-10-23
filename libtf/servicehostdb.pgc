@@ -51,16 +51,11 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
     gcslog_debug("looking up service hosts");
 
     EXEC SQL BEGIN DECLARE SECTION;
-    const char *conn = NULL;
+    const char *conn = ctx->conn;
     char countstmt[20480];
     char selstmt[20480];
     int count = 0;
     EXEC SQL END DECLARE SECTION;
-
-    conn = ctx->conn;
-
-    EXEC SQL WHENEVER SQLERROR GOTO error;
-    EXEC SQL SET CONNECTION :conn;
 
     char where[1024];
 
@@ -76,11 +71,11 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
         where);
     gcslog_trace("fetch service hosts SQL: %s", countstmt);
 
-    EXEC SQL PREPARE sqlstmt FROM :countstmt;
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
 
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
-    EXEC SQL EXECUTE sqlstmt INTO :count;
-    EXEC SQL DEALLOCATE PREPARE sqlstmt;
+    EXEC SQL AT :conn EXECUTE sqlstmt INTO :count;
 
     gcslog_debug("found %d service host(s)", count);
     *result = (tf_host **)calloc(count + 1, sizeof(tf_host *));
@@ -98,10 +93,11 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
         where);
 
     EXEC SQL WHENEVER SQLERROR GOTO error_cur;
-    EXEC SQL PREPARE sqlstmt FROM :selstmt;
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :selstmt;
 
-    EXEC SQL DECLARE cur1 CURSOR FOR sqlstmt;
-    EXEC SQL OPEN cur1;
+    EXEC SQL AT :conn DECLARE fetch_hosts CURSOR FOR sqlstmt;
+    EXEC SQL AT :conn OPEN fetch_hosts;
+    EXEC SQL WHENEVER SQLERROR GOTO error_cur;
 
     int i;
     for (i = 0; ; i++) {
@@ -127,7 +123,7 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
         char resource[TF_CATALOG_RESOURCE_ID_MAXLEN];
         EXEC SQL END DECLARE SECTION;
 
-        EXEC SQL FETCH NEXT FROM cur1
+        EXEC SQL AT :conn FETCH NEXT FROM fetch_hosts
             INTO :id, :parent:parent_ind, :name, :description:desc_ind, 
                  :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr, 
                  :status:status_ind, :reason:reason_ind, :features, :resource;
@@ -162,16 +158,15 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
         free(description);
     }
 
-    EXEC SQL CLOSE cur1;
-    EXEC SQL DEALLOCATE PREPARE sqlstmt;
-
+    EXEC SQL AT :conn CLOSE fetch_hosts;
     return TF_ERROR_SUCCESS;
 
 error_cur:
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
 
-    EXEC SQL CLOSE cur1;
-    EXEC SQL DEALLOCATE PREPARE sqlstmt;
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL AT :conn CLOSE fetch_hosts;
+
     return TF_ERROR_PG_FAILURE;
 
 error:
@@ -197,15 +192,12 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
     gcslog_debug("looking up service host %s", hostid);
 
     EXEC SQL BEGIN DECLARE SECTION;
-    const char *conn = NULL;
+    const char *conn = ctx->conn;
     char selstmt[20480];
     EXEC SQL END DECLARE SECTION;
 
-    conn = ctx->conn;
-
     EXEC SQL WHENEVER NOT FOUND GOTO not_found;
     EXEC SQL WHENEVER SQLERROR GOTO error;
-    EXEC SQL SET CONNECTION :conn;
 
     sprintf(selstmt, 
         "SELECT host_id, parent_host_id, \"name\", description, \
@@ -217,7 +209,7 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
         hostid);
     gcslog_trace("fetch single service host SQL: %s", selstmt);
 
-    EXEC SQL PREPARE sqlstmt FROM :selstmt;
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :selstmt;
 
     EXEC SQL BEGIN DECLARE SECTION;
     char id[TF_SERVICE_HOST_ID_MAXLEN];
@@ -239,7 +231,7 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
     char resource[TF_CATALOG_RESOURCE_ID_MAXLEN];
     EXEC SQL END DECLARE SECTION;
 
-    EXEC SQL EXECUTE sqlstmt
+    EXEC SQL AT :conn EXECUTE sqlstmt
         INTO :id, :parent:parent_ind, :name, :description:desc_ind, 
              :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr, 
              :status:status_ind, :reason:reason_ind, :features, :resource;
@@ -273,20 +265,14 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
 
     free(description);
 
-    EXEC SQL DEALLOCATE PREPARE sqlstmt;
-
     return TF_ERROR_SUCCESS;
 
 not_found:
-    EXEC SQL DEALLOCATE PREPARE sqlstmt;
     gcslog_debug("no matching service host found");
-
     return TF_ERROR_NOT_FOUND;
 
 error:
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
-    EXEC SQL DEALLOCATE PREPARE sqlstmt;
-
     return TF_ERROR_PG_FAILURE;
 }
 

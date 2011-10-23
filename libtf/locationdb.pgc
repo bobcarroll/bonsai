@@ -49,16 +49,11 @@ tf_error tf_fetch_services(pgctx *ctx, tf_service_filter **filters, tf_service *
     gcslog_debug("looking up service definitions");
 
     EXEC SQL BEGIN DECLARE SECTION;
-    const char *conn = NULL;
+    const char *conn = ctx->conn;
     char countstmt[20480];
     char selstmt[20480];
     int count = 0;
     EXEC SQL END DECLARE SECTION;
-
-    conn = ctx->conn;
-
-    EXEC SQL WHENEVER SQLERROR GOTO error;
-    EXEC SQL SET CONNECTION :conn;
 
     char where[10246];
     char idtypelst[10240];
@@ -108,11 +103,11 @@ tf_error tf_fetch_services(pgctx *ctx, tf_service_filter **filters, tf_service *
         where);
     gcslog_trace("fetch service definitions SQL: %s", countstmt);
 
-    EXEC SQL PREPARE sqlstmt FROM :countstmt;
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
 
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
-    EXEC SQL EXECUTE sqlstmt INTO :count;
-    EXEC SQL DEALLOCATE PREPARE sqlstmt;
+    EXEC SQL AT :conn EXECUTE sqlstmt INTO :count;
 
     gcslog_debug("found %d service definition(s)", count);
     *result = (tf_service **)calloc(count + 1, sizeof(tf_service *));
@@ -130,10 +125,11 @@ tf_error tf_fetch_services(pgctx *ctx, tf_service_filter **filters, tf_service *
         %s",
         where);
 
-    EXEC SQL PREPARE sqlstmt FROM :selstmt;
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :selstmt;
 
-    EXEC SQL DECLARE cur1 CURSOR FOR sqlstmt;
-    EXEC SQL OPEN cur1;
+    EXEC SQL AT :conn DECLARE fetch_services CURSOR FOR sqlstmt;
+    EXEC SQL AT :conn OPEN fetch_services;
+    EXEC SQL WHENEVER SQLERROR GOTO error_cur;
 
     for (i = 0; ; i++) {
         EXEC SQL WHENEVER NOT FOUND DO BREAK;
@@ -151,7 +147,7 @@ tf_error tf_fetch_services(pgctx *ctx, tf_service_filter **filters, tf_service *
         char tooltype[TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN];
         EXEC SQL END DECLARE SECTION;
 
-        EXEC SQL FETCH NEXT FROM cur1
+        EXEC SQL AT :conn FETCH NEXT FROM fetch_services
             INTO :svcid, :svctype, :svcname, :reltosetting, :relpath:relpath_ind,
                  :singleton, :svcdesc:svcdesc_ind, :tooltype;
 
@@ -174,10 +170,16 @@ tf_error tf_fetch_services(pgctx *ctx, tf_service_filter **filters, tf_service *
         free(svcdesc);
     }
 
-    EXEC SQL CLOSE cur1;
-    EXEC SQL DEALLOCATE PREPARE sqlstmt;
-
+    EXEC SQL AT :conn CLOSE fetch_services;
     return TF_ERROR_SUCCESS;
+
+error_cur:
+    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL AT :conn CLOSE fetch_services;
+
+    return TF_ERROR_PG_FAILURE;
 
 error:
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
@@ -201,27 +203,22 @@ tf_error tf_fetch_access_map(pgctx *ctx, tf_access_map ***result)
     gcslog_debug("looking up access mappings");
 
     EXEC SQL BEGIN DECLARE SECTION;
-    const char *conn = NULL;
+    const char *conn = ctx->conn;
     char countstmt[20480];
     char selstmt[20480];
     int count = 0;
     EXEC SQL END DECLARE SECTION;
-
-    conn = ctx->conn;
-
-    EXEC SQL WHENEVER SQLERROR GOTO error;
-    EXEC SQL SET CONNECTION :conn;
 
     sprintf(countstmt, 
         "SELECT COUNT(*) \
         FROM access_mappings");
     gcslog_trace("fetch access mappings SQL: %s", countstmt);
 
-    EXEC SQL PREPARE sqlstmt FROM :countstmt;
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
 
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
-    EXEC SQL EXECUTE sqlstmt INTO :count;
-    EXEC SQL DEALLOCATE PREPARE sqlstmt;
+    EXEC SQL AT :conn EXECUTE sqlstmt INTO :count;
 
     gcslog_debug("found %d access mapping(s)", count);
     *result = (tf_access_map **)calloc(count + 1, sizeof(tf_access_map *));
@@ -233,10 +230,11 @@ tf_error tf_fetch_access_map(pgctx *ctx, tf_access_map ***result)
         "SELECT moniker, display_name, access_point, is_default \
         FROM access_mappings");
 
-    EXEC SQL PREPARE sqlstmt FROM :selstmt;
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :selstmt;
 
-    EXEC SQL DECLARE cur2 CURSOR FOR sqlstmt;
-    EXEC SQL OPEN cur2;
+    EXEC SQL AT :conn DECLARE fetch_access_map CURSOR FOR sqlstmt;
+    EXEC SQL AT :conn OPEN fetch_access_map;
+    EXEC SQL WHENEVER SQLERROR GOTO error_cur;
 
     int i;
     for (i = 0; ; i++) {
@@ -249,7 +247,7 @@ tf_error tf_fetch_access_map(pgctx *ctx, tf_access_map ***result)
         int fdefault;
         EXEC SQL END DECLARE SECTION;
 
-        EXEC SQL FETCH NEXT FROM cur2
+        EXEC SQL AT :conn FETCH NEXT FROM fetch_access_map
             INTO :moniker, :name, :apuri, :fdefault;
 
         tf_access_map *item = (*result)[i] = (tf_access_map *)malloc(sizeof(tf_access_map));
@@ -264,10 +262,16 @@ tf_error tf_fetch_access_map(pgctx *ctx, tf_access_map ***result)
         free(apuri);
     }
 
-    EXEC SQL CLOSE cur2;
-    EXEC SQL DEALLOCATE PREPARE sqlstmt;
-
+    EXEC SQL AT :conn CLOSE fetch_access_map;
     return TF_ERROR_SUCCESS;
+
+error_cur:
+    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL AT :conn CLOSE fetch_access_map;
+
+    return TF_ERROR_PG_FAILURE;
 
 error:
     gcslog_error(sqlca.sqlerrm.sqlerrmc);
