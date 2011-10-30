@@ -49,6 +49,7 @@ hrequest_new(void)
   req->in = NULL;
   req->attachments = NULL;
   req->content_type = NULL;
+  req->session = NULL;
 
   return req;
 }
@@ -68,6 +69,7 @@ _hrequest_parse_header(char *data)
   char *key;
   char *opt_key;
   char *opt_value;
+  char *sid;
   int firstline = 1;
 
   req = hrequest_new();
@@ -219,6 +221,12 @@ _hrequest_parse_header(char *data)
   if (tmp != NULL)
     req->content_type = content_type_new(tmp);
 
+  if (sid = hpairnode_get_ignore_case(req->header, HEADER_X_TFS_SESSION))
+  {
+      gcslog_debug("TFS session ID is %s", sid);
+      req->session = gcs_session_init(sid);
+  }
+
   return req;
 }
 
@@ -240,6 +248,9 @@ hrequest_free(hrequest_t * req)
 
   if (req->attachments)
     attachments_free(req->attachments);
+
+  if (req->session)
+    gcs_session_close(req->session);
 
   free(req);
 

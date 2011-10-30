@@ -126,6 +126,8 @@
 #define HEADER_REFERER			"Referer"
 #define HEADER_TRANSFER_EXTENSION	"TE"
 #define HEADER_USER_AGENT		"User-Agent"
+#define HEADER_X_TFS_SESSION    "X-TFS-Session"
+#define HEADER_X_TFS_VERSION    "X-TFS-Version"
 
 /**
  *

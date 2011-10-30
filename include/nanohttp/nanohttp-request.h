@@ -27,6 +27,8 @@
 #include <nanohttp/nanohttp-stream.h>
 #include <nanohttp/nanohttp-mime.h>
 
+#include <gcs/session.h>
+
 /*
   request object
  */
@@ -43,6 +45,8 @@ typedef struct hrequest
   content_type_t *content_type;
   attachments_t *attachments;
   char root_part_id[150];
+
+  gcs_session *session;
 } hrequest_t;
 
 #ifdef __cplusplus

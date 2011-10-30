@@ -585,6 +585,18 @@ _httpd_authenticate_request(hrequest_t * req, httpd_auth auth, char **authdata)
   if (!auth)
     return 1;
 
+  if (!req->session)
+  {
+    gcslog_error("no TFS session found in request!");
+    return 0;
+  }
+
+  if (req->session->userid)
+  {
+    gcslog_debug("re-using session for %s", req->session->userid);
+    return 1;
+  }
+
   if (!
       (authorization =
        hpairnode_get_ignore_case(req->header, HEADER_AUTHORIZATION)))
@@ -641,6 +653,7 @@ _httpd_authenticate_request(hrequest_t * req, httpd_auth auth, char **authdata)
     if (gcs_log_level() == GCS_LOG_TRACE)
       dumpSmbNtlmAuthResponse(stdout, &response);
 
+    gcs_session_bind_user(req->session, "REDMOND\\bob");
     ret = 1;	/* TODO bob */
   }
 #endif
