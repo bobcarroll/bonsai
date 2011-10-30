@@ -201,7 +201,7 @@ tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const
         strncpy(item->resource.id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
         strncpy(item->resource.name, resname, TF_CATALOG_RESOURCE_NAME_MAXLEN);
         item->resource.description = !resdesc_ind ? strdup(resdesc) : NULL;
-        item->resource.propertyid = propid;
+        item->resource.propertyid = !propid_ind ? propid : 0;
 
         strncpy(item->resource.type.id, typeid, TF_CATALOG_RESOURCE_TYPE_MAXLEN);
         strncpy(item->resource.type.name, typename, TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
@@ -341,7 +341,7 @@ tf_error tf_fetch_resources(pgctx *ctx, const char * const *idarr, int types, tf
         strncpy(item->resource.id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
         strncpy(item->resource.name, resname, TF_CATALOG_RESOURCE_NAME_MAXLEN);
         item->resource.description = !resdesc_ind ? strdup(resdesc) : NULL;
-        item->resource.propertyid = propid;
+        item->resource.propertyid = !propid_ind ? propid : 0;
 
         strncpy(item->resource.type.id, typeid, TF_CATALOG_RESOURCE_TYPE_MAXLEN);
         strncpy(item->resource.type.name, typename, TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
@@ -757,7 +757,7 @@ tf_error tf_fetch_properties(pgctx *ctx, tf_node **nodes, tf_property ***result)
         int artifactid;
         int version;
         int kindid;
-        char *value;
+        char *value = NULL;
         int value_ind;
         char property[TF_CATALOG_PROPERTY_NAME_MAXLEN];
         int typeid;
