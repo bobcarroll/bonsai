@@ -3,7 +3,8 @@ set(LIBGCS_SRC
     log.c
     pgcommon.c
     pgctxpool.c
-    session.c)
+    session.c
+    ntlmauth.c)
 
 add_library(gcs ${LIBGCS_SRC})
 
