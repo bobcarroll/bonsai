@@ -21,14 +21,19 @@
 
 #include <time.h>
 
+#include <gcs/ntlmauth.h>
+
 typedef struct {
     char *id;
     int refcount;
     time_t lastseen;
     char *userid;
+    gcs_ntlmctx *authctx;
 } gcs_session;
 
 gcs_session *gcs_session_init(const char *);
 void gcs_session_close(gcs_session *);
 void gcs_session_bind_user(gcs_session *, const char *);
+int gcs_session_auth_init(gcs_session *, gcs_ntlmctx **);
+int gcs_session_auth_check(gcs_session *);
 

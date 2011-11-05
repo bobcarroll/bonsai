@@ -138,6 +138,7 @@
 #define NHTTPD_ARG_TERMSIG	"-NHTTPtsig"
 #define NHTTPD_ARG_MAXCONN	"-NHTTPmaxconn"
 #define NHTTPD_ARG_TIMEOUT	"-NHTTPtimeout"
+#define NHTTPD_ARG_NTLMHELP "-NHTTPntlmhelper"
 
 #define NHTTP_ARG_CERT		"-NHTTPcert"
 #define NHTTP_ARG_CERTPASS	"-NHTTPcertpass"

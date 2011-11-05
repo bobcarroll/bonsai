@@ -35,11 +35,6 @@
 #include <pthread.h>
 //#include <process.h>  TODO bob
 
-#ifdef HAVE_NTLM
-#include <ntlm.h>
-#define NTLM_BUF_SIZE 512
-#endif
-
 #include <nanohttp/nanohttp-server.h>
 #include <nanohttp/nanohttp-base64.h>
 #include <nanohttp/nanohttp-ssl.h>
@@ -75,6 +70,7 @@ static hsocket_t _httpd_socket;
 static int _httpd_port = 10000;
 static int _httpd_max_connections = 20;
 static int _httpd_timeout = 10;
+static char *_httpd_auth_helper = NULL;
 
 static hservice_t *_httpd_services_default = NULL;
 static hservice_t *_httpd_services_head = NULL;
@@ -121,6 +117,11 @@ _httpd_parse_arguments(int argc, char **argv)
     else if (!strcmp(argv[i - 1], NHTTPD_ARG_TIMEOUT))
     {
       _httpd_timeout = atoi(argv[i]);
+    }
+    else if (!strcmp(argv[i - 1], NHTTPD_ARG_NTLMHELP))
+    {
+      _httpd_auth_helper = argv[i];
+      gcslog_debug("setting NTLM helper path: %s", _httpd_auth_helper);
     }
   }
 
@@ -237,7 +238,7 @@ httpd_register_secure(const char *ctx, httpd_service func, httpd_auth auth)
 int
 httpd_register(const char *ctx, httpd_service service)
 {
-  return httpd_register_secure(ctx, service, NULL);
+  return httpd_register_secure(ctx, service, NONE);
 }
 
 int
@@ -257,7 +258,7 @@ httpd_register_default_secure(const char *ctx, httpd_service service,
 int
 httpd_register_default(const char *ctx, httpd_service service)
 {
-  return httpd_register_default_secure(ctx, service, NULL);
+  return httpd_register_default_secure(ctx, service, NONE);
 }
 
 int
@@ -569,96 +570,43 @@ _httpd_decode_authorization(const char *value, char **user, char **pass)
 static int
 _httpd_authenticate_request(hrequest_t * req, httpd_auth auth, char **authdata)
 {
-  char *authorization;
-  int ret = 0;
-#ifdef HAVE_NTLM
-  tSmbNtlmAuthMessage msg;
-  tSmbNtlmAuthRequest request;
-  tSmbNtlmAuthChallenge challenge;
-  tSmbNtlmAuthResponse response;
-  char ntlmbuf[NTLM_BUF_SIZE];
-  int bufpos;
-#endif
+  gcs_ntlmctx *authctx = NULL;
+  char *authorization = NULL;
 
   (*authdata) = NULL;
 
-  if (!auth)
-    return 1;
-
-  if (!req->session)
+  if (auth == NONE)
   {
-    gcslog_error("no TFS session found in request!");
-    return 0;
-  }
-
-  if (req->session->userid)
-  {
-    gcslog_debug("re-using session for %s", req->session->userid);
+    gcslog_debug("no authentication mechanism specified, skipping");
     return 1;
   }
-
-  if (!
-      (authorization =
-       hpairnode_get_ignore_case(req->header, HEADER_AUTHORIZATION)))
+  else if (auth == NTLM_SPNEGO)
   {
-    gcslog_debug("%s header not set", HEADER_AUTHORIZATION);
-#ifdef HAVE_NTLM
-    (*authdata) = strdup("NTLM");
-#endif
-    return 0;
+    if (!req->session)
+    {
+      gcslog_warn("no TFS session found in request!");
+      return 0;
+    }
+
+    if (gcs_session_auth_check(req->session))
+    {
+      gcslog_debug("re-using session for %s", req->session->userid);
+      return 1;
+    }
+
+    if (!gcs_session_auth_init(req->session, NULL))
+    {
+      gcslog_debug("initialising authentication context");
+      authctx = gcs_ntlmauth_init(_httpd_auth_helper);
+    }
+
+    gcs_session_auth_init(req->session, &authctx);
+    authorization = hpairnode_get_ignore_case(req->header, HEADER_AUTHORIZATION);
+    return gcs_ntlmauth_challenge(authctx, authorization, authdata);
   }
 
-#ifdef HAVE_NTLM
-  if (strlen(authorization) < 6 || strncmp(authorization, "NTLM ", 5) != 0)
-  {
-    gcslog_error("Received malformed NTLM authorization");
-    return 0;
-  }
-
-  ntlmBase64_pton(authorization + 5,
-                  (unsigned char *) &msg,
-                  sizeof(tSmbNtlmAuthMessage));
-
-  if (gcs_log_level() == GCS_LOG_TRACE)
-    dumpSmbNtlmAuthMessage(stdout, &msg);
-
-  if (msg.msgType == NTLMSSP_MSGTYPE_NEGOTIATE)
-  {
-    ntlmBase64_pton(authorization + 5,
-                    (unsigned char *) &request,
-                    sizeof(tSmbNtlmAuthRequest));
-
-    if (gcs_log_level() == GCS_LOG_TRACE)
-      dumpSmbNtlmAuthRequest(stdout, &request);
-
-    bzero(&challenge, sizeof(tSmbNtlmAuthChallenge));
-    buildSmbNtlmAuthChallenge(&request, &challenge, "FOOBIE"); /* TODO bob */
-
-    if (gcs_log_level() == GCS_LOG_TRACE)
-      dumpSmbNtlmAuthChallenge(stdout, &challenge);
-
-    bufpos = ntlmBase64_ntop((unsigned char *) &challenge,
-                             SmbLength(&challenge),
-                             ntlmbuf,
-                             NTLM_BUF_SIZE);
-    (*authdata) = (char *)calloc(strlen(ntlmbuf) + 6, sizeof(char));
-    sprintf(*authdata, "NTLM %s", ntlmbuf);
-  }
-  else if (msg.msgType == NTLMSSP_MSGTYPE_RESPONSE)
-  {
-    ntlmBase64_pton(authorization + 5,
-                    (unsigned char *) &response,
-                    sizeof(tSmbNtlmAuthResponse));
-
-    if (gcs_log_level() == GCS_LOG_TRACE)
-      dumpSmbNtlmAuthResponse(stdout, &response);
-
-    gcs_session_bind_user(req->session, "REDMOND\\bob");
-    ret = 1;	/* TODO bob */
-  }
-#endif
-
-  return ret;
+  gcslog_error("unsupported authentication mechanism (%d)!", auth);
+  return 0;
 }
 
 /*

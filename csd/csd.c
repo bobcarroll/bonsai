@@ -53,6 +53,7 @@ int main(int argc, char **argv)
     int maxconns = 1, dbconns = 1, nport;
     const char *port = NULL;
     const char *prefix = NULL;
+    const char *ntlmhelper = NULL;
     char *instid = NULL;
 
     while (err == 0 && (opt = getopt(argc, argv, "c:fd:")) != -1) {
@@ -104,6 +105,12 @@ int main(int argc, char **argv)
     config_lookup_string(&config, "configdsn", &pgdsn);
     config_lookup_string(&config, "pguser", &pguser);
     config_lookup_string(&config, "pgpasswd", &pgpasswd);
+
+    config_lookup_string(&config, "ntlmhelper", &ntlmhelper);
+    if (!ntlmhelper) {
+        gcslog_warn("ntlmhelper is not set");
+        ntlmhelper = "";
+    }
 
     config_lookup_int(&config, "maxconns", &maxconns);
     if (maxconns < 1) {
@@ -157,11 +164,13 @@ int main(int argc, char **argv)
     }
 
     httpd_set_timeout(10);
-    soapargs = (char **)calloc(3, sizeof(char *));
+    soapargs = (char **)calloc(5, sizeof(char *));
     soapargs[0] = argv[0];
     soapargs[1] = "-NHTTPport";
     soapargs[2] = strdup(port);
-    soaperr = soap_server_init_args(3, soapargs);
+    soapargs[3] = "-NHTTPntlmhelper";
+    soapargs[4] = strdup(ntlmhelper);
+    soaperr = soap_server_init_args(5, soapargs);
 
     instid = core_services_init(prefix);
     if (!instid) {

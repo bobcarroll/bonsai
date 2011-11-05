@@ -46,8 +46,10 @@ httpd_conn_t;
   Service callback
  */
 typedef void (*httpd_service) (httpd_conn_t *, hrequest_t *);
-typedef int (*httpd_auth) (hrequest_t * req, const char *user,
-                           const char *password);
+typedef enum {
+    NONE,
+    NTLM_SPNEGO
+} httpd_auth;
 
 /*
  * Service representation object

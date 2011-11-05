@@ -50,8 +50,7 @@ set(CSOAP_LIBRARIES
     csoap
     nanohttp
     ${LIBXML2_LIBRARIES} 
-    ${OPENSSL_LIBRARIES}
-    ${NTLM_LIBRARIES})
+    ${OPENSSL_LIBRARIES})
 
 set(CMAKE_C_FLAGS "-g")
 

@@ -120,4 +120,51 @@ void gcs_session_bind_user(gcs_session *session, const char *userid)
     pthread_mutex_unlock(&_sessionmtx);
 }
 
+/**
+ * Initialises the authentication context for the given session. If
+ * authctx is NULL, then the function determines if the context is
+ * already initialised. If authctx is not NULL but empty, then it will
+ * receive the previous authentication context.
+ *
+ * Once a session's authentication context is initialised, it cannot
+ * be changed. Subsequent calls with a non-empty authctx buffer will
+ * always return an error.
+ *
+ * @param session   a session structure
+ * @param authctx   authenication context input/output buffer
+ *
+ * @return 1 if initialised, 0 if not initialised, or -1 on error
+ */
+int gcs_session_auth_init(gcs_session *session, gcs_ntlmctx **authctx)
+{
+    if (!session || (authctx && *authctx && session->authctx))
+        return -1;
+
+    if (!authctx)
+        return (session->authctx != NULL);
+    else if (authctx && !*authctx && session->authctx) {
+        gcslog_debug("returning previous authentication context");
+        *authctx = session->authctx;
+        return 1;
+    } else if (authctx && !*authctx) {
+        gcslog_debug("no previous authentication context exists");
+        return 0;
+    }
+
+    gcslog_debug("setting new authentication context");
+    session->authctx = *authctx;
+    return 1;
+}
+
+/**
+ * Determines if the session is authenticated.
+ *
+ * @param session   a session structure
+ *
+ * @return true if authenticated, false otherwise
+ */
+int gcs_session_auth_check(gcs_session *session)
+{
+    return (session->authctx && session->authctx->state == NTLM_SUCCESS);
+}
 

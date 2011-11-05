@@ -109,11 +109,6 @@ static herror_t _get_registration_entries(SoapCtx *req, SoapCtx *res)
     return H_OK;
 }
 
-static int _auth_ntlm(SoapEnv *env, const char *user, const char *passwd)
-{
-    return 0;
-}
-
 /**
  * Registration service initialisation.
  *
@@ -128,7 +123,7 @@ void registration_service_init(SoapRouter **router, const char *prefix, tf_servi
     char url[1024];
 
     (*router) = soap_router_new();
-    //soap_router_register_security(*router, (httpd_auth)_auth_ntlm);
+    soap_router_register_security(*router, NTLM_SPNEGO);
     soap_router_set_tag(*router, instid);
 
     sprintf(url, "%s%s", prefix ? prefix : "", ref->service.relpath);

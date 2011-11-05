@@ -405,11 +405,6 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
     return H_OK;
 }
 
-static int _auth_ntlm(SoapEnv *env, const char *user, const char *passwd)
-{
-    return 0;
-}
-
 /**
  * Catalog service initialisation.
  *
@@ -424,7 +419,7 @@ void catalog_service_init(SoapRouter **router, const char *prefix, tf_service_re
     char url[1024];
 
     (*router) = soap_router_new();
-    soap_router_register_security(*router, (httpd_auth)_auth_ntlm);
+    soap_router_register_security(*router, NTLM_SPNEGO);
     soap_router_set_tag(*router, instid);
 
     sprintf(url, "%s%s", prefix ? prefix : "", ref->service.relpath);
