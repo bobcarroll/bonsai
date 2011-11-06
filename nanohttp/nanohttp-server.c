@@ -602,10 +602,19 @@ _httpd_authenticate_request(hrequest_t * req, httpd_auth auth, char **authdata)
 
     gcs_session_auth_init(req->session, &authctx);
     authorization = hpairnode_get_ignore_case(req->header, HEADER_AUTHORIZATION);
-    return gcs_ntlmauth_challenge(authctx, authorization, authdata);
-  }
 
-  gcslog_error("unsupported authentication mechanism (%d)!", auth);
+    if (gcs_ntlmauth_challenge(authctx, authorization, authdata)) {
+      gcs_session_bind_user(req->session, *authdata);
+
+      free(*authdata);
+      authdata = NULL;
+
+      return 1;
+    }
+  }
+  else
+    gcslog_error("unsupported authentication mechanism (%d)!", auth);
+
   return 0;
 }
 

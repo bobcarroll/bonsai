@@ -189,7 +189,7 @@ int gcs_ntlmauth_challenge(gcs_ntlmctx *ctx, const char *challenge, char **respo
 
         if (datalen < 5 || data[2] != ' ' || data[datalen - 1] != '\n') {
             gcslog_error("response from helper is malformed!");
-            ctx->state = 0;
+            ctx->state = NTLM_RESET;
             return 0;
         }
 
