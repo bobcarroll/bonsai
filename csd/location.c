@@ -26,6 +26,7 @@
 #include <cs/location.h>
 
 #include <gcs/log.h>
+#include <gcs/authz.h>
 
 #include <tf/catalog.h>
 #include <tf/location.h>
@@ -35,84 +36,49 @@
 #include <tf/webservices.h>
 #include <tf/xml.h>
 
-static void _build_auth_node(xmlNode *parent)
+/**
+ * Appends a KeyValueOfStringString node to the given node.
+ *
+ * @param parent    the Attributes node to attach to
+ * @param key       attribute key
+ * @param value     attribute value
+ */
+static void _append_attr_kvoss(xmlNode *parent, const char *key, const char *value)
 {
-    xmlNode *authuser = xmlNewChild(parent, NULL, "AuthenticatedUser", "");
-    xmlNewProp(authuser, "DisplayName", "Bob Carroll");
-    xmlNewProp(authuser, "IsContainer", "false");
-    xmlNewProp(authuser, "IsActive", "true");
-    xmlNewProp(authuser, "TeamFoundationId", "d00b4f90-df4a-452f-bd54-1d3d001661f8");
-    xmlNewProp(authuser, "UniqueUserId", "0");
-
-    xmlNode *descriptor = xmlNewChild(authuser, NULL, "Descriptor", NULL);
-    xmlNewProp(descriptor, "identityType", "System.Security.Principal.WindowsIdentity");
-    xmlNewProp(descriptor, "identifier", "S-1-5-21-2230180453-4016108734-2163920374-1106");
-
-    xmlNode *attribs = xmlNewChild(authuser, NULL, "Attributes", NULL);
-    xmlNode *kvoss1 = xmlNewChild(attribs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *kvoss1k = xmlNewChild(kvoss1, NULL, "Key", "SchemaClassName");
-    xmlNode *kvoss1v = xmlNewChild(kvoss1, NULL, "Value", "User");
-    xmlNode *kvoss2 = xmlNewChild(attribs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *kvoss2k = xmlNewChild(kvoss2, NULL, "Key", "Description");
-    xmlNode *kvoss2v = xmlNewChild(kvoss2, NULL, "Value", NULL);
-    xmlNode *kvoss3 = xmlNewChild(attribs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *kvoss3k = xmlNewChild(kvoss3, NULL, "Key", "Domain");
-    xmlNode *kvoss3v = xmlNewChild(kvoss3, NULL, "Value", "REDMOND");
-    xmlNode *kvoss4 = xmlNewChild(attribs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *kvoss4k = xmlNewChild(kvoss4, NULL, "Key", "Account");
-    xmlNode *kvoss4v = xmlNewChild(kvoss4, NULL, "Value", "bob.carroll");
-    xmlNode *kvoss5 = xmlNewChild(attribs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *kvoss5k = xmlNewChild(kvoss5, NULL, "Key", "DN");
-    xmlNode *kvoss5v = xmlNewChild(kvoss5, NULL, "Value", "CN=Bob Carroll,CN=Users,DC=redmond,DC=unifieddiff,DC=net");
-    xmlNode *kvoss6 = xmlNewChild(attribs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *kvoss6k = xmlNewChild(kvoss6, NULL, "Key", "Mail");
-    xmlNode *kvoss6v = xmlNewChild(kvoss6, NULL, "Value", NULL);
-    xmlNode *kvoss7 = xmlNewChild(attribs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *kvoss7k = xmlNewChild(kvoss7, NULL, "Key", "SpecialType");
-    xmlNode *kvoss7v = xmlNewChild(kvoss7, NULL, "Value", "Generic");
-
-    xmlNode *members = xmlNewChild(authuser, NULL, "Members", NULL);
-    xmlNode *memberof = xmlNewChild(authuser, NULL, "MemberOf", NULL);
+    xmlNode *kvoss = xmlNewChild(parent, NULL, "KeyValueOfStringString", NULL);
+    xmlNewChild(kvoss, NULL, "Key", key);
+    xmlNewChild(kvoss, NULL, "Value", value);
 }
 
-static void _build_authz_node(xmlNode *parent)
+/**
+ * Appends authentication/authorisation user data to the given node.
+ *
+ * @param parent    the AuthenticatedUser or AuthorizedUser node to attach to
+ * @param ui        session user info
+ */
+static void _append_auth_user(xmlNode *parent, gcs_userinfo *ui)
 {
-    xmlNode *authzuser = xmlNewChild(parent, NULL, "AuthorizedUser", NULL);
-    xmlNewProp(authzuser, "DisplayName", "Bob Carroll");
-    xmlNewProp(authzuser, "IsContainer", "false");
-    xmlNewProp(authzuser, "IsActive", "true");
-    xmlNewProp(authzuser, "TeamFoundationId", "d00b4f90-df4a-452f-bd54-1d3d001661f8");
-    xmlNewProp(authzuser, "UniqueUserId", "0");
+    xmlNewProp(parent, "DisplayName", ui->display_name);
+    xmlNewProp(parent, "IsContainer", "false"); /* TODO */
+    xmlNewProp(parent, "IsActive", "true"); /* TODO */
+    xmlNewProp(parent, "TeamFoundationId", "d00b4f90-df4a-452f-bd54-1d3d001661f8"); /* TODO */
+    xmlNewProp(parent, "UniqueUserId", "0"); /* TODO */
 
-    xmlNode *autzdesc = xmlNewChild(authzuser, NULL, "Descriptor", NULL);
-    xmlNewProp(autzdesc, "identityType", "System.Security.Principal.WindowsIdentity");
-    xmlNewProp(autzdesc, "identifier", "S-1-5-21-2230180453-4016108734-2163920374-1106");
+    xmlNode *descriptor = xmlNewChild(parent, NULL, "Descriptor", NULL);
+    xmlNewProp(descriptor, "identityType", "System.Security.Principal.WindowsIdentity");
+    xmlNewProp(descriptor, "identifier", ui->sid);
 
-    xmlNode *authzattrs = xmlNewChild(authzuser, NULL, "Attributes", NULL);
-    xmlNode *authzkvoss1 = xmlNewChild(authzattrs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *authzkvoss1k = xmlNewChild(authzkvoss1, NULL, "Key", "SchemaClassName");
-    xmlNode *authzkvoss1v = xmlNewChild(authzkvoss1, NULL, "Value", "User");
-    xmlNode *authzkvoss2 = xmlNewChild(authzattrs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *authzkvoss2k = xmlNewChild(authzkvoss2, NULL, "Key", "Description");
-    xmlNode *authzkvoss2v = xmlNewChild(authzkvoss2, NULL, "Value", NULL);
-    xmlNode *authzkvoss3 = xmlNewChild(authzattrs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *authzkvoss3k = xmlNewChild(authzkvoss3, NULL, "Key", "Domain");
-    xmlNode *authzkvoss3v = xmlNewChild(authzkvoss3, NULL, "Value", "REDMOND");
-    xmlNode *authzkvoss4 = xmlNewChild(authzattrs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *authzkvoss4k = xmlNewChild(authzkvoss4, NULL, "Key", "Account");
-    xmlNode *authzkvoss4v = xmlNewChild(authzkvoss4, NULL, "Value", "bob.carroll");
-    xmlNode *authzkvoss5 = xmlNewChild(authzattrs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *authzkvoss5k = xmlNewChild(authzkvoss5, NULL, "Key", "DN");
-    xmlNode *authzkvoss5v = xmlNewChild(authzkvoss5, NULL, "Value", "CN=Bob Carroll,CN=Users,DC=redmond,DC=unifieddiff,DC=net");
-    xmlNode *authzkvoss6 = xmlNewChild(authzattrs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *authzkvoss6k = xmlNewChild(authzkvoss6, NULL, "Key", "Mail");
-    xmlNode *authzkvoss6v = xmlNewChild(authzkvoss6, NULL, "Value", NULL);
-    xmlNode *authzkvoss7 = xmlNewChild(authzattrs, NULL, "KeyValueOfStringString", NULL);
-    xmlNode *authzkvoss7k = xmlNewChild(authzkvoss7, NULL, "Key", "SpecialType");
-    xmlNode *authzkvoss7v = xmlNewChild(authzkvoss7, NULL, "Value", "Generic");
+    xmlNode *attrs = xmlNewChild(parent, NULL, "Attributes", NULL);
+    _append_attr_kvoss(attrs, "SchemaClassName", "User"); /* TODO */
+    _append_attr_kvoss(attrs, "Description", NULL); /* TODO */
+    _append_attr_kvoss(attrs, "Domain", ui->domain);
+    _append_attr_kvoss(attrs, "Account", ui->logon_name);
+    _append_attr_kvoss(attrs, "DN", NULL); /* TODO */
+    _append_attr_kvoss(attrs, "Mail", NULL); /* TODO */
+    _append_attr_kvoss(attrs, "SpecialType", "Generic"); /* TODO */
 
-    xmlNode *authzmembers = xmlNewChild(authzuser, NULL, "Members", NULL);
-    xmlNode *authzmemberof = xmlNewChild(authzuser, NULL, "MemberOf", NULL);
+    xmlNewChild(parent, NULL, "Members", NULL); /* TODO */
+    xmlNewChild(parent, NULL, "MemberOf", NULL); /* TODO */
 }
 
 /**
@@ -233,6 +199,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     tf_node **nodearr = NULL;
     tf_host *host = NULL;
     tf_error dberr;
+    gcs_userinfo *ui = NULL;
     const char *hostid = req->tag;
     int inclservices = 0;
     int lastchgid = -1;
@@ -243,6 +210,26 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
             "service host instance ID was NULL!", 
             TF_ERROR_INTERNAL, 
             &res->env);
+        return H_OK;
+    }
+
+    if (!req->userid) {
+        tf_fault_env(
+                Fault_Server, 
+                "Anonymous access is not permitted!", 
+                TF_ERROR_ACCESS_DENIED, 
+                &res->env);
+        return H_OK;
+    }
+
+    ui = gcs_authz_lookup_user(req->userid);
+
+    if (!ui) {
+        tf_fault_env(
+                Fault_Server, 
+                "Failed to retrieve user information from account database", 
+                TF_ERROR_INTERNAL, 
+                &res->env);
         return H_OK;
     }
 
@@ -267,6 +254,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     dberr = tf_fetch_single_host(ctx, hostid, &host);
 
     if (dberr != TF_ERROR_SUCCESS || !host) {
+        gcs_authz_free_buffer(ui);
         gcs_pgctx_release(ctx);
         tf_fault_env(
                 Fault_Server, 
@@ -285,6 +273,8 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     free(idarr);
 
     if (dberr != TF_ERROR_SUCCESS || !nodearr[0]) {
+        gcs_authz_free_buffer(ui);
+
         tf_free_host(host);
         free(host);
 
@@ -309,6 +299,8 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         filters = tf_free_service_filter_array(filters);
 
         if (dberr != TF_ERROR_SUCCESS) {
+            gcs_authz_free_buffer(ui);
+
             tf_free_host(host);
             free(host);
 
@@ -327,6 +319,8 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
 
     dberr = tf_fetch_access_map(ctx, &accmaparr);
     if (dberr != TF_ERROR_SUCCESS) {
+        gcs_authz_free_buffer(ui);
+
         tf_free_host(host);
         free(host);
 
@@ -352,8 +346,11 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     if (host->vdir)
         xmlNewProp(connresult, "WebApplicationRelativeDirectory", host->vdir);
 
-    _build_auth_node(connresult); /* TODO */
-    _build_authz_node(connresult); /* TODO */
+    xmlNode *authuser = xmlNewChild(connresult, NULL, "AuthenticatedUser", NULL);
+    _append_auth_user(authuser, ui);
+
+    xmlNode *authzuser = xmlNewChild(connresult, NULL, "AuthorizedUser", NULL);
+    _append_auth_user(authzuser, ui);
 
     xmlNode *locdata = xmlNewChild(connresult, NULL, "LocationServiceData", NULL);
     _append_location_data(locdata, svcarr, accmaparr, inclservices);
@@ -361,6 +358,8 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     svcarr = tf_free_service_array(svcarr);
     accmaparr = tf_free_access_map_array(accmaparr);
     nodearr = tf_free_node_array(nodearr);
+
+    gcs_authz_free_buffer(ui);
 
     tf_free_host(host);
     free(host);

@@ -25,6 +25,7 @@
 #define TF_ERROR_PG_FAILURE         3
 #define TF_ERROR_NOT_FOUND          4
 #define TF_ERROR_INTERNAL           5
+#define TF_ERROR_ACCESS_DENIED      6
 
 typedef int tf_error;
 
