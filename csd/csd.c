@@ -32,6 +32,7 @@
 #include <gcs/log.h>
 #include <gcs/pgcommon.h>
 #include <gcs/pgctxpool.h>
+#include <gcs/authz.h>
 
 #include <cs/tfmain.h>
 #include <cs/pcmain.h>
@@ -54,6 +55,9 @@ int main(int argc, char **argv)
     const char *port = NULL;
     const char *prefix = NULL;
     const char *ntlmhelper = NULL;
+    const char *smbhost = NULL;
+    const char *smbuser = NULL;
+    const char *smbpasswd = NULL;
     char *instid = NULL;
 
     while (err == 0 && (opt = getopt(argc, argv, "c:fd:")) != -1) {
@@ -110,6 +114,24 @@ int main(int argc, char **argv)
     if (!ntlmhelper) {
         gcslog_warn("ntlmhelper is not set");
         ntlmhelper = "";
+    }
+
+    config_lookup_string(&config, "smbhost", &smbhost);
+    if (!smbhost) {
+        gcslog_warn("smbhost is not set");
+        smbhost = "";
+    }
+
+    config_lookup_string(&config, "smbuser", &smbuser);
+    if (!smbuser) {
+        gcslog_warn("smbuser is not set");
+        smbuser = "";
+    }
+
+    config_lookup_string(&config, "smbpasswd", &smbpasswd);
+    if (!smbpasswd) {
+        gcslog_warn("smbpasswd is not set");
+        smbpasswd = "";
     }
 
     config_lookup_int(&config, "maxconns", &maxconns);
@@ -186,6 +208,8 @@ int main(int argc, char **argv)
     gcs_pgctx_retag_default(instid);
     pc_services_init(prefix, instid, pguser, pgpasswd, dbconns);
 
+    gcs_authz_init(smbhost, smbuser, smbpasswd);
+
     gcslog_notice("starting SOAP server");
     soap_server_run();
 
@@ -196,6 +220,7 @@ int main(int argc, char **argv)
     free(soapargs);
 
     config_destroy(&config);
+    gcs_authz_free();
 
     gcs_pg_disconnect();
     gcs_log_close();

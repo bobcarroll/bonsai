@@ -19,6 +19,7 @@ find_package(OpenSSL REQUIRED)
 find_package(NTLM REQUIRED)
 find_package(Threads REQUIRED)
 find_package(LibConfig REQUIRED)
+find_package(Samba REQUIRED)
 
 find_program(ECPG ecpg)
 
@@ -42,6 +43,7 @@ include_directories(
     ${LIBXML2_INCLUDE_DIR}
     ${OPENSSL_INCLUDE_DIR}
     ${NTLM_INCLUDE_DIR}
+    ${LIBNETAPI_INCLUDE_DIR}
     ${Threads_INCLUDE_DIR}
     ${LIBCONFIG_INCLUDE_DIR}
     ${PostgreSQL_INCLUDE_DIR})

@@ -4,7 +4,8 @@ set(LIBGCS_SRC
     pgcommon.c
     pgctxpool.c
     session.c
-    ntlmauth.c)
+    ntlmauth.c
+    authz.c)
 
 add_library(gcs ${LIBGCS_SRC})
 
@@ -15,5 +16,5 @@ add_custom_command(OUTPUT ${Cabrillo_BINARY_DIR}/libgcs/pgcommon.c
                    MAIN_DEPENDENCY pgcommon.pgc
                    COMMENT "Running ecpg on pgcommon.pgc")
 
-target_link_libraries(gcs ${Thread_LIBRIARIES} ecpg)
+target_link_libraries(gcs ${Thread_LIBRIARIES} ecpg ${LIBNETAPI_LIBRARIES})
 
