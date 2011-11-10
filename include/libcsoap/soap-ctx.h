@@ -41,6 +41,7 @@ typedef struct _SoapCtx
   hrequest_t *http;
   attachments_t *attachments;
   char *tag;
+  char *userid;
 } SoapCtx;
 
 #ifdef __cplusplus

@@ -302,6 +302,9 @@ soap_server_entry(httpd_conn_t * conn, hrequest_t * req)
 
     ctx->tag = router->tag ? strdup(router->tag) : NULL;
 
+    if (req->session && req->session->userid)
+      ctx->userid = strdup(req->session->userid);
+
     if (ctx->env == NULL)
     {
       _soap_server_send_fault(conn, "Can not parse POST data!");
