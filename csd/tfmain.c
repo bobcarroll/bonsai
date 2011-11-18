@@ -31,6 +31,7 @@
 
 #include <tf/catalog.h>
 #include <tf/catalogdb.h>
+#include <tf/catalogdata.h>
 #include <tf/location.h>
 #include <tf/servicehost.h>
 #include <tf/servicehostdb.h>

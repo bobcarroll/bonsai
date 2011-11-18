@@ -1,5 +1,6 @@
 
 set(LIBTF_SRC 
+    schema.c
     catalog.c
     catalogdb.c
     location.c
@@ -11,6 +12,13 @@ set(LIBTF_SRC
     dbhelp.c)
 
 add_library(tf ${LIBTF_SRC})
+
+add_custom_command(OUTPUT ${Cabrillo_BINARY_DIR}/libtf/schema.c 
+                   COMMAND ${ECPG}
+                   ${Cabrillo_SOURCE_DIR}/libtf/schema.pgc
+                   -o ${Cabrillo_BINARY_DIR}/libtf/schema.c
+                   MAIN_DEPENDENCY schema.pgc
+                   COMMENT "Running ecpg on schema.pgc")
 
 add_custom_command(OUTPUT ${Cabrillo_BINARY_DIR}/libtf/catalogdb.c 
                    COMMAND ${ECPG}

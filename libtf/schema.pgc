@@ -1,0 +1,278 @@
+/**
+ * Bonsai - open source group collaboration and application lifecycle management
+ * Copyright (c) 2011 Bob Carroll
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+/**
+ * @brief   Team Foundation database schema generation
+ *
+ * @author  Bob Carroll (bob.carroll@alum.rit.edu)
+ */
+
+#include <gcs/log.h>
+
+#include <tf/schema.h>
+#include <tf/catalogdata.h>
+
+/**
+ * Creates server catalog objects.
+ *
+ * @param connstr   connection identifier
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+static tf_error _create_catalog_objects(const char *connstr)
+{
+    if (!connstr)
+        return TF_ERROR_BAD_PARAMETER;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = connstr;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+
+    EXEC SQL AT :conn CREATE TABLE catalog_nodes (
+        parent_path character varying(864) NOT NULL,
+        child_item character varying(24) NOT NULL,
+        resource_identifier uuid NOT NULL,
+        CONSTRAINT "PK_catalog_nodes" PRIMARY KEY (parent_path, child_item));
+
+    EXEC SQL AT :conn CREATE TABLE catalog_resource_types (
+        identifier uuid NOT NULL,
+        display_name character varying(256) NOT NULL,
+        description text,
+        CONSTRAINT "PK_catalog_resource_types" PRIMARY KEY (identifier));
+
+    EXEC SQL AT :conn CREATE TABLE catalog_resources (
+        identifier uuid NOT NULL,
+        fk_resource_type uuid,
+        display_name character varying(256) NOT NULL,
+        description text,
+        fk_property_artifact integer,
+        CONSTRAINT "PK_catalog_resources" PRIMARY KEY (identifier),
+        CONSTRAINT "FK_catalog_resource_type" FOREIGN KEY (fk_resource_type)
+            REFERENCES catalog_resource_types (identifier) MATCH SIMPLE
+            ON UPDATE NO ACTION ON DELETE NO ACTION);
+
+    EXEC SQL AT :conn CREATE TABLE catalog_service_references (
+        resource_identifier uuid NOT NULL,
+        association_key character varying(256) NOT NULL,
+        fk_service_identifier uuid NOT NULL,
+        fk_service_type character varying(256) NOT NULL,
+        CONSTRAINT "PK_catalog_service_references" PRIMARY KEY (resource_identifier, association_key),
+        CONSTRAINT "FK_service_ref_definition" FOREIGN KEY (fk_service_identifier, fk_service_type)
+            REFERENCES service_definitions (identifier, service_type) MATCH SIMPLE
+            ON UPDATE NO ACTION ON DELETE NO ACTION);
+
+    EXEC SQL AT :conn CREATE TABLE property_definitions (
+        id integer NOT NULL,
+        "name" character varying(400) NOT NULL,
+        type_id integer NOT NULL,
+        CONSTRAINT "PK_proeprty_definitions" PRIMARY KEY (id));
+
+    EXEC SQL AT :conn CREATE TABLE property_values (
+        artifact_id integer NOT NULL,
+        "version" integer NOT NULL,
+        fk_property_id integer NOT NULL,
+        internal_kind_id integer NOT NULL,
+        "value" text NOT NULL,
+        CONSTRAINT "PK_property_values" PRIMARY KEY (artifact_id, fk_property_id, version, internal_kind_id),
+        CONSTRAINT "FK_property_definition" FOREIGN KEY (fk_property_id)
+            REFERENCES property_definitions (id) MATCH SIMPLE
+            ON UPDATE NO ACTION ON DELETE NO ACTION);
+
+    return TF_ERROR_SUCCESS;
+
+error:
+    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+    EXEC SQL AT :conn ROLLBACK;
+
+    return TF_ERROR_PG_FAILURE;
+}
+
+/**
+ * Creates location services objects.
+ *
+ * @param connstr   connection identifier
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+static tf_error _create_location_objects(const char *connstr)
+{
+    if (!connstr)
+        return TF_ERROR_BAD_PARAMETER;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = connstr;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+
+    EXEC SQL AT :conn CREATE TABLE access_mappings (
+        moniker character varying(128) NOT NULL,
+        display_name character varying(256) NOT NULL,
+        access_point text NOT NULL,
+        is_default bit(1) NOT NULL,
+        CONSTRAINT "PK_access_mappings" PRIMARY KEY(moniker));
+
+    EXEC SQL AT :conn CREATE TABLE tool_types (
+        id integer NOT NULL,
+        "type" character varying(256) NOT NULL,
+        CONSTRAINT "PK_tool_types" PRIMARY KEY (id));
+
+    EXEC SQL AT :conn CREATE TABLE service_definitions (
+        identifier uuid NOT NULL,
+        service_type character varying(256) NOT NULL,
+        display_name character varying(256) NOT NULL,
+        relative_to_setting integer NOT NULL,
+        relative_path character varying(256),
+        singleton bit(1) NOT NULL,
+        description text,
+        fk_tool_id integer NOT NULL,
+        CONSTRAINT "PK_serice_definitions" PRIMARY KEY (identifier, service_type),
+        CONSTRAINT "FK_tool_type_id" FOREIGN KEY (fk_tool_id)
+            REFERENCES tool_types (id) MATCH SIMPLE
+            ON UPDATE NO ACTION ON DELETE NO ACTION);
+
+    return TF_ERROR_SUCCESS;
+
+error:
+    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+    EXEC SQL AT :conn ROLLBACK;
+
+    return TF_ERROR_PG_FAILURE;
+}
+
+/**
+ * Initialises a configuration database schema in the given conext.
+ *
+ * @param ctx       current database context
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_init_configdb(pgctx *ctx)
+{
+    tf_error result;
+    int i;
+
+    if (!ctx)
+        return TF_ERROR_BAD_PARAMETER;
+
+    if (result = _create_location_objects(ctx->conn)) {
+        gcslog_critical("failed to create location services objects!");
+        return result;
+    }
+
+    if (result = _create_catalog_objects(ctx->conn)) {
+        gcslog_critical("failed to create server catalog objects!");
+        return result;
+    }
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    char stmt[10240];
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+
+    EXEC SQL AT :conn CREATE TABLE service_hosts (
+        host_id uuid NOT NULL,
+        parent_host_id uuid,
+        "name" character varying(128) NOT NULL,
+        description text,
+        virtual_directory character varying(260),
+        resource_directory character varying(260),
+        connection_string character varying(520) NOT NULL,
+        status integer,
+        status_reason character varying(2048),
+        supported_features integer NOT NULL,
+        fk_resource_identifier uuid NOT NULL,
+        CONSTRAINT "PK_service_hosts" PRIMARY KEY (host_id),
+        CONSTRAINT "FK_service_host_parent" FOREIGN KEY (parent_host_id)
+            REFERENCES service_hosts (host_id) MATCH SIMPLE
+            ON UPDATE NO ACTION ON DELETE NO ACTION,
+        CONSTRAINT "fk_host_resource" FOREIGN KEY (fk_resource_identifier)
+            REFERENCES catalog_resources (identifier) MATCH SIMPLE
+            ON UPDATE NO ACTION ON DELETE NO ACTION);
+
+    for (i = 0; i < _tf_rsrc_tbl_len; i++) {
+        sprintf(stmt,
+            "INSERT INTO catalog_resource_types \
+             (identifier, display_name, description) \
+             VALUES ('%s', '%s', '%s')",
+            _tf_rsrc_type_id[i],
+            _tf_rsrc_type_name[i],
+            _tf_rsrc_type_desc[i]);
+
+        EXEC SQL AT :conn PREPARE sqlstmt FROM :stmt;
+        EXEC SQL AT :conn EXECUTE sqlstmt;
+    }
+
+    for (i = 0; i < _tf_prop_tbl_len; i++) {
+        sprintf(stmt,
+            "INSERT INTO property_definitions (id, \"name\", type_id) \
+             VALUES (%d, '%s', 0)",
+            _tf_property_id[i],
+            _tf_property_value[i]);
+
+        EXEC SQL AT :conn PREPARE sqlstmt FROM :stmt;
+        EXEC SQL AT :conn EXECUTE sqlstmt;
+    }
+
+    for (i = 0; i < _tf_tool_tbl_len; i++) {
+        sprintf(stmt,
+            "INSERT INTO tool_types (id, \"type\") VALUES (%d, '%s')",
+            i,
+            _tf_tool_types[i]);
+
+        EXEC SQL AT :conn PREPARE sqlstmt FROM :stmt;
+        EXEC SQL AT :conn EXECUTE sqlstmt;
+    }
+
+    EXEC SQL AT :conn COMMIT;
+
+    return TF_ERROR_SUCCESS;
+
+error:
+    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+    EXEC SQL AT :conn ROLLBACK;
+
+    return TF_ERROR_PG_FAILURE;
+}
+
+/**
+ * Initialises a project collection database schema in the given conext.
+ *
+ * @param ctx       current database context
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_init_pcdb(pgctx *ctx)
+{
+    if (!ctx)
+        return TF_ERROR_BAD_PARAMETER;
+
+    return _create_location_objects(ctx->conn);
+}
+
