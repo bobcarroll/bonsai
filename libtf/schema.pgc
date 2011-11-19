@@ -46,12 +46,6 @@ static tf_error _create_catalog_objects(const char *connstr)
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
 
-    EXEC SQL AT :conn CREATE TABLE catalog_nodes (
-        parent_path character varying(864) NOT NULL,
-        child_item character varying(24) NOT NULL,
-        resource_identifier uuid NOT NULL,
-        CONSTRAINT "PK_catalog_nodes" PRIMARY KEY (parent_path, child_item));
-
     EXEC SQL AT :conn CREATE TABLE catalog_resource_types (
         identifier uuid NOT NULL,
         display_name character varying(256) NOT NULL,
@@ -67,6 +61,15 @@ static tf_error _create_catalog_objects(const char *connstr)
         CONSTRAINT "PK_catalog_resources" PRIMARY KEY (identifier),
         CONSTRAINT "FK_catalog_resource_type" FOREIGN KEY (fk_resource_type)
             REFERENCES catalog_resource_types (identifier) MATCH SIMPLE
+            ON UPDATE NO ACTION ON DELETE NO ACTION);
+
+    EXEC SQL AT :conn CREATE TABLE catalog_nodes (
+        parent_path character varying(864) NOT NULL,
+        child_item character varying(24) NOT NULL,
+        fk_resource_identifier uuid NOT NULL,
+        CONSTRAINT "PK_catalog_nodes" PRIMARY KEY (parent_path, child_item),
+        CONSTRAINT "FK_node_resource" FOREIGN KEY (resource_identifier)
+            REFERENCES catalog_resources (identifier) MATCH SIMPLE
             ON UPDATE NO ACTION ON DELETE NO ACTION);
 
     EXEC SQL AT :conn CREATE TABLE catalog_service_references (

@@ -131,7 +131,7 @@ tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const
         "SELECT COUNT(*) \
          FROM catalog_nodes AS cn \
          INNER JOIN catalog_resources AS cr \
-            ON cn.resource_identifier = cr.identifier \
+            ON cn.fk_resource_identifier = cr.identifier \
          INNER JOIN catalog_resource_types AS crt \
             ON cr.fk_resource_type = crt.identifier \
          WHERE %s", 
@@ -156,7 +156,7 @@ tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const
                 crt.identifier, crt.display_name, crt.description \
          FROM catalog_nodes AS cn \
          INNER JOIN catalog_resources AS cr \
-            ON cn.resource_identifier = cr.identifier \
+            ON cn.fk_resource_identifier = cr.identifier \
          INNER JOIN catalog_resource_types AS crt \
             ON cr.fk_resource_type = crt.identifier \
          WHERE %s", 
@@ -268,7 +268,7 @@ tf_error tf_fetch_resources(pgctx *ctx, const char * const *idarr, int types, tf
         "SELECT COUNT(*) \
          FROM catalog_nodes AS cn \
          INNER JOIN catalog_resources AS cr \
-            ON cn.resource_identifier = cr.identifier \
+            ON cn.fk_resource_identifier = cr.identifier \
          INNER JOIN catalog_resource_types AS crt \
             ON cr.fk_resource_type = crt.identifier \
          WHERE %s IN (%s)", 
@@ -294,7 +294,7 @@ tf_error tf_fetch_resources(pgctx *ctx, const char * const *idarr, int types, tf
                 crt.identifier, crt.display_name, crt.description \
          FROM catalog_nodes AS cn \
          INNER JOIN catalog_resources AS cr \
-            ON cn.resource_identifier = cr.identifier \
+            ON cn.fk_resource_identifier = cr.identifier \
          INNER JOIN catalog_resource_types AS crt \
             ON cr.fk_resource_type = crt.identifier \
          WHERE %s IN (%s)", 
@@ -396,7 +396,7 @@ tf_error tf_fetch_pc_service_refs(pgctx *ctx, const char *instid, tf_service_ref
         "SELECT COUNT(*) \
         FROM catalog_nodes AS cn \
         JOIN catalog_resources AS cr \
-            ON cn.resource_identifier = cr.identifier \
+            ON cn.fk_resource_identifier = cr.identifier \
             AND cr.fk_resource_type = '%s' \
         JOIN property_values AS pv \
             ON cr.fk_property_artifact = pv.artifact_id \
@@ -433,7 +433,7 @@ tf_error tf_fetch_pc_service_refs(pgctx *ctx, const char *instid, tf_service_ref
                 sd.singleton, sd.description, tt.type \
         FROM catalog_nodes AS cn \
         JOIN catalog_resources AS cr \
-            ON cn.resource_identifier = cr.identifier \
+            ON cn.fk_resource_identifier = cr.identifier \
             AND cr.fk_resource_type = '%s' \
         JOIN property_values AS pv \
             ON cr.fk_property_artifact = pv.artifact_id \
