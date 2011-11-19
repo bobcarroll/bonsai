@@ -29,7 +29,6 @@
 #include <gcs/log.h>
 
 #include <tf/catalog.h>
-#include <tf/catalogdb.h>
 #include <tf/webservices.h>
 #include <tf/xml.h>
 

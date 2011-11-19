@@ -21,7 +21,7 @@
 
 #include <csoap.h>
 
-#include <tf/catalogtypes.h>
+#include <tf/catalog.h>
 
 void status_service_init(SoapRouter **, const char *, tf_service_ref *, const char *);
 

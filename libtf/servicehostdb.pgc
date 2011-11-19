@@ -28,7 +28,7 @@
 
 #include <gcs/log.h>
 
-#include <tf/servicehostdb.h>
+#include <tf/servicehost.h>
 
 /**
  * Retrieves service hosts from the database. Calling functions should

@@ -21,8 +21,7 @@
 
 #include <csoap.h>
 
-#include <tf/catalogtypes.h>
-#include <tf/locationtypes.h>
+#include <tf/catalog.h>
 #include <tf/xml.h>
 
 void location_append_service(xmlNode *, tf_service *);

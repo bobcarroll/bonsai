@@ -28,7 +28,6 @@
 #include <stdio.h>
 
 #include <tf/catalog.h>
-#include <tf/catalogdb.h>
 #include <tf/location.h>
 
 /**

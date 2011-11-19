@@ -26,12 +26,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <gcs/pgctxpool.h>
 #include <gcs/log.h>
 
 #include <tf/catalog.h>
-#include <tf/catalogdb.h>
-#include <tf/catalogdata.h>
 #include <tf/dbhelp.h>
 
 /**

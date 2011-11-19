@@ -19,7 +19,42 @@
 
 #pragma once
 
-#include <tf/locationtypes.h>
+#include <gcs/pgctxpool.h>
+
+#include <tf/errors.h>
+
+#define TF_LOCATION_ACCMAP_MONIKER_MAXLEN       129
+#define TF_LOCATION_ACCMAP_DISPLNAME_MAXLEN     257
+
+#define TF_LOCATION_SERVICE_NAME_MAXLEN         257
+#define TF_LOCATION_SERVICE_ID_MAXLEN           37
+#define TF_LOCATION_SERVICE_REL_PATH_MAXLEN     257
+#define TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN    257
+#define TF_LOCATION_SERVICE_TYPE_MAXLEN         257
+
+typedef struct {
+    char moniker[TF_LOCATION_ACCMAP_MONIKER_MAXLEN];
+    char name[TF_LOCATION_ACCMAP_DISPLNAME_MAXLEN];
+    char *apuri;
+    int fdefault;
+} tf_access_map;
+
+typedef struct {
+    char id[TF_LOCATION_SERVICE_ID_MAXLEN];
+    char type[TF_LOCATION_SERVICE_TYPE_MAXLEN];
+    char name[TF_LOCATION_SERVICE_NAME_MAXLEN];
+    int reltosetting;
+    char relpath[TF_LOCATION_SERVICE_REL_PATH_MAXLEN];
+    int singleton;
+    char *description;
+    char tooltype[TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN];
+} tf_service;
+
+typedef struct {
+    char *id;
+    char *type;
+} tf_service_filter;
+
 
 #define TF_SERVICE_TYPE_CATALOG         "CatalogService"
 #define TF_SERVICE_TYPE_LOCATION        "LocationService"
@@ -27,9 +62,17 @@
 #define TF_SERVICE_TYPE_STATUS          "StatusService"
 
 char *tf_find_default_moniker(tf_access_map **);
+
 void tf_free_access_map(tf_access_map *);
 void *tf_free_access_map_array(tf_access_map **);
 void tf_free_service(tf_service *);
 void *tf_free_service_array(tf_service **);
 void *tf_free_service_filter_array(tf_service_filter **);
+
+
+#define TF_LOCATION_FILTER_SERVICE_ID       "567713db-d56d-4bb0-8f35-604e0e116174"
+#define TF_LOCATION_FILTER_SERVICE_TYPE     "*"
+
+tf_error tf_fetch_access_map(pgctx *, tf_access_map ***);
+tf_error tf_fetch_services(pgctx *, tf_service_filter **, tf_service ***);
 

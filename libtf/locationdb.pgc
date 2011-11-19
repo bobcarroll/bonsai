@@ -26,10 +26,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <gcs/pgctxpool.h>
 #include <gcs/log.h>
 
-#include <tf/locationdb.h>
+#include <tf/location.h>
 
 /**
  * Retrieves service defitions from the database. Calling functions should

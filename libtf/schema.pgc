@@ -26,7 +26,7 @@
 #include <gcs/log.h>
 
 #include <tf/schema.h>
-#include <tf/catalogdata.h>
+#include <tf/catalog.h>
 
 /**
  * Creates server catalog objects.

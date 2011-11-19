@@ -19,8 +19,36 @@
 
 #pragma once
 
-#include <tf/servicehosttypes.h>
+#include <gcs/pgctxpool.h>
+
+#include <tf/catalog.h>
+#include <tf/errors.h>
+
+#define TF_SERVICE_HOST_CONN_STR_MAXLEN         521
+#define TF_SERVICE_HOST_ID_MAXLEN               37
+#define TF_SERVICE_HOST_NAME_MAXLEN             129
+#define TF_SERVICE_HOST_PATH_MAXLEN             261
+#define TF_SERVICE_HOST_STATUS_REASON_MAXLEN    2049
+
+typedef struct {
+    char id[TF_SERVICE_HOST_ID_MAXLEN];
+    char parent[TF_SERVICE_HOST_ID_MAXLEN];
+    char name[TF_SERVICE_HOST_NAME_MAXLEN];
+    char *description;
+    char vdir[TF_SERVICE_HOST_PATH_MAXLEN];
+    char rsrcdir[TF_SERVICE_HOST_PATH_MAXLEN];
+    char connstr[TF_SERVICE_HOST_CONN_STR_MAXLEN];
+    int status;
+    char reason[TF_SERVICE_HOST_STATUS_REASON_MAXLEN];
+    int features;
+    char resource[TF_CATALOG_RESOURCE_ID_MAXLEN];
+} tf_host;
+
 
 void tf_free_host(tf_host *);
 void *tf_free_host_array(tf_host **);
+
+
+tf_error tf_fetch_hosts(pgctx *, const char *, tf_host ***);
+tf_error tf_fetch_single_host(pgctx *, const char *, tf_host **);
 

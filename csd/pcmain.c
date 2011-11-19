@@ -31,10 +31,8 @@
 #include <gcs/log.h>
 
 #include <tf/catalog.h>
-#include <tf/catalogdb.h>
 #include <tf/location.h>
 #include <tf/servicehost.h>
-#include <tf/servicehostdb.h>
 #include <tf/webservices.h>
 #include <tf/xml.h>
 
