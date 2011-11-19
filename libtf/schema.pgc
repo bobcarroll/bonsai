@@ -182,7 +182,9 @@ tf_error tf_init_configdb(pgctx *ctx)
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
-    char stmt[10240];
+    char *resstmt = "INSERT INTO catalog_resource_types (identifier, display_name, description) VALUES (?, ?, ?)";
+    char *propstmt = "INSERT INTO property_definitions (id, \"name\", type_id) VALUES (?, ?, ?)";
+    char *ttstmt = "INSERT INTO tool_types (id, \"type\") VALUES (?, ?)";
     EXEC SQL END DECLARE SECTION;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -218,38 +220,38 @@ tf_error tf_init_configdb(pgctx *ctx)
             REFERENCES catalog_resources (identifier) MATCH SIMPLE
             ON UPDATE NO ACTION ON DELETE NO ACTION);
 
-    for (i = 0; i < _tf_rsrc_tbl_len; i++) {
-        sprintf(stmt,
-            "INSERT INTO catalog_resource_types \
-             (identifier, display_name, description) \
-             VALUES ('%s', '%s', '%s')",
-            _tf_rsrc_type_id[i],
-            _tf_rsrc_type_name[i],
-            _tf_rsrc_type_desc[i]);
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :resstmt;
 
-        EXEC SQL AT :conn PREPARE sqlstmt FROM :stmt;
-        EXEC SQL AT :conn EXECUTE sqlstmt;
+    for (i = 0; i < _tf_rsrc_tbl_len; i++) {
+        EXEC SQL BEGIN DECLARE SECTION;
+        const char *id = _tf_rsrc_type_id[i];
+        const char *name = _tf_rsrc_type_name[i];
+        const char *desc = _tf_rsrc_type_desc[i];
+        EXEC SQL END DECLARE SECTION;
+
+        EXEC SQL AT :conn EXECUTE sqlstmt USING :id, :name, :desc;
     }
+
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :propstmt;
 
     for (i = 0; i < _tf_prop_tbl_len; i++) {
-        sprintf(stmt,
-            "INSERT INTO property_definitions (id, \"name\", type_id) \
-             VALUES (%d, '%s', 0)",
-            _tf_property_id[i],
-            _tf_property_value[i]);
+        EXEC SQL BEGIN DECLARE SECTION;
+        const int id = _tf_property_id[i];
+        const char *value = _tf_property_value[i];
+        EXEC SQL END DECLARE SECTION;
 
-        EXEC SQL AT :conn PREPARE sqlstmt FROM :stmt;
-        EXEC SQL AT :conn EXECUTE sqlstmt;
+        EXEC SQL AT :conn EXECUTE sqlstmt USING :id, :value, 0;
     }
 
-    for (i = 0; i < _tf_tool_tbl_len; i++) {
-        sprintf(stmt,
-            "INSERT INTO tool_types (id, \"type\") VALUES (%d, '%s')",
-            i,
-            _tf_tool_types[i]);
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :ttstmt;
 
-        EXEC SQL AT :conn PREPARE sqlstmt FROM :stmt;
-        EXEC SQL AT :conn EXECUTE sqlstmt;
+    for (i = 0; i < _tf_tool_tbl_len; i++) {
+        EXEC SQL BEGIN DECLARE SECTION;
+        const int id = i;
+        const char *type = _tf_tool_types[i];
+        EXEC SQL END DECLARE SECTION;
+
+        EXEC SQL AT :conn EXECUTE sqlstmt USING :id, :type;
     }
 
     EXEC SQL AT :conn COMMIT WORK;
