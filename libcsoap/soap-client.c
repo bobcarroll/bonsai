@@ -29,7 +29,7 @@
 
 #include <libcsoap/soap-client.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 static herror_t
 _soap_client_build_result(hresponse_t * res, SoapEnv ** env)

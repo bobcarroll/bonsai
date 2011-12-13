@@ -26,7 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 #include <tf/errors.h>
 

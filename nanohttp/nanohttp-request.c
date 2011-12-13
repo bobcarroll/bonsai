@@ -29,7 +29,7 @@
 #include <nanohttp/nanohttp-common.h>
 #include <nanohttp/nanohttp-request.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 static hrequest_t *
 hrequest_new(void)

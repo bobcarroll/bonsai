@@ -26,7 +26,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 #include <tf/catalog.h>
 #include <tf/dbhelp.h>

@@ -23,8 +23,8 @@
  * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
-#include <gcs/pgcommon.h>
-#include <gcs/log.h>
+#include <pgcommon.h>
+#include <log.h>
 
 #include <tf/catalog.h>
 #include <tf/location.h>

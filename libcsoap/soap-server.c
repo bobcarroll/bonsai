@@ -34,7 +34,7 @@
 #include <libcsoap/soap-admin.h>
 #include <libcsoap/soap-server.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 static SoapRouterNode *head = NULL;
 static SoapRouterNode *tail = NULL;

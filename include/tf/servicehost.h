@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <gcs/pgctxpool.h>
+#include <pgctxpool.h>
 
 #include <tf/catalog.h>
 #include <tf/errors.h>

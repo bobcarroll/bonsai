@@ -23,8 +23,8 @@
  * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
-#include <gcs/log.h>
-#include <gcs/authz.h>
+#include <log.h>
+#include <authz.h>
 
 #include <tf/catalog.h>
 #include <tf/location.h>

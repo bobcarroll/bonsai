@@ -27,8 +27,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <gcs/ntlmauth.h>
-#include <gcs/log.h>
+#include <ntlmauth.h>
+#include <log.h>
 
 enum pipes { READ, WRITE };
 

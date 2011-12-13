@@ -27,7 +27,7 @@
 #include <libcsoap/soap-fault.h>
 #include <libcsoap/soap-xml.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 /*
 Parameters:

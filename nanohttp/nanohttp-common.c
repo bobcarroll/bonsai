@@ -31,7 +31,7 @@
 
 #include <nanohttp/nanohttp-common.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 static int
 strcmpigcase(const char *s1, const char *s2)

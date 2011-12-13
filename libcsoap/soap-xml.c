@@ -24,7 +24,7 @@
 
 #include <libcsoap/soap-xml.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 xmlNodePtr
 soap_xml_get_children(xmlNodePtr param)

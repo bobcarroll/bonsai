@@ -30,8 +30,8 @@
 
 #include <netapi.h>
 
-#include <gcs/authz.h>
-#include <gcs/log.h>
+#include <authz.h>
+#include <log.h>
 
 static pthread_mutex_t _ctxmtx = PTHREAD_MUTEX_INITIALIZER;
 static struct libnetapi_ctx *_netapictx = NULL;

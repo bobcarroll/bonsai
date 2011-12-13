@@ -31,10 +31,10 @@
 
 #include <libcsoap/soap-server.h>
 
-#include <gcs/log.h>
-#include <gcs/pgcommon.h>
-#include <gcs/pgctxpool.h>
-#include <gcs/authz.h>
+#include <log.h>
+#include <pgcommon.h>
+#include <pgctxpool.h>
+#include <authz.h>
 
 #include <csd.h>
 

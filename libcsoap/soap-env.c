@@ -38,7 +38,7 @@
 #include <libcsoap/soap-xml.h>
 #include <libcsoap/soap-env.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 /*
 Parameters:

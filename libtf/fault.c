@@ -26,7 +26,7 @@
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 #include <tf/fault.h>
 #include <tf/xml.h>

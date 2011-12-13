@@ -27,7 +27,7 @@
 #include <nanohttp/nanohttp-stream.h>
 #include <nanohttp/nanohttp-mime.h>
 
-#include <gcs/session.h>
+#include <session.h>
 
 /*
   request object

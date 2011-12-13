@@ -23,7 +23,7 @@
  * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
-#include <gcs/log.h>
+#include <log.h>
 
 #include <tf/webservices.h>
 #include <tf/xml.h>

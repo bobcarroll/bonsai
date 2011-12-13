@@ -28,7 +28,7 @@
 
 #include <nanohttp/nanohttp-stream.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 /*
 -------------------------------------------------------------------

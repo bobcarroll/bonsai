@@ -28,7 +28,7 @@
 
 #include <libcsoap/soap-service.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 SoapServiceNode *
 soap_service_node_new(SoapService * service, SoapServiceNode * next)

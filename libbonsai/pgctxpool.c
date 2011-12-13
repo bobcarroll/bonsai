@@ -27,8 +27,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-#include <gcs/pgctxpool.h>
-#include <gcs/log.h>
+#include <pgctxpool.h>
+#include <log.h>
 
 static pgctx **_ctxpool = NULL;
 static int _ctxcount = 0;

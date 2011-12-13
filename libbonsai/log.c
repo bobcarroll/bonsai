@@ -30,7 +30,7 @@
 #include <time.h>
 #include <pthread.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 #define MAX_LOG 8192
 

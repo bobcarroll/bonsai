@@ -28,7 +28,7 @@
 
 #include <libcsoap/soap-ctx.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 SoapCtx *
 soap_ctx_new(SoapEnv * env)     /* should only be used internally */

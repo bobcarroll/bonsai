@@ -32,7 +32,7 @@
 #include <nanohttp/nanohttp-socket.h>
 #include <nanohttp/nanohttp-base64.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 /*--------------------------------------------------
 FUNCTION: httpc_init

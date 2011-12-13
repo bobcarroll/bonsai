@@ -27,8 +27,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-#include <gcs/session.h>
-#include <gcs/log.h>
+#include <session.h>
+#include <log.h>
 
 #define MAX_SESSIONS    10240
 

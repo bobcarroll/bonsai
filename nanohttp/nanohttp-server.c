@@ -39,7 +39,7 @@
 #include <nanohttp/nanohttp-base64.h>
 #include <nanohttp/nanohttp-ssl.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 typedef struct _conndata
 {

@@ -27,7 +27,7 @@
 
 #include <libcsoap/soap-router.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 SoapRouter *
 soap_router_new(void)

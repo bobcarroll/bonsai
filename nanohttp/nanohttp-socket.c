@@ -53,7 +53,7 @@ typedef int ssize_t;
 #include <nanohttp/nanohttp-common.h>
 #include <nanohttp/nanohttp-ssl.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 #ifdef WIN32
 static inline void

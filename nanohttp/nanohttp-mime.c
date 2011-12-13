@@ -34,7 +34,7 @@ Buffered Reader. A helper object to read bytes from a source
 ----------------------------------------------------------------*/
 
 #include <nanohttp/nanohttp-mime.h>
-#include <gcs/log.h>
+#include <log.h>
 
 
 /* ------------------------------------------------------------------

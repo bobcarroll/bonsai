@@ -21,7 +21,7 @@
 
 #include <time.h>
 
-#include <gcs/ntlmauth.h>
+#include <ntlmauth.h>
 
 typedef struct {
     char *id;

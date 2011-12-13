@@ -26,8 +26,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-#include <gcs/pgcommon.h>
-#include <gcs/log.h>
+#include <pgcommon.h>
+#include <log.h>
 
 /**
  * Connects to the database.

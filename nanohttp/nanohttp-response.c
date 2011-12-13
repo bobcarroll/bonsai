@@ -29,7 +29,7 @@
 #include <nanohttp/nanohttp-common.h>
 #include <nanohttp/nanohttp-response.h>
 
-#include <gcs/log.h>
+#include <log.h>
 
 static hresponse_t *
 hresponse_new()
