@@ -42,7 +42,7 @@ static char *_nulltag = NULL;
  *
  * @return the actual size of the context pool
  */
-int gcs_ctxpool_init(int count)
+int pg_pool_init(int count)
 {
     if (_ctxpool) {
         log_warn("context pool is already initialised");
@@ -64,7 +64,7 @@ int gcs_ctxpool_init(int count)
 /**
  * Deallocates the database connection pool.
  */
-void gcs_ctxpool_free()
+void pg_pool_free()
 {
     pthread_mutex_lock(&_ctxmtx);
 
@@ -99,7 +99,7 @@ void gcs_ctxpool_free()
  *
  * @return the pool size
  */
-int gcs_ctxpool_size()
+int pg_pool_size()
 {
     pthread_mutex_lock(&_ctxmtx);
     int result = _ctxcount;
@@ -116,7 +116,7 @@ int gcs_ctxpool_size()
  *
  * @return 1 on success, 0 on failure
  */
-int gcs_pgctx_alloc(const char *conn, const char *tag)
+int pg_context_alloc(const char *conn, const char *tag)
 {
     if (!conn)
         return 0;
@@ -157,7 +157,7 @@ int gcs_pgctx_alloc(const char *conn, const char *tag)
  *
  * @return the context count
  */
-int gcs_pgctx_count()
+int pg_context_count()
 {
     int count;
 
@@ -174,13 +174,13 @@ int gcs_pgctx_count()
  *
  * Passing NULL for the tag argument will always return bootstrapping
  * contexts (as in, contexts created without a tag) even if the contexts
- * were retagged by calling gcs_pgctx_retag_default().
+ * were retagged by calling pg_context_retag_default().
  *
  * @param tag   an optional marker for PG contexts for targeting queries
 
  * @return a connection context
  */
-pgctx *gcs_pgctx_acquire(const char *tag)
+pgctx *pg_context_acquire(const char *tag)
 {
     pgctx *result = NULL;
     int i = 0, m;
@@ -243,7 +243,7 @@ pgctx *gcs_pgctx_acquire(const char *tag)
  *
  * @param context
  */
-void gcs_pgctx_release(pgctx *context)
+void pg_context_release(pgctx *context)
 {
     int i;
 
@@ -274,7 +274,7 @@ void gcs_pgctx_release(pgctx *context)
  *
  * @return true on success, false otherwise
  */
-int gcs_pgctx_retag_default(const char *tag)
+int pg_context_retag_default(const char *tag)
 {
     if (!tag)
         return 0;

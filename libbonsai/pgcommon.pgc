@@ -42,7 +42,7 @@
  *
  * @seealso http://www.postgresql.org/docs/9.0/static/ecpg-connect.html
  */
-int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, int count, const char *tag)
+int pg_connect(const char *dsn, const char *username, const char *passwd, int count, const char *tag)
 {
     if (!dsn || !username || !passwd)
         return 0;
@@ -56,8 +56,8 @@ int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, in
     char *connval = (char *)alloca(sizeof(char) * 10);
     EXEC SQL END DECLARE SECTION;
 
-    int poolsize = gcs_ctxpool_size();
-    int ctxcount = gcs_pgctx_count();
+    int poolsize = pg_pool_size();
+    int ctxcount = pg_context_count();
 
     if (poolsize == 0 || (ctxcount + count) > poolsize) {
         log_debug("poolsize=%d ctxcount=%d count=%d", poolsize, ctxcount, count);
@@ -72,7 +72,7 @@ int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, in
         sprintf(connval, "conn%d", ctxcount + i);
 
         EXEC SQL CONNECT TO :dsnval AS :connval USER :usernameval USING :passwdval;
-        gcs_pgctx_alloc(connval, tag);
+        pg_context_alloc(connval, tag);
     }
 
     log_notice("connected to PG (%s)", dsn);
@@ -89,7 +89,7 @@ error:
  *
  * @return 1 on success, 0 on failure
  */
-int gcs_pg_disconnect()
+int pg_disconnect()
 {
     log_info("disconnecting from PG");
 
@@ -100,7 +100,7 @@ int gcs_pg_disconnect()
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL DISCONNECT ALL;
 
-    gcs_ctxpool_free();
+    pg_pool_free();
     
     return 1;
 

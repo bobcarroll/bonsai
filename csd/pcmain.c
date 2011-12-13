@@ -85,7 +85,7 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
         return;
     }
 
-    ctx = gcs_pgctx_acquire(NULL);
+    ctx = pg_context_acquire(NULL);
     dberr = tf_fetch_hosts(ctx, instid, &hostarr);
 
     if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {
@@ -97,7 +97,7 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
     _routers = (SoapRouter **)calloc(MAX_ROUTERS, sizeof(SoapRouter *));
 
     for (i = 0; hostarr[i]; i++) {
-        if (!gcs_pg_connect(hostarr[i]->connstr, pguser, pgpasswd, dbconns, hostarr[i]->id)) {
+        if (!pg_connect(hostarr[i]->connstr, pguser, pgpasswd, dbconns, hostarr[i]->id)) {
             log_error("failed to connect to PG");
             continue;
         }
@@ -126,6 +126,6 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
     }
 
     hostarr = tf_free_host_array(hostarr);
-    gcs_pgctx_release(ctx);
+    pg_context_release(ctx);
 }
 

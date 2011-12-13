@@ -77,13 +77,13 @@ char *core_services_init(const char *prefix)
         return NULL;
     }
 
-    ctx = gcs_pgctx_acquire(NULL);
+    ctx = pg_context_acquire(NULL);
     dberr = tf_fetch_hosts(ctx, NULL, &hostarr);
 
     if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {
         log_error("no team foundation instances were found!");
         hostarr = tf_free_host_array(hostarr);
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
         return NULL;
     }
 
@@ -93,7 +93,7 @@ char *core_services_init(const char *prefix)
 
     if (_routers) {
         log_warn("core services are already initialised!");
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
         return result;
     }
 
@@ -108,7 +108,7 @@ char *core_services_init(const char *prefix)
     if (dberr != TF_ERROR_SUCCESS || !nodearr[0]) {
         log_warn("failed to retrieve team foundation catalog nodes");
         nodearr = tf_free_node_array(nodearr);
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
         free(result);
         return NULL;
     }
@@ -119,7 +119,7 @@ char *core_services_init(const char *prefix)
     if (dberr != TF_ERROR_SUCCESS || !refarr[0]) {
         log_warn("failed to retrieve team foundation services");
         refarr = tf_free_service_ref_array(refarr);
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
         free(result);
         return NULL;
     }
@@ -131,7 +131,7 @@ char *core_services_init(const char *prefix)
         _start_service(refarr[i], &_routers[i], prefix, result);
 
     refarr = tf_free_service_ref_array(refarr);
-    gcs_pgctx_release(ctx);
+    pg_context_release(ctx);
 
     return result;
 }

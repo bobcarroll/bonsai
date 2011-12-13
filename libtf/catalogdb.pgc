@@ -72,7 +72,7 @@ tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const
         if (i > 0) {
             r = snprintf(where + curpos, wherelen - curpos, " OR ");
             if (r >= wherelen - curpos) {
-                gcs_pgctx_release(ctx);
+                pg_context_release(ctx);
                 return TF_ERROR_PARAM_TOO_LONG;
             }
 

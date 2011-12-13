@@ -166,7 +166,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (gcs_ctxpool_init(maxconns) != maxconns) {
+    if (pg_pool_init(maxconns) != maxconns) {
         log_fatal("failed to initialise PG context pool");
 
         config_destroy(&config);
@@ -175,7 +175,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (!gcs_pg_connect(pgdsn, pguser, pgpasswd, dbconns, NULL)) {
+    if (!pg_connect(pgdsn, pguser, pgpasswd, dbconns, NULL)) {
         log_fatal("failed to connect to PG");
 
         config_destroy(&config);
@@ -197,14 +197,14 @@ int main(int argc, char **argv)
     if (!instid) {
         log_fatal("core services failed to start!");
 
-        gcs_pg_disconnect();
+        pg_disconnect();
         config_destroy(&config);
         log_close();
 
         return 1;
     }
 
-    gcs_pgctx_retag_default(instid);
+    pg_context_retag_default(instid);
     pc_services_init(prefix, instid, pguser, pgpasswd, dbconns);
 
     gcs_authz_init(smbhost, smbuser, smbpasswd);
@@ -221,7 +221,7 @@ int main(int argc, char **argv)
     config_destroy(&config);
     gcs_authz_free();
 
-    gcs_pg_disconnect();
+    pg_disconnect();
     log_close();
 
     free(instid);

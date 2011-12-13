@@ -26,13 +26,13 @@ typedef struct {
     char *tag;
 } pgctx;
 
-int gcs_ctxpool_init(int);
-void gcs_ctxpool_free();
-int gcs_ctxpool_size();
+int pg_pool_init(int);
+void pg_pool_free();
+int pg_pool_size();
 
-int gcs_pgctx_alloc(const char *, const char *);
-int gcs_pgctx_count();
-pgctx *gcs_pgctx_acquire(const char *);
-void gcs_pgctx_release(pgctx *);
-int gcs_pgctx_retag_default(const char *);
+int pg_context_alloc(const char *, const char *);
+int pg_context_count();
+pgctx *pg_context_acquire(const char *);
+void pg_context_release(pgctx *);
+int pg_context_retag_default(const char *);
 

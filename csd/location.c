@@ -248,12 +248,12 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     }
 
-    ctx = gcs_pgctx_acquire(NULL);
+    ctx = pg_context_acquire(NULL);
     dberr = tf_fetch_single_host(ctx, hostid, &host);
 
     if (dberr != TF_ERROR_SUCCESS || !host) {
         gcs_authz_free_buffer(ui);
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
         tf_fault_env(
                 Fault_Server, 
                 "Failed to retrieve the host instance from the database", 
@@ -276,7 +276,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         tf_free_host(host);
         free(host);
 
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
 
         tf_fault_env(
                 Fault_Server, 
@@ -287,8 +287,8 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     }
 
     if (host->parent) {
-        gcs_pgctx_release(ctx);
-        ctx = gcs_pgctx_acquire(hostid);
+        pg_context_release(ctx);
+        ctx = pg_context_acquire(hostid);
     }
 
     if (inclservices) {
@@ -303,7 +303,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
             free(host);
 
             nodearr = tf_free_node_array(nodearr);
-            gcs_pgctx_release(ctx);
+            pg_context_release(ctx);
 
             tf_fault_env(
                     Fault_Server, 
@@ -324,7 +324,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
 
         nodearr = tf_free_node_array(nodearr);
         svcarr = tf_free_service_array(svcarr);
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
 
         tf_fault_env(
                 Fault_Server, 
@@ -362,7 +362,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     tf_free_host(host);
     free(host);
 
-    gcs_pgctx_release(ctx);
+    pg_context_release(ctx);
 
     return H_OK;
 }
@@ -400,14 +400,14 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     }
 
-    ctx = gcs_pgctx_acquire(hostid);
+    ctx = pg_context_acquire(hostid);
 
     /* TODO check last changed ID */
     dberr = tf_fetch_services(ctx, filters, &svcarr);
     filters = tf_free_service_filter_array(filters);
 
     if (dberr != TF_ERROR_SUCCESS) {
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
         tf_fault_env(
                 Fault_Server, 
                 "Failed to retrieve service definitions from the database", 
@@ -419,7 +419,7 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
     dberr = tf_fetch_access_map(ctx, &accmaparr);
     if (dberr != TF_ERROR_SUCCESS) {
         svcarr = tf_free_service_array(svcarr);
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
         tf_fault_env(
                 Fault_Server, 
                 "Failed to retrieve service definitions from the database", 
@@ -437,7 +437,7 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
     svcarr = tf_free_service_array(svcarr);
     accmaparr = tf_free_access_map_array(accmaparr);
 
-    gcs_pgctx_release(ctx);
+    pg_context_release(ctx);
 
     return H_OK;
 }

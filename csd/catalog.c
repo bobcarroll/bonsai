@@ -189,7 +189,7 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    ctx = gcs_pgctx_acquire(NULL);
+    ctx = pg_context_acquire(NULL);
 
     /* TODO property filters */
     /* TODO query options */
@@ -201,7 +201,7 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
     free(idarr);
 
     if (dberr != TF_ERROR_SUCCESS) {
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
         tf_fault_env(
             Fault_Server, 
             "Failed to retrieve catalog resources from the database", 
@@ -213,7 +213,7 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
     dberr = tf_fetch_service_refs(ctx, nodearr, &svcarr);
     if (dberr != TF_ERROR_SUCCESS) {
         nodearr = tf_free_node_array(nodearr);
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
         tf_fault_env(
             Fault_Server, 
             "Failed to retrieve service definitions from the database", 
@@ -226,7 +226,7 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
     if (dberr != TF_ERROR_SUCCESS) {
         nodearr = tf_free_node_array(nodearr);
         svcarr = tf_free_service_ref_array(svcarr);
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
         tf_fault_env(
             Fault_Server, 
             "Failed to retrieve resource properties from the database", 
@@ -261,7 +261,7 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
     svcarr = tf_free_service_ref_array(svcarr);
     proparr = tf_free_property_array(proparr);
 
-    gcs_pgctx_release(ctx);
+    pg_context_release(ctx);
 
     return H_OK;
 }
@@ -313,7 +313,7 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     }
 
-    ctx = gcs_pgctx_acquire(NULL);
+    ctx = pg_context_acquire(NULL);
 
     /* TODO property filter */
     /* TODO query options */
@@ -333,7 +333,7 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
     free(typefilter);
 
     if (dberr != TF_ERROR_SUCCESS) {
-        gcs_pgctx_release(ctx);
+        pg_context_release(ctx);
         tf_fault_env(
             Fault_Server, 
             "Failed to retrieve catalog nodes from the database", 
@@ -346,7 +346,7 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
         dberr = tf_fetch_service_refs(ctx, nodearr, &svcarr);
         if (dberr != TF_ERROR_SUCCESS) {
             nodearr = tf_free_node_array(nodearr);
-            gcs_pgctx_release(ctx);
+            pg_context_release(ctx);
             tf_fault_env(
                     Fault_Server, 
                     "Failed to retrieve service definitions from the database", 
@@ -359,7 +359,7 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
         if (dberr != TF_ERROR_SUCCESS) {
             nodearr = tf_free_node_array(nodearr);
             svcarr = tf_free_service_ref_array(svcarr);
-            gcs_pgctx_release(ctx);
+            pg_context_release(ctx);
             tf_fault_env(
                     Fault_Server, 
                     "Failed to retrieve resource properties from the database", 
@@ -398,7 +398,7 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
     svcarr = tf_free_service_ref_array(svcarr);
     proparr = tf_free_property_array(proparr);
 
-    gcs_pgctx_release(ctx);
+    pg_context_release(ctx);
 
     return H_OK;
 }
