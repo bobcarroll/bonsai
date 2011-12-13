@@ -57,8 +57,8 @@ set(CSOAP_LIBRARIES
 set(CMAKE_C_FLAGS "-g")
 
 add_subdirectory(csd)
+add_subdirectory(libbonsai)
 add_subdirectory(libcsoap)
-add_subdirectory(libgcs)
 add_subdirectory(libtf)
 add_subdirectory(nanohttp)
 

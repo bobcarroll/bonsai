@@ -10,5 +10,5 @@ set(LIBCSOAP_SRC
     soap-ctx.c)
 
 add_library(csoap ${LIBCSOAP_SRC})
-target_link_libraries(csoap gcs ${LIBS})
+target_link_libraries(csoap bonsai ${LIBS})
 

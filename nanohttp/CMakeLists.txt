@@ -12,5 +12,5 @@ set(NANOHTTP_SRC
     nanohttp-ssl.c)
 
 add_library(nanohttp ${NANOHTTP_SRC})
-target_link_libraries(nanohttp gcs ${LIBS})
+target_link_libraries(nanohttp bonsai ${LIBS})
 
