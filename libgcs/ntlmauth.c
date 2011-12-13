@@ -33,7 +33,7 @@
 enum pipes { READ, WRITE };
 
 /**
- * Initialises an NTLM authentication context. Callering functions 
+ * Initialises an NTLM authentication context. Calling functions
  * should call gcs_ntlmauth_free() to free the result.
  *
  * @param helper    path to the NTLM helper tool
@@ -131,9 +131,9 @@ void gcs_ntlmauth_free(gcs_ntlmctx *ctx)
 
 /**
  * Main challenge/response routine for NTLM authentication. Calling functions
- * are responsible for freeing result.
+ * are responsible for freeing the result.
  *
- * Note that this function return false until negotiation is completed,
+ * Note that this function returns false until negotiation is completed,
  * and does not indicate authentication failure. Calling functions should
  * assume authentication has failed and continue negotiating until the
  * function returns true.

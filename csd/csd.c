@@ -41,8 +41,6 @@ int main(int argc, char **argv)
 {
     char **soapargs;
     herror_t soaperr;
-    SoapRouter *locrouter;
-    SoapRouter *catrouter;
     const char *logfile = NULL;
     int lev = GCS_LOG_WARN, levovrd = 0;
     int opt, fg = 0, err = 0;
