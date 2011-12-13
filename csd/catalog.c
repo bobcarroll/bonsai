@@ -176,7 +176,7 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     } else if (xpres) {
         if (xpres->nodesetval)
-            gcslog_warn("skipping resourceTypeIdentifiers because resourceIdentifiers was found");
+            log_warn("skipping resourceTypeIdentifiers because resourceIdentifiers was found");
         xmlXPathFreeObject(xpres);
     }
 
@@ -434,6 +434,6 @@ void catalog_service_init(SoapRouter **router, const char *prefix, tf_service_re
         "QueryNodes",
         TF_DEFAULT_NAMESPACE);
 
-    gcslog_info("registered catalog service %s for host %s", url, instid);
+    log_info("registered catalog service %s for host %s", url, instid);
 }
 

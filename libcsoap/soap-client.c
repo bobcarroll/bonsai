@@ -34,7 +34,7 @@
 static herror_t
 _soap_client_build_result(hresponse_t * res, SoapEnv ** env)
 {
-  gcslog_debug("Building result (%p)", res);
+  log_debug("Building result (%p)", res);
 
   if (res == NULL)
     return herror_new("_soap_client_build_result",
@@ -179,7 +179,7 @@ soap_client_invoke(SoapCtx * call, SoapCtx ** response, const char *url,
                                     part->transfer_encoding, part->filename);
       if (status != H_OK)
       {
-        gcslog_error("Send file failed. Status:%d", status);
+        log_error("Send file failed. Status:%d", status);
         httpc_close_free(conn);
         xmlBufferFree(buffer);
         return status;

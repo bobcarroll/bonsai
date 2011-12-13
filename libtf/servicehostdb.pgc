@@ -48,7 +48,7 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
     if (!ctx || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
-    gcslog_debug("looking up service hosts");
+    log_debug("looking up service hosts");
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
@@ -69,7 +69,7 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
         FROM service_hosts \
         %s",
         where);
-    gcslog_trace("fetch service hosts SQL: %s", countstmt);
+    log_trace("fetch service hosts SQL: %s", countstmt);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
@@ -77,7 +77,7 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
     EXEC SQL AT :conn EXECUTE sqlstmt INTO :count;
 
-    gcslog_debug("found %d service host(s)", count);
+    log_debug("found %d service host(s)", count);
     *result = (tf_host **)calloc(count + 1, sizeof(tf_host *));
 
     if (count == 0)
@@ -162,7 +162,7 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
     return TF_ERROR_SUCCESS;
 
 error_cur:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn CLOSE fetch_hosts;
@@ -170,7 +170,7 @@ error_cur:
     return TF_ERROR_PG_FAILURE;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
 
@@ -189,7 +189,7 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
     if (!ctx || !hostid || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
-    gcslog_debug("looking up service host %s", hostid);
+    log_debug("looking up service host %s", hostid);
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
@@ -207,7 +207,7 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
         FROM service_hosts \
         WHERE host_id = '%s'",
         hostid);
-    gcslog_trace("fetch single service host SQL: %s", selstmt);
+    log_trace("fetch single service host SQL: %s", selstmt);
 
     EXEC SQL AT :conn PREPARE sqlstmt FROM :selstmt;
 
@@ -268,11 +268,11 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
     return TF_ERROR_SUCCESS;
 
 not_found:
-    gcslog_debug("no matching service host found");
+    log_debug("no matching service host found");
     return TF_ERROR_NOT_FOUND;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
 

@@ -121,7 +121,7 @@ _httpd_parse_arguments(int argc, char **argv)
     else if (!strcmp(argv[i - 1], NHTTPD_ARG_NTLMHELP))
     {
       _httpd_auth_helper = argv[i];
-      gcslog_debug("setting NTLM helper path: %s", _httpd_auth_helper);
+      log_debug("setting NTLM helper path: %s", _httpd_auth_helper);
     }
   }
 
@@ -177,7 +177,7 @@ httpd_init(int argc, char *argv[])
   if ((status = hsocket_module_init(argc, argv)) != H_OK)
     return status;
 
-  gcslog_info("socket bind to port '%d'", _httpd_port);
+  log_info("socket bind to port '%d'", _httpd_port);
 
   _httpd_connection_slots_init();
 
@@ -185,7 +185,7 @@ httpd_init(int argc, char *argv[])
 
 #ifdef WIN32
   /* 
-     if (_beginthread (WSAReaper, 0, NULL) == -1) { gcslog_error ("Winsock
+     if (_beginthread (WSAReaper, 0, NULL) == -1) { log_error ("Winsock
      reaper thread failed to start"); return herror_new("httpd_init",
      THREAD_BEGIN_ERROR, "_beginthread() failed while starting WSAReaper"); } 
    */
@@ -193,7 +193,7 @@ httpd_init(int argc, char *argv[])
 
   if ((status = hsocket_init(&_httpd_socket)) != H_OK)
   {
-    gcslog_error("hsocket_init failed (%s)", herror_message(status));
+    log_error("hsocket_init failed (%s)", herror_message(status));
     return status;
   }
 
@@ -212,7 +212,7 @@ httpd_register_secure(const char *ctx, httpd_service func, httpd_auth auth)
 
   if (!(service = (hservice_t *) malloc(sizeof(hservice_t))))
   {
-    gcslog_error("malloc failed (%s)", strerror(errno));
+    log_error("malloc failed (%s)", strerror(errno));
     return -1;
   }
 
@@ -221,7 +221,7 @@ httpd_register_secure(const char *ctx, httpd_service func, httpd_auth auth)
   service->func = func;
   strcpy(service->ctx, ctx);
 
-  gcslog_debug("register service:t(%p):%s", service, SAVE_STR(ctx));
+  log_debug("register service:t(%p):%s", service, SAVE_STR(ctx));
   if (_httpd_services_head == NULL)
   {
     _httpd_services_head = _httpd_services_tail = service;
@@ -451,22 +451,22 @@ httpd_request_print(hrequest_t * req)
 {
   hpair_t *pair;
 
-  gcslog_trace("++++++ Request +++++++++");
-  gcslog_trace(" Method : '%s'",
+  log_trace("++++++ Request +++++++++");
+  log_trace(" Method : '%s'",
                (req->method == HTTP_REQUEST_POST) ? "POST" : "GET");
-  gcslog_trace(" Path   : '%s'", req->path);
-  gcslog_trace(" Spec   : '%s'",
+  log_trace(" Path   : '%s'", req->path);
+  log_trace(" Spec   : '%s'",
                (req->version == HTTP_1_0) ? "HTTP/1.0" : "HTTP/1.1");
-  gcslog_trace(" Parsed query string :");
+  log_trace(" Parsed query string :");
 
   for (pair = req->query; pair; pair = pair->next)
-    gcslog_trace(" %s = '%s'", pair->key, pair->value);
+    log_trace(" %s = '%s'", pair->key, pair->value);
 
-  gcslog_trace(" Parsed header :");
+  log_trace(" Parsed header :");
   for (pair = req->header; pair; pair = pair->next)
-    gcslog_trace(" %s = '%s'", pair->key, pair->value);
+    log_trace(" %s = '%s'", pair->key, pair->value);
 
-  gcslog_trace("++++++++++++++++++++++++");
+  log_trace("++++++++++++++++++++++++");
 
   return;
 }
@@ -480,7 +480,7 @@ httpd_new(hsocket_t * sock)
   if (!(conn = (httpd_conn_t *) malloc(sizeof(httpd_conn_t))))
   {
 
-    gcslog_error("malloc failed (%s)", strerror(errno));
+    log_error("malloc failed (%s)", strerror(errno));
     return NULL;
   }
   conn->sock = sock;
@@ -520,7 +520,7 @@ do_req_timeout(int signum)
 */
 
   /* XXX this is not real pretty, is there a better way? */
-  gcslog_debug("Thread timeout.");
+  log_debug("Thread timeout.");
 #ifdef WIN32
   _endthread();
 #else
@@ -539,17 +539,17 @@ _httpd_decode_authorization(const char *value, char **user, char **pass)
   if (!(tmp = (char *) calloc(1, len)))
   {
 
-    gcslog_error("calloc failed (%s)", strerror(errno));
+    log_error("calloc failed (%s)", strerror(errno));
     return -1;
   }
 
   value = strstr(value, " ") + 1;
 
-  gcslog_debug("Authorization (base64) = \"%s\"", value);
+  log_debug("Authorization (base64) = \"%s\"", value);
 
   base64_decode(value, tmp);
 
-  gcslog_debug("Authorization (ascii) = \"%s\"", tmp);
+  log_debug("Authorization (ascii) = \"%s\"", tmp);
 
   if ((tmp2 = strstr(tmp, ":")))
   {
@@ -577,26 +577,26 @@ _httpd_authenticate_request(hrequest_t * req, httpd_auth auth, char **authdata)
 
   if (auth == NONE)
   {
-    gcslog_debug("no authentication mechanism specified, skipping");
+    log_debug("no authentication mechanism specified, skipping");
     return 1;
   }
   else if (auth == NTLM_SPNEGO)
   {
     if (!req->session)
     {
-      gcslog_warn("no TFS session found in request!");
+      log_warn("no TFS session found in request!");
       return 0;
     }
 
     if (gcs_session_auth_check(req->session))
     {
-      gcslog_debug("re-using session for %s", req->session->userid);
+      log_debug("re-using session for %s", req->session->userid);
       return 1;
     }
 
     if (!gcs_session_auth_init(req->session, NULL))
     {
-      gcslog_debug("initialising authentication context");
+      log_debug("initialising authentication context");
       authctx = gcs_ntlmauth_init(_httpd_auth_helper);
     }
 
@@ -613,7 +613,7 @@ _httpd_authenticate_request(hrequest_t * req, httpd_auth auth, char **authdata)
     }
   }
   else
-    gcslog_error("unsupported authentication mechanism (%d)!", auth);
+    log_error("unsupported authentication mechanism (%d)!", auth);
 
   return 0;
 }
@@ -641,14 +641,14 @@ httpd_session_main(void *data)
 
   conn = (conndata_t *) data;
 
-  gcslog_debug("starting new httpd session on socket %d", conn->sock);
+  log_debug("starting new httpd session on socket %d", conn->sock);
 
   rconn = httpd_new(&(conn->sock));
 
   done = 0;
   while (!done)
   {
-    gcslog_debug("starting HTTP request on socket %p (%d)", conn->sock, conn->sock.sock);
+    log_debug("starting HTTP request on socket %p (%d)", conn->sock, conn->sock.sock);
 
     /* XXX: only used in WSAreaper */
     conn->atime = time(NULL);
@@ -661,7 +661,7 @@ httpd_session_main(void *data)
       {
       case HSOCKET_ERROR_SSLCLOSE:
       case HSOCKET_ERROR_RECEIVE:
-        gcslog_error("hrequest_new_from_socket failed (%s)",
+        log_error("hrequest_new_from_socket failed (%s)",
                    herror_message(status));
         break;
       default:
@@ -686,7 +686,7 @@ httpd_session_main(void *data)
 
       if ((service = httpd_find_service(req->path)))
       {
-        gcslog_debug("service '%s' for '%s' found", service->ctx, req->path);
+        log_debug("service '%s' for '%s' found", service->ctx, req->path);
 
         if (_httpd_authenticate_request(req, service->auth, &authdata))
         {
@@ -696,7 +696,7 @@ httpd_session_main(void *data)
             if (rconn->out
                 && rconn->out->type == HTTP_TRANSFER_CONNECTION_CLOSE)
             {
-              gcslog_debug("Connection close requested");
+              log_debug("Connection close requested");
               done = 1;
             }
           }
@@ -707,7 +707,7 @@ httpd_session_main(void *data)
             sprintf(buffer,
                     "service '%s' not registered properly (func == NULL)",
                     req->path);
-            gcslog_debug(buffer);
+            log_debug(buffer);
             httpd_send_internal_error(rconn, buffer);
           }
         }
@@ -744,7 +744,7 @@ httpd_session_main(void *data)
       {
         char buffer[256];
         sprintf(buffer, "no service for '%s' found", req->path);
-        gcslog_debug(buffer);
+        log_debug(buffer);
         httpd_send_internal_error(rconn, buffer);
         done = 1;
       }
@@ -780,7 +780,7 @@ httpd_set_header(httpd_conn_t * conn, const char *key, const char *value)
 
   if (conn == NULL)
   {
-    gcslog_warn("Connection object is NULL");
+    log_warn("Connection object is NULL");
     return 0;
   }
 
@@ -814,7 +814,7 @@ httpd_add_header(httpd_conn_t * conn, const char *key, const char *value)
 {
   if (!conn)
   {
-    gcslog_warn("Connection object is NULL");
+    log_warn("Connection object is NULL");
     return 0;
   }
 
@@ -828,7 +828,7 @@ httpd_add_headers(httpd_conn_t * conn, const hpair_t * values)
 {
   if (!conn)
   {
-    gcslog_warn("Connection object is NULL");
+    log_warn("Connection object is NULL");
     return;
   }
 
@@ -849,7 +849,7 @@ httpd_add_headers(httpd_conn_t * conn, const hpair_t * values)
 BOOL WINAPI
 httpd_term(DWORD sig)
 {
-  /* gcslog_debug ("Got signal %d", sig); */
+  /* log_debug ("Got signal %d", sig); */
   if (sig == _httpd_terminate_signal)
     _httpd_run = 0;
 
@@ -859,7 +859,7 @@ httpd_term(DWORD sig)
 void
 httpd_term(int sig)
 {
-  gcslog_debug("Got signal %d", sig);
+  log_debug("Got signal %d", sig);
 
   if (sig == _httpd_terminate_signal)
     _httpd_run = 0;
@@ -876,12 +876,12 @@ httpd_term(int sig)
 static void
 _httpd_register_signal_handler(void)
 {
-  gcslog_debug("registering termination signal handler (SIGNAL:%d)",
+  log_debug("registering termination signal handler (SIGNAL:%d)",
                _httpd_terminate_signal);
 #ifdef WIN32
   if (SetConsoleCtrlHandler((PHANDLER_ROUTINE) httpd_term, TRUE) == FALSE)
   {
-    gcslog_error("Unable to install console event handler!");
+    log_error("Unable to install console event handler!");
   }
 
 #else
@@ -960,7 +960,7 @@ _httpd_start_thread(conndata_t * conn)
   pthread_sigmask(SIG_BLOCK, &thrsigset, NULL);
   if ((err =
        pthread_create(&(conn->tid), &(conn->attr), httpd_session_main, conn)))
-    gcslog_error("pthread_create failed (%s)", strerror(err));
+    log_error("pthread_create failed (%s)", strerror(err));
 #endif
 
   return;
@@ -981,7 +981,7 @@ httpd_run(void)
   herror_t err;
   fd_set fds;
 
-  gcslog_debug("starting run routine");
+  log_debug("starting run routine");
 
 #ifndef WIN32
   sigemptyset(&thrsigset);
@@ -992,7 +992,7 @@ httpd_run(void)
 
   if ((err = hsocket_listen(&_httpd_socket)) != H_OK)
   {
-    gcslog_error("hsocket_listen failed (%s)", herror_message(err));
+    log_error("hsocket_listen failed (%s)", herror_message(err));
     return err;
   }
 
@@ -1039,7 +1039,7 @@ httpd_run(void)
 
     if ((err = hsocket_accept(&_httpd_socket, &(conn->sock))) != H_OK)
     {
-      gcslog_error("hsocket_accept failed (%s)", herror_message(err));
+      log_error("hsocket_accept failed (%s)", herror_message(err));
 
       hsocket_close(&(conn->sock));
 
@@ -1097,7 +1097,7 @@ WSAReaper(void *x)
       if ((ctime - _httpd_connection[i].atime < _httpd_max_idle) ||
           (_httpd_connection[i].atime == 0))
         continue;
-      gcslog_debug("Reaping socket %u from (runtime ~= %d seconds)",
+      log_debug("Reaping socket %u from (runtime ~= %d seconds)",
                    _httpd_connection[i].sock,
                    ctime - _httpd_connection[i].atime);
       shutdown(_httpd_connection[i].sock.sock, 2);
@@ -1137,7 +1137,7 @@ httpd_get_postdata(httpd_conn_t * conn, hrequest_t * req, long *received,
   }
   else
   {
-    gcslog_warn("Not a POST method");
+    log_warn("Not a POST method");
     return NULL;
   }
 
@@ -1150,7 +1150,7 @@ httpd_get_postdata(httpd_conn_t * conn, hrequest_t * req, long *received,
     if (!(postdata = (char *) malloc(1)))
     {
 
-      gcslog_error("malloc failed (%s)", strerror(errno));
+      log_error("malloc failed (%s)", strerror(errno));
       return NULL;
     }
     postdata[0] = '\0';
@@ -1158,7 +1158,7 @@ httpd_get_postdata(httpd_conn_t * conn, hrequest_t * req, long *received,
   }
   if (!(postdata = (unsigned char *) malloc(content_length + 1)))
   {
-    gcslog_error("malloc failed (%s)", strerror(errno));
+    log_error("malloc failed (%s)", strerror(errno));
     return NULL;
   }
   if (http_input_stream_read(req->in, postdata, (int) content_length) > 0)
@@ -1180,7 +1180,7 @@ static void
 _httpd_mime_get_boundary(httpd_conn_t * conn, char *dest)
 {
   sprintf(dest, "---=.Part_NH_%p", conn);
-  gcslog_debug("boundary= \"%s\"", dest);
+  log_debug("boundary= \"%s\"", dest);
 
   return;
 }

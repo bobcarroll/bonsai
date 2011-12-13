@@ -56,7 +56,7 @@ int gcs_authz_init(const char *host, const char *username, const char *passwd)
     }
 
     if (libnetapi_init(&_netapictx) != NET_API_STATUS_SUCCESS) {
-        gcslog_error("failed to initialise NetApi context");
+        log_error("failed to initialise NetApi context");
         pthread_mutex_unlock(&_ctxmtx);
         return 0;
     }
@@ -67,7 +67,7 @@ int gcs_authz_init(const char *host, const char *username, const char *passwd)
     _host = strdup(host);
 
     pthread_mutex_unlock(&_ctxmtx);
-    gcslog_info("initialised NetApi context");
+    log_info("initialised NetApi context");
 
     return 1;
 }
@@ -113,7 +113,7 @@ gcs_userinfo *gcs_authz_lookup_user(const char *userid)
 
     status = NetUserGetInfo(_host, userid, 23, (uint8_t **)&buf);
     if (status != NET_API_STATUS_SUCCESS) {
-        gcslog_warn("NetApi lookup for user %s failed (%d)", userid, status);
+        log_warn("NetApi lookup for user %s failed (%d)", userid, status);
         pthread_mutex_unlock(&_ctxmtx);
         return NULL;
     }
@@ -129,7 +129,7 @@ gcs_userinfo *gcs_authz_lookup_user(const char *userid)
     NetApiBufferFree(buf);
     pthread_mutex_unlock(&_ctxmtx);
 
-    gcslog_debug("found user %s with SID %s", userid, result->sid);
+    log_debug("found user %s with SID %s", userid, result->sid);
     return result;
 }
 

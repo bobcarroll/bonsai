@@ -38,7 +38,7 @@ hrequest_new(void)
  
   if (!(req = (hrequest_t *) malloc(sizeof(hrequest_t)))) {
 
-	  gcslog_error("malloc failed (%s)", strerror(errno));
+	  log_error("malloc failed (%s)", strerror(errno));
 	  return NULL;
   }
 
@@ -163,7 +163,7 @@ _hrequest_parse_header(char *data)
           {
             if (!(tmppair = (hpair_t *) malloc(sizeof(hpair_t))))
             {
-              gcslog_error("malloc failed (%s)", strerror(errno));
+              log_error("malloc failed (%s)", strerror(errno));
               return NULL;
             }
 
@@ -223,7 +223,7 @@ _hrequest_parse_header(char *data)
 
   if (sid = hpairnode_get_ignore_case(req->header, HEADER_X_TFS_SESSION))
   {
-      gcslog_debug("TFS session ID is %s", sid);
+      log_debug("TFS session ID is %s", sid);
       req->session = gcs_session_init(sid);
   }
 
@@ -273,13 +273,13 @@ hrequest_new_from_socket(hsocket_t *sock, hrequest_t ** out)
   {
     if ((status = hsocket_read(sock, &(buffer[i]), 1, 1, &readed)) != H_OK)
     {
-      gcslog_error("hsocket_read failed (%s)", herror_message(status));
+      log_error("hsocket_read failed (%s)", herror_message(status));
       return status;
     }
 
     buffer[i + 1] = '\0';       /* for strmp */
 
-/*    gcslog_error("buffer=\"%s\"", buffer); */
+/*    log_error("buffer=\"%s\"", buffer); */
 
     if (i > 3)
     {

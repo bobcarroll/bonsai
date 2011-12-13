@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     char **soapargs;
     herror_t soaperr;
     const char *logfile = NULL;
-    int lev = GCS_LOG_WARN, levovrd = 0;
+    int lev = LOG_WARN, levovrd = 0;
     int opt, fg = 0, err = 0;
     char *cfgfile = NULL;
     config_t config;
@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     if (!levovrd)
         config_lookup_int(&config, "loglevel", &lev);
 
-    if (!gcs_log_open(logfile, lev, fg)) {
+    if (!log_open(logfile, lev, fg)) {
         fprintf(stderr, "csd: failed to open log file!\n");
         config_destroy(&config);
         return 1;
@@ -111,75 +111,75 @@ int main(int argc, char **argv)
 
     config_lookup_string(&config, "ntlmhelper", &ntlmhelper);
     if (!ntlmhelper) {
-        gcslog_warn("ntlmhelper is not set");
+        log_warn("ntlmhelper is not set");
         ntlmhelper = "";
     }
 
     config_lookup_string(&config, "smbhost", &smbhost);
     if (!smbhost) {
-        gcslog_warn("smbhost is not set");
+        log_warn("smbhost is not set");
         smbhost = "";
     }
 
     config_lookup_string(&config, "smbuser", &smbuser);
     if (!smbuser) {
-        gcslog_warn("smbuser is not set");
+        log_warn("smbuser is not set");
         smbuser = "";
     }
 
     config_lookup_string(&config, "smbpasswd", &smbpasswd);
     if (!smbpasswd) {
-        gcslog_warn("smbpasswd is not set");
+        log_warn("smbpasswd is not set");
         smbpasswd = "";
     }
 
     config_lookup_int(&config, "maxconns", &maxconns);
     if (maxconns < 1) {
-        gcslog_warn("maxconns must be at least 1 (was %d)", maxconns);
+        log_warn("maxconns must be at least 1 (was %d)", maxconns);
         maxconns = 1;
     }
 
     config_lookup_int(&config, "dbconns", &dbconns);
     if (dbconns < 1) {
-        gcslog_warn("dbconns must be at least 1 (was %d)", dbconns);
+        log_warn("dbconns must be at least 1 (was %d)", dbconns);
         dbconns = 1;
     }
 
     config_lookup_string(&config, "bindport", &port);
     nport = (port) ? atoi(port) : 0;
     if (nport == 0 || nport != (nport & 0xffff)) {
-        gcslog_fatal("bindport must be a valid TCP port number (was %d)", nport);
+        log_fatal("bindport must be a valid TCP port number (was %d)", nport);
 
         config_destroy(&config);
-        gcs_log_close();
+        log_close();
 
         return 1;
     }
 
     config_lookup_string(&config, "prefix", &prefix);
     if (!prefix || strcmp(prefix, "") == 0 || prefix[0] != '/') {
-        gcslog_fatal("prefix must be a valid URI (was %s)", prefix);
+        log_fatal("prefix must be a valid URI (was %s)", prefix);
 
         config_destroy(&config);
-        gcs_log_close();
+        log_close();
 
         return 1;
     }
 
     if (gcs_ctxpool_init(maxconns) != maxconns) {
-        gcslog_fatal("failed to initialise PG context pool");
+        log_fatal("failed to initialise PG context pool");
 
         config_destroy(&config);
-        gcs_log_close();
+        log_close();
 
         return 1;
     }
 
     if (!gcs_pg_connect(pgdsn, pguser, pgpasswd, dbconns, NULL)) {
-        gcslog_fatal("failed to connect to PG");
+        log_fatal("failed to connect to PG");
 
         config_destroy(&config);
-        gcs_log_close();
+        log_close();
 
         return 1;
     }
@@ -195,11 +195,11 @@ int main(int argc, char **argv)
 
     instid = core_services_init(prefix);
     if (!instid) {
-        gcslog_fatal("core services failed to start!");
+        log_fatal("core services failed to start!");
 
         gcs_pg_disconnect();
         config_destroy(&config);
-        gcs_log_close();
+        log_close();
 
         return 1;
     }
@@ -209,10 +209,10 @@ int main(int argc, char **argv)
 
     gcs_authz_init(smbhost, smbuser, smbpasswd);
 
-    gcslog_notice("starting SOAP server");
+    log_notice("starting SOAP server");
     soap_server_run();
 
-    gcslog_notice("shutting down");
+    log_notice("shutting down");
     soap_server_destroy();
 
     free(soapargs[2]);
@@ -222,7 +222,7 @@ int main(int argc, char **argv)
     gcs_authz_free();
 
     gcs_pg_disconnect();
-    gcs_log_close();
+    log_close();
 
     free(instid);
 

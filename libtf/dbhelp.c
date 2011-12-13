@@ -64,7 +64,7 @@ tf_error tf_db_build_list(const char * const *list, char *buf, const int buflen,
         r = buflen - *curpos;
     }
 
-    gcslog_trace("SQL list fragment: %s", buf);
+    log_trace("SQL list fragment: %s", buf);
     return TF_ERROR_SUCCESS;
 }
 

@@ -102,7 +102,7 @@ static tf_error _create_catalog_objects(const char *connstr)
     return TF_ERROR_SUCCESS;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL WHENEVER SQLERROR CONTINUE;
     EXEC SQL AT :conn ROLLBACK WORK;
@@ -157,7 +157,7 @@ static tf_error _create_location_objects(const char *connstr)
     return TF_ERROR_SUCCESS;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL WHENEVER SQLERROR CONTINUE;
     EXEC SQL AT :conn ROLLBACK WORK;
@@ -191,12 +191,12 @@ tf_error tf_init_configdb(pgctx *ctx)
     EXEC SQL AT :conn BEGIN WORK;
 
     if (result = _create_location_objects(ctx->conn)) {
-        gcslog_critical("failed to create location services objects!");
+        log_critical("failed to create location services objects!");
         return result;
     }
 
     if (result = _create_catalog_objects(ctx->conn)) {
-        gcslog_critical("failed to create server catalog objects!");
+        log_critical("failed to create server catalog objects!");
         return result;
     }
 
@@ -259,7 +259,7 @@ tf_error tf_init_configdb(pgctx *ctx)
     return TF_ERROR_SUCCESS;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL WHENEVER SQLERROR CONTINUE;
     EXEC SQL AT :conn ROLLBACK;
@@ -289,7 +289,7 @@ tf_error tf_init_pcdb(pgctx *ctx)
     return _create_location_objects(ctx->conn);
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL WHENEVER SQLERROR CONTINUE;
     EXEC SQL AT :conn ROLLBACK WORK;

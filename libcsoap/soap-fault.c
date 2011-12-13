@@ -73,7 +73,7 @@ soap_fault_build(fault_code_t fcode,
   char *buffer;
   xmlDocPtr fault;              /* result */
 
-  gcslog_debug("Build fault");
+  log_debug("Build fault");
 
   switch (fcode)
   {
@@ -101,7 +101,7 @@ soap_fault_build(fault_code_t fcode,
   if (detail)
     bufferlen += strlen(detail);
 
-  gcslog_debug("Creating buffer with %d bytes", bufferlen);
+  log_debug("Creating buffer with %d bytes", bufferlen);
   buffer = (char *) malloc(bufferlen);
 
   sprintf(buffer, _SOAP_FAULT_TEMPLATE_,
@@ -115,13 +115,13 @@ soap_fault_build(fault_code_t fcode,
 
   if (fault == NULL)
   {
-    gcslog_error("Can not create xml document!");
+    log_error("Can not create xml document!");
 
     return soap_fault_build(fcode, "Can not create fault object in xml",
                             "soap_fault_build()", NULL);
   }
 
-  gcslog_debug("Returning fault (%p)", fault);
+  log_debug("Returning fault (%p)", fault);
   return fault;
 
 }

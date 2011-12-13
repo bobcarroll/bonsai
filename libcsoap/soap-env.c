@@ -150,7 +150,7 @@ soap_env_new_from_doc(xmlDocPtr doc, SoapEnv ** out)
 
   if (doc == NULL)
   {
-    gcslog_error("Can not create xml document!");
+    log_error("Can not create xml document!");
     return herror_new("soap_env_new_from_doc",
                       GENERAL_INVALID_PARAM,
                       "XML Document (xmlDocPtr) is NULL");
@@ -158,14 +158,14 @@ soap_env_new_from_doc(xmlDocPtr doc, SoapEnv ** out)
 
   if (!(node = xmlDocGetRootElement(doc)))
   {
-    gcslog_error("XML document is empty!");
+    log_error("XML document is empty!");
     return herror_new("soap_env_new_from_doc",
                       XML_ERROR_EMPTY_DOCUMENT, "XML Document is empty!");
   }
 
   if (!(env = (SoapEnv *) malloc(sizeof(SoapEnv))))
   {
-    gcslog_error("malloc failed (%s)", strerror(errno));
+    log_error("malloc failed (%s)", strerror(errno));
     return herror_new("soap_env_from_doc", GENERAL_INVALID_PARAM, "malloc failed");
   }
 
@@ -280,8 +280,8 @@ soap_env_new_with_method(const char *urn, const char *method, SoapEnv ** out)
   xmlDocPtr env;
   xmlChar buffer[1054];
 
-  gcslog_debug("URN = '%s'", urn);
-  gcslog_debug("Method = '%s'", method);
+  log_debug("URN = '%s'", urn);
+  log_debug("Method = '%s'", method);
 
   if (!strcmp(urn, ""))
   {
@@ -368,7 +368,7 @@ soap_env_add_item(SoapEnv * call, const char *type, const char *name, const char
 
   if (newnode == NULL)
   {
-    gcslog_error("Can not create new xml node");
+    log_error("Can not create new xml node");
     return NULL;
   }
 
@@ -376,7 +376,7 @@ soap_env_add_item(SoapEnv * call, const char *type, const char *name, const char
   {
     if (!xmlNewProp(newnode, BAD_CAST "xsi:type", BAD_CAST type))
     {
-      gcslog_error("Can not create new xml attribute");
+      log_error("Can not create new xml attribute");
       return NULL;
     }
   }
@@ -411,7 +411,7 @@ soap_env_add_attachment(SoapEnv * call, const char *name, const char *href)
 
   if (newnode == NULL)
   {
-    gcslog_error("Can not create new xml node");
+    log_error("Can not create new xml node");
     return NULL;
   }
 
@@ -419,7 +419,7 @@ soap_env_add_attachment(SoapEnv * call, const char *name, const char *href)
   {
     if (!xmlNewProp(newnode, BAD_CAST "href", BAD_CAST href))
     {
-      gcslog_error("Can not create new xml attribute");
+      log_error("Can not create new xml attribute");
       return NULL;
     }
   }
@@ -488,13 +488,13 @@ soap_env_get_body(SoapEnv * env)
 
   if (env == NULL)
   {
-    gcslog_error("env object is NULL");
+    log_error("env object is NULL");
     return NULL;
   }
 
   if (env->root == NULL)
   {
-    gcslog_error("env has no xml");
+    log_error("env has no xml");
     return NULL;
   }
 
@@ -510,7 +510,7 @@ soap_env_get_body(SoapEnv * env)
       return node;
   }
 
-  gcslog_error("Body tag not found!");
+  log_error("Body tag not found!");
   return NULL;
 }
 
@@ -522,13 +522,13 @@ soap_env_get_header(SoapEnv *env)
 
   if (!env)
   {
-    gcslog_error("SoapEnv is NULL");
+    log_error("SoapEnv is NULL");
     return NULL;
   }
 
   if (!env->root)
   {
-    gcslog_error("SoapEnv contains no document");
+    log_error("SoapEnv contains no document");
     return NULL;
   }
 
@@ -565,7 +565,7 @@ soap_env_get_fault(SoapEnv * env)
     node = soap_xml_get_next(node);
   }
 
-/*  gcslog_warn ("Node Fault tag found!");*/
+/*  log_warn ("Node Fault tag found!");*/
   return NULL;
 }
 
@@ -577,7 +577,7 @@ soap_env_get_method(SoapEnv * env)
 
   if (!(body = soap_env_get_body(env)))
   {
-    gcslog_debug("SoapEnv contains no Body");
+    log_debug("SoapEnv contains no Body");
     return NULL;
   }
 
@@ -596,13 +596,13 @@ _soap_env_get_body(SoapEnv * env)
 
   if (env == NULL)
   {
-    gcslog_error("SoapEnv is NULL");
+    log_error("SoapEnv is NULL");
     return NULL;
   }
 
   if (env->root == NULL)
   {
-    gcslog_error("SoapEnv contains no XML document");
+    log_error("SoapEnv contains no XML document");
     return NULL;
   }
 
@@ -612,20 +612,20 @@ _soap_env_get_body(SoapEnv * env)
 
   if (!xpathobj)
   {
-    gcslog_error("No Body (xpathobj)!");
+    log_error("No Body (xpathobj)!");
     return NULL;
   }
 
   if (!(nodeset = xpathobj->nodesetval))
   {
-    gcslog_error("No Body (nodeset)!");
+    log_error("No Body (nodeset)!");
     xmlXPathFreeObject(xpathobj);
     return NULL;
   }
 
   if (nodeset->nodeNr < 1)
   {
-    gcslog_error("No Body (nodeNr)!");
+    log_error("No Body (nodeNr)!");
     xmlXPathFreeObject(xpathobj);
     return NULL;
   }
@@ -645,14 +645,14 @@ soap_env_find_urn(SoapEnv * env)
 
   if (!(body = soap_env_get_body(env)))
   {
-    gcslog_debug("body is NULL");
+    log_debug("body is NULL");
     return 0;
   }
 
   /* node is the first child */
   if (!(node = soap_xml_get_children(body)))
   {
-    gcslog_error("No namespace found");
+    log_error("No namespace found");
     return 0;
   }
 
@@ -668,7 +668,7 @@ soap_env_find_urn(SoapEnv * env)
   else
   {
     static char *empty = "";
-    gcslog_warn("No namespace found");
+    log_warn("No namespace found");
     return(empty);
   }
 
@@ -689,13 +689,13 @@ soap_env_find_methodname(SoapEnv * env)
 
   if (node == NULL)
   {
-    gcslog_error("No method found");
+    log_error("No method found");
     return 0;
   }
 
   if (node->name == NULL)
   {
-    gcslog_error("No methodname found");
+    log_error("No methodname found");
     return 0;
 
   }

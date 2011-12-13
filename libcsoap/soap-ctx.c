@@ -37,7 +37,7 @@ soap_ctx_new(SoapEnv * env)     /* should only be used internally */
  
   if (!(ctx = (SoapCtx *) malloc(sizeof(SoapCtx))))
   {
-    gcslog_error("malloc failed (%s)", strerror(errno));
+    log_error("malloc failed (%s)", strerror(errno));
     return NULL;
   }
 

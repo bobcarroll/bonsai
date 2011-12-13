@@ -103,6 +103,6 @@ void status_service_init(SoapRouter **router, const char *prefix, tf_service_ref
         "GetServerStatus",
         TF_SERVER_STATUS_NAMESPACE);
 
-    gcslog_info("registered server status service %s for host %s", url, instid);
+    log_info("registered server status service %s for host %s", url, instid);
 }
 

@@ -75,7 +75,7 @@ httpc_new(void)
 
   if ((status = hsocket_init(&res->sock)) != H_OK)
   {
-    gcslog_warn("hsocket_init failed (%s)", herror_message(status));
+    log_warn("hsocket_init failed (%s)", herror_message(status));
     return NULL;
   }
 
@@ -142,7 +142,7 @@ httpc_add_header(httpc_conn_t *conn, const char *key, const char *value)
 {
   if (!conn)
   {
-    gcslog_warn("Connection object is NULL");
+    log_warn("Connection object is NULL");
     return -1;
   }
 
@@ -156,7 +156,7 @@ httpc_add_headers(httpc_conn_t *conn, const hpair_t *values)
 {
   if (conn == NULL)
   {
-    gcslog_warn("Connection object is NULL");
+    log_warn("Connection object is NULL");
     return;
   }
 
@@ -179,7 +179,7 @@ httpc_set_header(httpc_conn_t *conn, const char *key, const char *value)
 
   if (conn == NULL)
   {
-    gcslog_warn("Connection object is NULL");
+    log_warn("Connection object is NULL");
     return 0;
   }
 
@@ -345,7 +345,7 @@ httpc_talk_to_server(hreq_method_t method, httpc_conn_t * conn,
 
   if ((status = hurl_parse(&url, urlstr)) != H_OK)
   {
-    gcslog_error("Can not parse URL '%s'", SAVE_STR(urlstr));
+    log_error("Can not parse URL '%s'", SAVE_STR(urlstr));
     return status;
   }
 /* TODO (#1#): Check for HTTP protocol in URL */
@@ -376,24 +376,24 @@ httpc_talk_to_server(hreq_method_t method, httpc_conn_t * conn,
       break;
 
     default:
-      gcslog_error("Unknown method type!");
+      log_error("Unknown method type!");
       return herror_new("httpc_talk_to_server",
         GENERAL_INVALID_PARAM,
         "hreq_method_t must be  HTTP_REQUEST_GET or HTTP_REQUEST_POST");
   }
 
-  gcslog_debug("Sending request...");
+  log_debug("Sending request...");
   if ((status = hsocket_send(&(conn->sock), buffer)) != H_OK)
   {
-    gcslog_error("Cannot send request (%s)", herror_message(status));
+    log_error("Cannot send request (%s)", herror_message(status));
     hsocket_close(&(conn->sock));
     return status;
   }
 
-  gcslog_debug("Sending header...");
+  log_debug("Sending header...");
   if ((status = httpc_send_header(conn)) != H_OK)
   {
-    gcslog_error("Cannot send header (%s)", herror_message(status));
+    log_error("Cannot send header (%s)", herror_message(status));
     hsocket_close(&(conn->sock));
     return status;
   }
@@ -465,7 +465,7 @@ static void
 _httpc_mime_get_boundary(httpc_conn_t * conn, char *dest)
 {
   sprintf(dest, "---=.Part_NH_%d", conn->id);
-  gcslog_debug("boundary= \"%s\"", dest);
+  log_debug("boundary= \"%s\"", dest);
 }
 
 herror_t
@@ -627,6 +627,6 @@ httpc_mime_send_file(httpc_conn_t * conn,
   }
 
   fclose(fd);
-  gcslog_debug("file sent!");
+  log_debug("file sent!");
   return H_OK;
 }

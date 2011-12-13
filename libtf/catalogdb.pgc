@@ -47,7 +47,7 @@ tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const
     if (!ctx || !pathspecs || !pathspecs[0] || !types || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
-    gcslog_debug("looking up catalog nodes with path(s)");
+    log_debug("looking up catalog nodes with path(s)");
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
@@ -133,7 +133,7 @@ tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const
             ON cr.fk_resource_type = crt.identifier \
          WHERE %s", 
         where);
-    gcslog_trace("fetch catalog nodes SQL: %s", countstmt);
+    log_trace("fetch catalog nodes SQL: %s", countstmt);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
@@ -141,7 +141,7 @@ tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
     EXEC SQL AT :conn EXECUTE sqlstmt INTO :count;
 
-    gcslog_debug("found %d matching catalog node(s)", count);
+    log_debug("found %d matching catalog node(s)", count);
     *result = (tf_node **)calloc(count + 1, sizeof(tf_node *));
 
     if (count == 0)
@@ -213,7 +213,7 @@ tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const
     return TF_ERROR_SUCCESS;
 
 error_cur:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn CLOSE fetch_nodes;
@@ -221,7 +221,7 @@ error_cur:
     return TF_ERROR_PG_FAILURE;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
 
@@ -241,7 +241,7 @@ tf_error tf_fetch_resources(pgctx *ctx, const char * const *idarr, int types, tf
     if (!ctx || !idarr || !idarr[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
-    gcslog_debug("looking up catalog resources");
+    log_debug("looking up catalog resources");
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
@@ -271,7 +271,7 @@ tf_error tf_fetch_resources(pgctx *ctx, const char * const *idarr, int types, tf
          WHERE %s IN (%s)", 
         types ? "crt.identifier" : "cr.identifier", 
         residlst);
-    gcslog_trace("fetch catalog resources SQL: %s", countstmt);
+    log_trace("fetch catalog resources SQL: %s", countstmt);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
@@ -279,7 +279,7 @@ tf_error tf_fetch_resources(pgctx *ctx, const char * const *idarr, int types, tf
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
     EXEC SQL AT :conn EXECUTE sqlstmt INTO :count;
 
-    gcslog_debug("found %d matching resource(s)", count);
+    log_debug("found %d matching resource(s)", count);
     *result = (tf_node **)calloc(count + 1, sizeof(tf_node *));
 
     if (count == 0)
@@ -353,7 +353,7 @@ tf_error tf_fetch_resources(pgctx *ctx, const char * const *idarr, int types, tf
     return TF_ERROR_SUCCESS;
 
 error_cur:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn CLOSE fetch_resources;
@@ -361,7 +361,7 @@ error_cur:
     return TF_ERROR_PG_FAILURE;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
 
@@ -380,7 +380,7 @@ tf_error tf_fetch_pc_service_refs(pgctx *ctx, const char *instid, tf_service_ref
     if (!ctx || !instid || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
-    gcslog_debug("looking up service references for host instance %s", instid);
+    log_debug("looking up service references for host instance %s", instid);
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
@@ -409,7 +409,7 @@ tf_error tf_fetch_pc_service_refs(pgctx *ctx, const char *instid, tf_service_ref
         TF_CATALOG_TYPE_TEAM_PRJ_COLLECITON,
         TF_CATALOG_PROPERTY_INSTANCE_ID_ID,
         instid);
-    gcslog_trace("fetch catalog services SQL: %s", countstmt);
+    log_trace("fetch catalog services SQL: %s", countstmt);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
@@ -417,7 +417,7 @@ tf_error tf_fetch_pc_service_refs(pgctx *ctx, const char *instid, tf_service_ref
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
     EXEC SQL AT :conn EXECUTE sqlstmt INTO :count;
 
-    gcslog_debug("found %d catalog service(s)", count);
+    log_debug("found %d catalog service(s)", count);
     *result = (tf_service_ref **)calloc(count + 1, sizeof(tf_service_ref *));
 
     if (count == 0)
@@ -502,7 +502,7 @@ tf_error tf_fetch_pc_service_refs(pgctx *ctx, const char *instid, tf_service_ref
     return TF_ERROR_SUCCESS;
 
 error_cur:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn CLOSE fetch_pc_service_refs;
@@ -510,7 +510,7 @@ error_cur:
     return TF_ERROR_PG_FAILURE;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
 
@@ -529,7 +529,7 @@ tf_error tf_fetch_service_refs(pgctx *ctx, tf_node **nodes, tf_service_ref ***re
     if (!ctx || !nodes || !nodes[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
-    gcslog_debug("looking up service references for catalog node(s)");
+    log_debug("looking up service references for catalog node(s)");
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
@@ -571,7 +571,7 @@ tf_error tf_fetch_service_refs(pgctx *ctx, tf_node **nodes, tf_service_ref ***re
            ON sd.fk_tool_id = tt.id \
         WHERE csr.resource_identifier IN (%s)", 
         residlst);
-    gcslog_trace("fetch catalog services SQL: %s", countstmt);
+    log_trace("fetch catalog services SQL: %s", countstmt);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
@@ -579,7 +579,7 @@ tf_error tf_fetch_service_refs(pgctx *ctx, tf_node **nodes, tf_service_ref ***re
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
     EXEC SQL AT :conn EXECUTE sqlstmt INTO :count;
 
-    gcslog_debug("found %d catalog service(s)", count);
+    log_debug("found %d catalog service(s)", count);
     *result = (tf_service_ref **)calloc(count + 1, sizeof(tf_service_ref *));
 
     if (count == 0)
@@ -653,7 +653,7 @@ tf_error tf_fetch_service_refs(pgctx *ctx, tf_node **nodes, tf_service_ref ***re
     return TF_ERROR_SUCCESS;
 
 error_cur:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn CLOSE fetch_service_refs;
@@ -661,7 +661,7 @@ error_cur:
     return TF_ERROR_PG_FAILURE;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
 
@@ -680,7 +680,7 @@ tf_error tf_fetch_properties(pgctx *ctx, tf_node **nodes, tf_property ***result)
     if (!ctx || !nodes || !nodes[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
-    gcslog_debug("looking up resource properties for catalog node(s)");
+    log_debug("looking up resource properties for catalog node(s)");
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
@@ -719,7 +719,7 @@ tf_error tf_fetch_properties(pgctx *ctx, tf_node **nodes, tf_property ***result)
            ON pv.fk_property_id = pd.id \
         WHERE artifact_id IN (%s)",
         idlst);
-    gcslog_trace("fetch resource properties SQL: %s", countstmt);
+    log_trace("fetch resource properties SQL: %s", countstmt);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
@@ -727,7 +727,7 @@ tf_error tf_fetch_properties(pgctx *ctx, tf_node **nodes, tf_property ***result)
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
     EXEC SQL AT :conn EXECUTE sqlstmt INTO :count;
 
-    gcslog_debug("found %d resource properties", count);
+    log_debug("found %d resource properties", count);
     *result = (tf_property **)calloc(count + 1, sizeof(tf_property **));
 
     if (count == 0)
@@ -782,7 +782,7 @@ tf_error tf_fetch_properties(pgctx *ctx, tf_node **nodes, tf_property ***result)
     return TF_ERROR_SUCCESS;
 
 error_cur:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn CLOSE fetch_properties;
@@ -790,7 +790,7 @@ error_cur:
     return TF_ERROR_PG_FAILURE;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
 

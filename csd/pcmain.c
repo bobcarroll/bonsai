@@ -56,7 +56,7 @@ static void _start_service(tf_service_ref *ref, SoapRouter **router, const char 
     else if (strcmp(ref->service.type, TF_SERVICE_TYPE_STATUS) == 0)
         status_service_init(router, prefix, ref, instid);
     else
-        gcslog_warn("cannot start unknown service type %s", ref->service.type);
+        log_warn("cannot start unknown service type %s", ref->service.type);
 }
 
 /**
@@ -81,7 +81,7 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
         return;
 
     if (_routers) {
-        gcslog_warn("project collection services are already initialised!");
+        log_warn("project collection services are already initialised!");
         return;
     }
 
@@ -89,7 +89,7 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
     dberr = tf_fetch_hosts(ctx, instid, &hostarr);
 
     if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {
-        gcslog_warn("no project collections were found for instance %s", instid);
+        log_warn("no project collections were found for instance %s", instid);
         hostarr = tf_free_host_array(hostarr);
         return;
     }
@@ -98,22 +98,22 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
 
     for (i = 0; hostarr[i]; i++) {
         if (!gcs_pg_connect(hostarr[i]->connstr, pguser, pgpasswd, dbconns, hostarr[i]->id)) {
-            gcslog_error("failed to connect to PG");
+            log_error("failed to connect to PG");
             continue;
         }
 
-        gcslog_info("initialising project collection services for %s", hostarr[i]->name);
+        log_info("initialising project collection services for %s", hostarr[i]->name);
         dberr = tf_fetch_pc_service_refs(ctx, hostarr[i]->id, &refarr);
 
         if (dberr != TF_ERROR_SUCCESS || !refarr[0]) {
-            gcslog_warn("failed to retrieve project collection services for %s", hostarr[i]->id);
+            log_warn("failed to retrieve project collection services for %s", hostarr[i]->id);
             refarr = tf_free_service_ref_array(refarr);
             continue;
         }
 
         for (n = 0; refarr[n]; n++) {
             if (n == MAX_ROUTERS) {
-                gcslog_error(
+                log_error(
                     "unable to start service because the maximum count was reached (%d)", 
                     MAX_ROUTERS);
                 break;

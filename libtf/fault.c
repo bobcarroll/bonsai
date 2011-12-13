@@ -46,7 +46,7 @@ xmlNode *tf_fault_env(int code, const char *msg, int tferr, SoapEnv **out)
     xmlNode *detailnode = NULL;
     char tferrstr[10];
 
-    gcslog_info("SOAP Fault %d: %s", tferr, msg);
+    log_info("SOAP Fault %d: %s", tferr, msg);
 
     if (*out)
         soap_env_free(*out);

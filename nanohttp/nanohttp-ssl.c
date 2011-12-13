@@ -161,7 +161,7 @@ _hssl_dummy_verify_cert(X509 * cert)
 
   /* connect to anyone */
 
-  gcslog_debug("Validating certificate.");
+  log_debug("Validating certificate.");
   return 1;
 }
 
@@ -171,18 +171,18 @@ _hssl_cert_verify_callback(int prev_ok, X509_STORE_CTX * ctx)
 /*
     if ((X509_STORE_CTX_get_error(ctx) = X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN))
     {
-        gcslog_debug("Self signed cert in chain");
+        log_debug("Self signed cert in chain");
         return 1;
     }
 */
-  gcslog_debug("Cert depth = %d", X509_STORE_CTX_get_error_depth(ctx));
+  log_debug("Cert depth = %d", X509_STORE_CTX_get_error_depth(ctx));
   if (X509_STORE_CTX_get_error_depth(ctx) == 0)
   {
     return _hssl_verify_cert(X509_STORE_CTX_get_current_cert(ctx));
   }
   else
   {
-    gcslog_debug("Cert ok (prev)");
+    log_debug("Cert ok (prev)");
     return prev_ok;
   }
 }
@@ -248,7 +248,7 @@ _hssl_library_init(void)
 
   if (!initialized)
   {
-    gcslog_debug("Initializing library");
+    log_debug("Initializing library");
 
     SSL_library_init();
 
@@ -267,21 +267,21 @@ _hssl_library_init(void)
 static herror_t
 _hssl_server_context_init(void)
 {
-  gcslog_debug("enabled=%i, certificate=%p", enabled, certificate);
+  log_debug("enabled=%i, certificate=%p", enabled, certificate);
 
   if (!enabled || !certificate)
     return H_OK;
 
   if (!(context = SSL_CTX_new(SSLv23_method())))
   {
-    gcslog_error("Cannot create SSL context");
+    log_error("Cannot create SSL context");
     return herror_new("_hssl_server_context_init", HSSL_ERROR_CONTEXT,
                       "Unable to create SSL context");
   }
 
   if (!(SSL_CTX_use_certificate_file(context, certificate, SSL_FILETYPE_PEM)))
   {
-    gcslog_error("Cannot read certificate file: \"%s\"", certificate);
+    log_error("Cannot read certificate file: \"%s\"", certificate);
     SSL_CTX_free(context);
     return herror_new("_hssl_server_context_init", HSSL_ERROR_CERTIFICATE,
                       "Unable to use SSL certificate \"%s\"", certificate);
@@ -291,7 +291,7 @@ _hssl_server_context_init(void)
 
   if (!(SSL_CTX_use_PrivateKey_file(context, certificate, SSL_FILETYPE_PEM)))
   {
-    gcslog_error("Cannot read key file: \"%s\"", certificate);
+    log_error("Cannot read key file: \"%s\"", certificate);
     SSL_CTX_free(context);
     return herror_new("_hssl_server_context_init", HSSL_ERROR_PEM,
                       "Unable to use private key");
@@ -302,18 +302,18 @@ _hssl_server_context_init(void)
     if (!(SSL_CTX_load_verify_locations(context, ca_list, NULL)))
     {
       SSL_CTX_free(context);
-      gcslog_error("Cannot read CA list: \"%s\"", ca_list);
+      log_error("Cannot read CA list: \"%s\"", ca_list);
       return herror_new("_hssl_server_context_init", HSSL_ERROR_CA_LIST,
                         "Unable to read certification authorities \"%s\"");
     }
 
     SSL_CTX_set_client_CA_list(context, SSL_load_client_CA_file(ca_list));
-    gcslog_debug("Certification authority contacted");
+    log_debug("Certification authority contacted");
   }
 
   SSL_CTX_set_verify(context, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE,
                      _hssl_cert_verify_callback);
-  gcslog_debug("Certificate verification callback registered");
+  log_debug("Certificate verification callback registered");
 
   SSL_CTX_set_mode(context, SSL_MODE_AUTO_RETRY);
 
@@ -345,11 +345,11 @@ hssl_module_init(int argc, char **argv)
   if (enabled)
   {
     _hssl_library_init();
-    gcslog_debug("SSL enabled");
+    log_debug("SSL enabled");
   }
   else
   {
-    gcslog_debug("SSL _not_ enabled");
+    log_debug("SSL _not_ enabled");
   }
 
   return _hssl_server_context_init();
@@ -378,11 +378,11 @@ hssl_client_ssl(hsocket_t * sock)
   SSL *ssl;
   int ret;
 
-  gcslog_debug("Starting SSL client initialization");
+  log_debug("Starting SSL client initialization");
 
   if (!(ssl = SSL_new(context)))
   {
-    gcslog_error("Cannot create new SSL object");
+    log_error("Cannot create new SSL object");
     return herror_new("hssl_client_ssl", HSSL_ERROR_CLIENT, "SSL_new failed");
   }
 
@@ -392,7 +392,7 @@ hssl_client_ssl(hsocket_t * sock)
   {
     herror_t err;
 
-    gcslog_error("SSL connect error (%s)", _hssl_get_error(ssl, -1));
+    log_error("SSL connect error (%s)", _hssl_get_error(ssl, -1));
     err =
       herror_new("hssl_client_ssl", HSSL_ERROR_CONNECT,
                  "SSL_connect failed (%s)", _hssl_get_error(ssl, ret));
@@ -401,15 +401,15 @@ hssl_client_ssl(hsocket_t * sock)
   }
 
   /* SSL_connect should take care of this for us. if
-     (SSL_get_peer_certificate(ssl) == NULL) { gcslog_error("No certificate
+     (SSL_get_peer_certificate(ssl) == NULL) { log_error("No certificate
      provided"); SSL_free(ssl); return herror_new("hssl_client_ssl",
      HSSL_ERROR_CERTIFICATE, "No certificate provided"); }
 
-     if (SSL_get_verify_result(ssl) != X509_V_OK) { gcslog_error("Certificate
+     if (SSL_get_verify_result(ssl) != X509_V_OK) { log_error("Certificate
      did not verify"); SSL_free(ssl); return herror_new("hssl_client_ssl",
      HSSL_ERROR_CERTIFICATE, "Verfiy certificate failed"); } */
 
-  gcslog_debug("SSL client initialization completed");
+  log_debug("SSL client initialization completed");
 
   sock->ssl = ssl;
 
@@ -433,11 +433,11 @@ hssl_server_ssl(hsocket_t * sock)
   if (!enabled)
     return H_OK;
 
-  gcslog_debug("Starting SSL initialization for socket %d", sock->sock);
+  log_debug("Starting SSL initialization for socket %d", sock->sock);
 
   if (!(ssl = SSL_new(context)))
   {
-    gcslog_warn("SSL_new failed");
+    log_warn("SSL_new failed");
     return herror_new("hssl_server_ssl", HSSL_ERROR_SERVER,
                       "Cannot create SSL object");
   }
@@ -447,7 +447,7 @@ hssl_server_ssl(hsocket_t * sock)
 
   if (sbio == NULL)
   {
-    gcslog_error("BIO_new_socket failed");
+    log_error("BIO_new_socket failed");
     return NULL;
   }
   // BIO_set_callback(sbio, hssl_bio_cb);
@@ -459,7 +459,7 @@ hssl_server_ssl(hsocket_t * sock)
   {
     herror_t err;
 
-    gcslog_error("SSL_accept failed (%s)", _hssl_get_error(ssl, ret));
+    log_error("SSL_accept failed (%s)", _hssl_get_error(ssl, ret));
 
     err =
       herror_new("hssl_server_ssl", HSSL_ERROR_SERVER,
@@ -493,7 +493,7 @@ hssl_read(hsocket_t * sock, char *buf, size_t len, size_t * received)
 {
   int count;
 
-/* gcslog_debug("sock->sock=%d sock->ssl=%p, len=%li", sock->sock, sock->ssl, len); */
+/* log_debug("sock->sock=%d sock->ssl=%p, len=%li", sock->sock, sock->ssl, len); */
 
   if (sock->ssl)
   {
@@ -519,7 +519,7 @@ hssl_write(hsocket_t * sock, const char *buf, size_t len, size_t * sent)
 {
   int count;
 
-/*  gcslog_debug("sock->sock=%d, sock->ssl=%p, len=%li", sock->sock, sock->ssl, len); */
+/*  log_debug("sock->sock=%d, sock->ssl=%p, len=%li", sock->sock, sock->ssl, len); */
 
   if (sock->ssl)
   {

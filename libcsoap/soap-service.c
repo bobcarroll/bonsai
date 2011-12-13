@@ -61,7 +61,7 @@ soap_service_new(const char *urn, const char *method, SoapServiceFunc f)
   }
   else
   {
-    gcslog_warn("urn is NULL");
+    log_warn("urn is NULL");
     service->urn = "";
   }
 
@@ -72,7 +72,7 @@ soap_service_new(const char *urn, const char *method, SoapServiceFunc f)
   }
   else
   {
-    gcslog_warn("method is NULL");
+    log_warn("method is NULL");
     service->method = "";
   }
 
@@ -84,7 +84,7 @@ soap_service_new(const char *urn, const char *method, SoapServiceFunc f)
 void
 soap_service_free(SoapService * service)
 {
-  gcslog_debug("enter: service=%p", service);
+  log_debug("enter: service=%p", service);
 
   if (service == NULL)
     return;
@@ -96,5 +96,5 @@ soap_service_free(SoapService * service)
     free(service->method);
 
   free(service);
-  gcslog_debug("leave with success");
+  log_debug("leave with success");
 }

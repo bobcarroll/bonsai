@@ -135,6 +135,6 @@ void registration_service_init(SoapRouter **router, const char *prefix, tf_servi
         "GetRegistrationEntries",
         TF_REGISTRATION_NAMESPACE);
 
-    gcslog_info("registered registration service %s for host %s", url, instid);
+    log_info("registered registration service %s for host %s", url, instid);
 }
 

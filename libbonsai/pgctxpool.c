@@ -45,10 +45,10 @@ static char *_nulltag = NULL;
 int gcs_ctxpool_init(int count)
 {
     if (_ctxpool) {
-        gcslog_warn("context pool is already initialised");
+        log_warn("context pool is already initialised");
         return 0;
     } else if (count < 1) {
-        gcslog_error("context count must be at least 1 (was %d)", count);
+        log_error("context count must be at least 1 (was %d)", count);
         return 0;
     }
 
@@ -57,7 +57,7 @@ int gcs_ctxpool_init(int count)
     _ctxcount = count;
     pthread_mutex_unlock(&_ctxmtx);
 
-    gcslog_debug("initialised PG context pool with size %d", count);
+    log_debug("initialised PG context pool with size %d", count);
     return count;
 }
 
@@ -80,7 +80,7 @@ void gcs_ctxpool_free()
             }
 
             _ctxpool[i] = NULL;
-            gcslog_debug("freed PG context %d", i);
+            log_debug("freed PG context %d", i);
         }
 
         free(_ctxpool);
@@ -91,7 +91,7 @@ void gcs_ctxpool_free()
 
     pthread_mutex_unlock(&_ctxmtx);
 
-    gcslog_debug("freed PG context pool");
+    log_debug("freed PG context pool");
 }
 
 /**
@@ -127,7 +127,7 @@ int gcs_pgctx_alloc(const char *conn, const char *tag)
     for (i = 0; i < _ctxcount; i++) {
         if (_ctxpool[i] && strcmp(_ctxpool[i]->conn, conn) == 0) {
             pthread_mutex_unlock(&_ctxmtx);
-            gcslog_warn("a PG context is already allocated for %s", conn);
+            log_warn("a PG context is already allocated for %s", conn);
             return 1;
         } else if (_ctxpool[i])
             continue;
@@ -141,13 +141,13 @@ int gcs_pgctx_alloc(const char *conn, const char *tag)
             _ctxpool[i]->tag = strdup(tag);
 
         pthread_mutex_unlock(&_ctxmtx);
-        gcslog_debug("allocated PG connection %s as context %d", conn, i);
+        log_debug("allocated PG connection %s as context %d", conn, i);
 
         return 1;
     }
 
     pthread_mutex_unlock(&_ctxmtx);
-    gcslog_warn("all context slots are in use");
+    log_warn("all context slots are in use");
 
     return 0;
 }
@@ -185,7 +185,7 @@ pgctx *gcs_pgctx_acquire(const char *tag)
     pgctx *result = NULL;
     int i = 0, m;
 
-    gcslog_debug("acquiring PG context with tag %s", tag);
+    log_debug("acquiring PG context with tag %s", tag);
 
     pthread_mutex_lock(&_ctxmtx);
     for (i = 0; i < _ctxcount && _ctxpool[i]; i++) {
@@ -194,7 +194,7 @@ pgctx *gcs_pgctx_acquire(const char *tag)
              (tag && _ctxpool[i]->tag && strcmp(_ctxpool[i]->tag, tag) == 0));
 
         if (_ctxpool[i] && _ctxpool[i]->owner == (unsigned long)pthread_self() && m) {
-            gcslog_debug("got PG context %d (reused)", i);
+            log_debug("got PG context %d (reused)", i);
 
             _ctxpool[i]->refcount++;
             result = _ctxpool[i];
@@ -215,7 +215,7 @@ pgctx *gcs_pgctx_acquire(const char *tag)
              (tag && _ctxpool[i]->tag && strcmp(_ctxpool[i]->tag, tag) == 0));
 
         if (_ctxpool[i] && _ctxpool[i]->owner == 0 && m) {
-            gcslog_debug("got PG context %d", i);
+            log_debug("got PG context %d", i);
 
             _ctxpool[i]->owner = (unsigned long)pthread_self();
             _ctxpool[i]->refcount++;
@@ -228,7 +228,7 @@ pgctx *gcs_pgctx_acquire(const char *tag)
 
         i++;
         if (i == _ctxcount || !_ctxpool[i]) {
-            gcslog_info("No available PG context, sleeping...");
+            log_info("No available PG context, sleeping...");
             sleep(5);
             i = 0;
         }
@@ -257,9 +257,9 @@ void gcs_pgctx_release(pgctx *context)
 
             if (context->refcount == 0) {
                 context->owner = 0;
-                gcslog_debug("released PG context %d", i);
+                log_debug("released PG context %d", i);
             } else
-                gcslog_debug("PG context %d is still in use", i);
+                log_debug("PG context %d is still in use", i);
 
             break;
         }

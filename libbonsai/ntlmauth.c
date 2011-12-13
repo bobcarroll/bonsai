@@ -47,12 +47,12 @@ gcs_ntlmctx *gcs_ntlmauth_init(const char *helper)
     int errfd[2];
 
     if (!helper) {
-        gcslog_error("missing helper application path!");
+        log_error("missing helper application path!");
         return NULL;
     }
 
     if (access(helper, X_OK)) {
-        gcslog_error("permission check failed for helper %s", helper);
+        log_error("permission check failed for helper %s", helper);
         return NULL;
     }
 
@@ -65,10 +65,10 @@ gcs_ntlmctx *gcs_ntlmauth_init(const char *helper)
     pipe(outfd);
     pipe(errfd);
 
-    gcslog_debug("spawning child process %s", helper);
+    log_debug("spawning child process %s", helper);
 
     if ((result->pid = fork()) == -1) {
-        gcslog_error("fork() failed with error %d", result->pid);
+        log_error("fork() failed with error %d", result->pid);
 
         close(infd[READ]);
         close(infd[WRITE]);
@@ -150,10 +150,10 @@ int gcs_ntlmauth_challenge(gcs_ntlmctx *ctx, const char *challenge, char **respo
         return 0;
 
     if (!challenge) {
-        gcslog_debug("empty challenge received, starting NTLM negotiation");
+        log_debug("empty challenge received, starting NTLM negotiation");
         ctx->state = NTLM_RESET;
     } else if (strlen(challenge) < 6 || strncmp(challenge, "NTLM ", 5)) {
-        gcslog_error("NTLM challenge is malformed!");
+        log_error("NTLM challenge is malformed!");
         ctx->state = NTLM_RESET;
     }
 
@@ -168,7 +168,7 @@ int gcs_ntlmauth_challenge(gcs_ntlmctx *ctx, const char *challenge, char **respo
         bzero(code, 3);
 
         strncpy(data, challenge + 5, 1024);
-        gcslog_trace("NTLM challenge data: %s", data);
+        log_trace("NTLM challenge data: %s", data);
 
         if (ctx->state == NTLM_NEGOTIATE) {
             /* TODO check to make sure this is in fact a type 1 NTLM message */
@@ -185,10 +185,10 @@ int gcs_ntlmauth_challenge(gcs_ntlmctx *ctx, const char *challenge, char **respo
             datalen = 0;
         }
 
-        gcslog_trace("raw data received from helper: %s", data);
+        log_trace("raw data received from helper: %s", data);
 
         if (datalen < 5 || data[2] != ' ' || data[datalen - 1] != '\n') {
-            gcslog_error("response from helper is malformed!");
+            log_error("response from helper is malformed!");
             ctx->state = NTLM_RESET;
             return 0;
         }
@@ -200,23 +200,23 @@ int gcs_ntlmauth_challenge(gcs_ntlmctx *ctx, const char *challenge, char **respo
             char respdata[1024];
             snprintf(respdata, 1024, "NTLM %s", msg);
 
-            gcslog_debug("sending challenge to client");
+            log_debug("sending challenge to client");
             ctx->state = NTLM_RESPONSE;
             *response = strdup(respdata);
         } else if (ctx->state == NTLM_RESPONSE && !strcmp(code, "AF")) {
-            gcslog_info("authentication succeeded for %s", msg);
+            log_info("authentication succeeded for %s", msg);
             ctx->state = NTLM_SUCCESS;
             *response = strdup(msg);
         } else if (ctx->state == NTLM_RESPONSE && !strcmp(code, "NA")) {
-            gcslog_info("authentication failed: %s", msg);
+            log_info("authentication failed: %s", msg);
             ctx->state = NTLM_RESET;
         } else if (!strcmp(code, "BH")) {
             /* TODO the helper probably should be restarted */
-            gcslog_error("received error from helper: %s", msg);
+            log_error("received error from helper: %s", msg);
             ctx->state = NTLM_RESET;
         } else {
-            gcslog_error("authentication context reached an unexpected state");
-            gcslog_debug("context_state=%d helper_code=%s", ctx->state, code);
+            log_error("authentication context reached an unexpected state");
+            log_debug("context_state=%d helper_code=%s", ctx->state, code);
             ctx->state = NTLM_RESET;
         }
     }

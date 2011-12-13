@@ -47,7 +47,7 @@ int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, in
     if (!dsn || !username || !passwd)
         return 0;
 
-    gcslog_info("connecting to %s as %s", dsn, username);
+    log_info("connecting to %s as %s", dsn, username);
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *dsnval = dsn;
@@ -60,8 +60,8 @@ int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, in
     int ctxcount = gcs_pgctx_count();
 
     if (poolsize == 0 || (ctxcount + count) > poolsize) {
-        gcslog_debug("poolsize=%d ctxcount=%d count=%d", poolsize, ctxcount, count);
-        gcslog_error("context pool is uninitialised or not enough contexts are available");
+        log_debug("poolsize=%d ctxcount=%d count=%d", poolsize, ctxcount, count);
+        log_error("context pool is uninitialised or not enough contexts are available");
         return 0;
     }
 
@@ -75,11 +75,11 @@ int gcs_pg_connect(const char *dsn, const char *username, const char *passwd, in
         gcs_pgctx_alloc(connval, tag);
     }
 
-    gcslog_notice("connected to PG (%s)", dsn);
+    log_notice("connected to PG (%s)", dsn);
     return 1;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
     return 0;
 }
 
@@ -91,7 +91,7 @@ error:
  */
 int gcs_pg_disconnect()
 {
-    gcslog_info("disconnecting from PG");
+    log_info("disconnecting from PG");
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *connval = NULL;
@@ -105,7 +105,7 @@ int gcs_pg_disconnect()
     return 1;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
     return 0;
 }
 

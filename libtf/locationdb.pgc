@@ -45,7 +45,7 @@ tf_error tf_fetch_services(pgctx *ctx, tf_service_filter **filters, tf_service *
     if (!ctx || !filters || !filters[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
-    gcslog_debug("looking up service definitions");
+    log_debug("looking up service definitions");
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
@@ -100,7 +100,7 @@ tf_error tf_fetch_services(pgctx *ctx, tf_service_filter **filters, tf_service *
            ON sd.fk_tool_id = tt.id \
         %s",
         where);
-    gcslog_trace("fetch service definitions SQL: %s", countstmt);
+    log_trace("fetch service definitions SQL: %s", countstmt);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
@@ -108,7 +108,7 @@ tf_error tf_fetch_services(pgctx *ctx, tf_service_filter **filters, tf_service *
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
     EXEC SQL AT :conn EXECUTE sqlstmt INTO :count;
 
-    gcslog_debug("found %d service definition(s)", count);
+    log_debug("found %d service definition(s)", count);
     *result = (tf_service **)calloc(count + 1, sizeof(tf_service *));
 
     if (count == 0)
@@ -173,7 +173,7 @@ tf_error tf_fetch_services(pgctx *ctx, tf_service_filter **filters, tf_service *
     return TF_ERROR_SUCCESS;
 
 error_cur:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn CLOSE fetch_services;
@@ -181,7 +181,7 @@ error_cur:
     return TF_ERROR_PG_FAILURE;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
 
@@ -199,7 +199,7 @@ tf_error tf_fetch_access_map(pgctx *ctx, tf_access_map ***result)
     if (!ctx || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
-    gcslog_debug("looking up access mappings");
+    log_debug("looking up access mappings");
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
@@ -211,7 +211,7 @@ tf_error tf_fetch_access_map(pgctx *ctx, tf_access_map ***result)
     sprintf(countstmt, 
         "SELECT COUNT(*) \
         FROM access_mappings");
-    gcslog_trace("fetch access mappings SQL: %s", countstmt);
+    log_trace("fetch access mappings SQL: %s", countstmt);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
@@ -219,7 +219,7 @@ tf_error tf_fetch_access_map(pgctx *ctx, tf_access_map ***result)
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
     EXEC SQL AT :conn EXECUTE sqlstmt INTO :count;
 
-    gcslog_debug("found %d access mapping(s)", count);
+    log_debug("found %d access mapping(s)", count);
     *result = (tf_access_map **)calloc(count + 1, sizeof(tf_access_map *));
 
     if (count == 0)
@@ -265,7 +265,7 @@ tf_error tf_fetch_access_map(pgctx *ctx, tf_access_map ***result)
     return TF_ERROR_SUCCESS;
 
 error_cur:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn CLOSE fetch_access_map;
@@ -273,7 +273,7 @@ error_cur:
     return TF_ERROR_PG_FAILURE;
 
 error:
-    gcslog_error(sqlca.sqlerrm.sqlerrmc);
+    log_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
 

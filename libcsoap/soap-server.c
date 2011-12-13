@@ -72,7 +72,7 @@ _soap_server_send_fault(httpd_conn_t * conn, const char *errmsg)
   if ((err = httpd_send_header(conn, 500, "FAILED")) != H_OK)
   {
     /* WARNING: unhandled exception ! */
-    gcslog_error("%s():%s [%d]", herror_func(err), herror_message(err),
+    log_error("%s():%s [%d]", herror_func(err), herror_message(err),
                herror_code(err));
 
     herror_release(err);
@@ -84,7 +84,7 @@ _soap_server_send_fault(httpd_conn_t * conn, const char *errmsg)
                                 "cSOAP_Server", NULL, &envres);
   if (err != H_OK)
   {
-    gcslog_error(herror_message(err));
+    log_error(herror_message(err));
     http_output_stream_write_string(conn->out, "<html><head></head><body>");
     http_output_stream_write_string(conn->out, "<h1>Error</h1><hr/>");
     http_output_stream_write_string(conn->out,
@@ -204,7 +204,7 @@ router_node_new(SoapRouter * router, const char *context, SoapRouterNode * next)
 
   if (!(node = (SoapRouterNode *) malloc(sizeof(SoapRouterNode)))) {
 
-    gcslog_error("malloc failed (%s)", strerror(errno));
+    log_error("malloc failed (%s)", strerror(errno));
     return NULL;
   }
 
@@ -214,7 +214,7 @@ router_node_new(SoapRouter * router, const char *context, SoapRouterNode * next)
   }
   else
   {
-    gcslog_warn("context is null. Using '%s'", noname);
+    log_warn("context is null. Using '%s'", noname);
     node->context = strdup(noname);
   }
 
@@ -323,7 +323,7 @@ soap_server_entry(httpd_conn_t * conn, hrequest_t * req)
       }
       else
       {
-        gcslog_debug("urn: '%s'", urn);
+        log_debug("urn: '%s'", urn);
       }
 
       if (!(method=soap_env_find_methodname(ctx->env)))
@@ -334,7 +334,7 @@ soap_server_entry(httpd_conn_t * conn, hrequest_t * req)
       }
       else
       {
-        gcslog_debug("method: '%s'", method);
+        log_debug("method: '%s'", method);
       }
 
       service = soap_router_find_service(router, urn, method);
@@ -350,7 +350,7 @@ soap_server_entry(httpd_conn_t * conn, hrequest_t * req)
       else
       {
 
-        gcslog_debug("func: %p", service->func);
+        log_debug("func: %p", service->func);
         ctxres = soap_ctx_new(NULL);
         /* ===================================== */
         /* CALL SERVICE FUNCTION */
@@ -450,7 +450,7 @@ soap_server_destroy()
   while (node != NULL)
   {
     tmp = node->next;
-    gcslog_debug("soap_router_free(%p)", node->router);
+    log_debug("soap_router_free(%p)", node->router);
     soap_router_free(node->router);
     free(node->context);
     free(node);

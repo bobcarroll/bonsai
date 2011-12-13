@@ -121,7 +121,7 @@ hpairnode_new(const char *key, const char *value, hpair_t * next)
 {
   hpair_t *pair;
 
-  gcslog_debug("new pair ('%s','%s')", SAVE_STR(key), SAVE_STR(value));
+  log_debug("new pair ('%s','%s')", SAVE_STR(key), SAVE_STR(value));
   pair = (hpair_t *) malloc(sizeof(hpair_t));
 
   if (key != NULL)
@@ -220,10 +220,10 @@ hpairnode_dump(hpair_t * pair)
 {
   if (pair == NULL)
   {
-    gcslog_trace("(NULL)[]");
+    log_trace("(NULL)[]");
     return;
   }
-  gcslog_trace("(%p)['%s','%s','%p']", pair,
+  log_trace("(%p)['%s','%s','%p']", pair,
                SAVE_STR(pair->key), SAVE_STR(pair->value), pair->next);
 }
 
@@ -234,7 +234,7 @@ hpairnode_dump_deep(hpair_t * pair)
   hpair_t *p;
   p = pair;
 
-  gcslog_trace("-- BEGIN dump hpairnode_t --");
+  log_trace("-- BEGIN dump hpairnode_t --");
 
   while (p != NULL)
   {
@@ -242,7 +242,7 @@ hpairnode_dump_deep(hpair_t * pair)
     p = p->next;
   }
 
-  gcslog_trace("-- END dump hpairnode_t --\n");
+  log_trace("-- END dump hpairnode_t --\n");
 }
 
 
@@ -277,7 +277,7 @@ hpairnode_get_ignore_case(hpair_t * pair, const char *key)
 {
   if (key == NULL)
   {
-    gcslog_error("key is NULL");
+    log_error("key is NULL");
     return NULL;
   }
   while (pair != NULL)
@@ -300,7 +300,7 @@ hpairnode_get(hpair_t * pair, const char *key)
 {
   if (key == NULL)
   {
-    gcslog_error("key is NULL");
+    log_error("key is NULL");
     return NULL;
   }
   while (pair != NULL)
@@ -324,13 +324,13 @@ hurl_dump(const hurl_t * url)
 
   if (url == NULL)
   {
-    gcslog_error("url is NULL!");
+    log_error("url is NULL!");
     return;
   }
-  gcslog_debug("PROTOCOL : %d", url->protocol);
-  gcslog_debug("    HOST : %s", url->host);
-  gcslog_debug("    PORT : %d", url->port);
-  gcslog_debug(" CONTEXT : %s", url->context);
+  log_debug("PROTOCOL : %d", url->protocol);
+  log_debug("    HOST : %s", url->host);
+  log_debug("    PORT : %d", url->port);
+  log_debug(" CONTEXT : %s", url->context);
 }
 
 herror_t
@@ -355,18 +355,18 @@ hurl_parse(hurl_t * url, const char *urlstr)
 
   if (iprotocol == 0)
   {
-    gcslog_error("no protocol");
+    log_error("no protocol");
     return herror_new("hurl_parse", URL_ERROR_NO_PROTOCOL, "No protocol");
   }
   if (iprotocol + 3 >= len)
   {
-    gcslog_error("no host");
+    log_error("no host");
     return herror_new("hurl_parse", URL_ERROR_NO_HOST, "No host");
   }
   if (urlstr[iprotocol] != ':'
       && urlstr[iprotocol + 1] != '/' && urlstr[iprotocol + 2] != '/')
   {
-    gcslog_error("no protocol");
+    log_error("no protocol");
     return herror_new("hurl_parse", URL_ERROR_NO_PROTOCOL, "No protocol");
   }
   /* find host */
@@ -379,7 +379,7 @@ hurl_parse(hurl_t * url, const char *urlstr)
 
   if (ihost == iprotocol + 1)
   {
-    gcslog_error("no host");
+    log_error("no host");
     return herror_new("hurl_parse", URL_ERROR_NO_HOST, "No host");
   }
   /* find port */

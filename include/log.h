@@ -19,34 +19,34 @@
 
 #pragma once
 
-#define GCS_LOG_FATAL       0   /* encountered a serious, unrecoverable error */
-#define GCS_LOG_CRITICAL    1   /* encountered a serious, recoverable error */
-#define GCS_LOG_ERROR       2   /* encountered a minor error state or condition */
-#define GCS_LOG_WARN        3   /* encountered a potentially undesirable state or condition */ 
-#define GCS_LOG_NOTICE      4   /* important (non-error) messages */
-#define GCS_LOG_INFO        5   /* status information for the curious (or obsessive) type */
-#define GCS_LOG_DEBUG       6   /* verbose debug information for developers */
-#define GCS_LOG_TRACE       7   /* extra verbose debug information for developers */
+#define LOG_FATAL       0   /* encountered a serious, unrecoverable error */
+#define LOG_CRITICAL    1   /* encountered a serious, recoverable error */
+#define LOG_ERROR       2   /* encountered a minor error state or condition */
+#define LOG_WARN        3   /* encountered a potentially undesirable state or condition */ 
+#define LOG_NOTICE      4   /* important (non-error) messages */
+#define LOG_INFO        5   /* status information for the curious (or obsessive) type */
+#define LOG_DEBUG       6   /* verbose debug information for developers */
+#define LOG_TRACE       7   /* extra verbose debug information for developers */
 
-void gcs_log_close();
-int gcs_log_level();
-int gcs_log_open(const char *, int, int);
-void gcs_log_write(int, const char *, int, const char *format, ...);
+void log_close();
+int log_level();
+int log_open(const char *, int, int);
+void log_write(int, const char *, int, const char *format, ...);
 
-#define gcslog_fatal(msg, args...) \
-    gcs_log_write(GCS_LOG_FATAL, __FUNCTION__, __LINE__, msg, ##args)
-#define gcslog_critical(msg, args...) \
-    gcs_log_write(GCS_LOG_CRITICAL, __FUNCTION__, __LINE__, msg, ##args)
-#define gcslog_error(msg, args...) \
-    gcs_log_write(GCS_LOG_ERROR, __FUNCTION__, __LINE__, msg, ##args)
-#define gcslog_warn(msg, args...) \
-    gcs_log_write(GCS_LOG_WARN, __FUNCTION__, __LINE__, msg, ##args)
-#define gcslog_notice(msg, args...) \
-    gcs_log_write(GCS_LOG_NOTICE, __FUNCTION__, __LINE__, msg, ##args)
-#define gcslog_info(msg, args...) \
-    gcs_log_write(GCS_LOG_INFO, __FUNCTION__, __LINE__, msg, ##args)
-#define gcslog_debug(msg, args...) \
-    gcs_log_write(GCS_LOG_DEBUG, __FUNCTION__, __LINE__, msg, ##args)
-#define gcslog_trace(msg, args...) \
-    gcs_log_write(GCS_LOG_TRACE, __FUNCTION__, __LINE__, msg, ##args)
+#define log_fatal(msg, args...) \
+    log_write(LOG_FATAL, __FUNCTION__, __LINE__, msg, ##args)
+#define log_critical(msg, args...) \
+    log_write(LOG_CRITICAL, __FUNCTION__, __LINE__, msg, ##args)
+#define log_error(msg, args...) \
+    log_write(LOG_ERROR, __FUNCTION__, __LINE__, msg, ##args)
+#define log_warn(msg, args...) \
+    log_write(LOG_WARN, __FUNCTION__, __LINE__, msg, ##args)
+#define log_notice(msg, args...) \
+    log_write(LOG_NOTICE, __FUNCTION__, __LINE__, msg, ##args)
+#define log_info(msg, args...) \
+    log_write(LOG_INFO, __FUNCTION__, __LINE__, msg, ##args)
+#define log_debug(msg, args...) \
+    log_write(LOG_DEBUG, __FUNCTION__, __LINE__, msg, ##args)
+#define log_trace(msg, args...) \
+    log_write(LOG_TRACE, __FUNCTION__, __LINE__, msg, ##args)
 

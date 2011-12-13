@@ -33,7 +33,7 @@ soap_xml_get_children(xmlNodePtr param)
 
   if (param == NULL)
   {
-    gcslog_error("Invalid parameter 'param' (null)");
+    log_error("Invalid parameter 'param' (null)");
     return NULL;
   }
 

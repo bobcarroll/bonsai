@@ -55,7 +55,7 @@ gcs_session *gcs_session_init(const char *id)
 
     if (!_sessions) {
         _sessions = (gcs_session **)calloc(MAX_SESSIONS, sizeof(gcs_session *));
-        gcslog_debug("initialised session storage with size %d", MAX_SESSIONS);
+        log_debug("initialised session storage with size %d", MAX_SESSIONS);
     }
 
     for (i = 0; i <= _tail && i < MAX_SESSIONS; i++) {
@@ -66,9 +66,9 @@ gcs_session *gcs_session_init(const char *id)
     }
 
     if (!result && i == MAX_SESSIONS)
-        gcslog_error("no session slots available!");
+        log_error("no session slots available!");
     else if (!result) {
-        gcslog_info("allocating session %d with ID %s", i, id);
+        log_info("allocating session %d with ID %s", i, id);
         result = _sessions[i] = (gcs_session *)malloc(sizeof(gcs_session));
         bzero(result, sizeof(gcs_session));
         _tail = i;
@@ -77,7 +77,7 @@ gcs_session *gcs_session_init(const char *id)
         result->refcount++;
         result->lastseen = time(NULL);
     } else {
-        gcslog_debug("re-using session %d with ID %s", i, id);
+        log_debug("re-using session %d with ID %s", i, id);
         result->refcount++;
         result->lastseen = time(NULL);
     }
@@ -99,7 +99,7 @@ void gcs_session_close(gcs_session *session)
 
     pthread_mutex_lock(&_sessionmtx);
     session->refcount--;
-    gcslog_debug("released session handle for %s (%d remaining)", session->id, session->refcount);
+    log_debug("released session handle for %s (%d remaining)", session->id, session->refcount);
     pthread_mutex_unlock(&_sessionmtx);
 }
 
@@ -115,7 +115,7 @@ void gcs_session_bind_user(gcs_session *session, const char *userid)
         return;
 
     pthread_mutex_lock(&_sessionmtx);
-    gcslog_info("binding session %s to user %s", session->id, userid);
+    log_info("binding session %s to user %s", session->id, userid);
     session->userid = strdup(userid);
     pthread_mutex_unlock(&_sessionmtx);
 }
@@ -143,15 +143,15 @@ int gcs_session_auth_init(gcs_session *session, gcs_ntlmctx **authctx)
     if (!authctx)
         return (session->authctx != NULL);
     else if (authctx && !*authctx && session->authctx) {
-        gcslog_debug("returning previous authentication context");
+        log_debug("returning previous authentication context");
         *authctx = session->authctx;
         return 1;
     } else if (authctx && !*authctx) {
-        gcslog_debug("no previous authentication context exists");
+        log_debug("no previous authentication context exists");
         return 0;
     }
 
-    gcslog_debug("setting new authentication context");
+    log_debug("setting new authentication context");
     session->authctx = *authctx;
     return 1;
 }

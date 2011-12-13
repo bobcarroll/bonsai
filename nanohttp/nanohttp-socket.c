@@ -159,7 +159,7 @@ hsocket_open(hsocket_t * dsock, const char *hostname, int port, int ssl)
   address.sin_family = host->h_addrtype;
   address.sin_port = htons((unsigned short) port);
 
-  gcslog_debug("Opening %s://%s:%i", ssl ? "https" : "http", hostname, port);
+  log_debug("Opening %s://%s:%i", ssl ? "https" : "http", hostname, port);
 
   /* connect to the server */
   if (connect(dsock->sock, (struct sockaddr *) &address, sizeof(address)) !=
@@ -173,7 +173,7 @@ hsocket_open(hsocket_t * dsock, const char *hostname, int port, int ssl)
 
     if ((status = hssl_client_ssl(dsock)) != H_OK)
     {
-      gcslog_error("hssl_client_ssl failed (%s)", herror_message(status));
+      log_error("hssl_client_ssl failed (%s)", herror_message(status));
       return status;
     }
   }
@@ -194,7 +194,7 @@ hsocket_bind(hsocket_t * dsock, int port)
   /* create socket */
   if ((sock.sock = socket(AF_INET, SOCK_STREAM, 0)) == -1)
   {
-    gcslog_error("Cannot create socket (%s)", strerror(errno));
+    log_error("Cannot create socket (%s)", strerror(errno));
     return herror_new("hsocket_bind", HSOCKET_ERROR_CREATE,
                       "Socket error (%s)", strerror(errno));
   }
@@ -209,7 +209,7 @@ hsocket_bind(hsocket_t * dsock, int port)
   if (bind(sock.sock, (struct sockaddr *) &addr, sizeof(struct sockaddr)) ==
       -1)
   {
-    gcslog_error("Cannot bind socket (%s)", strerror(errno));
+    log_error("Cannot bind socket (%s)", strerror(errno));
     return herror_new("hsocket_bind", HSOCKET_ERROR_BIND, "Socket error (%s)",
                       strerror(errno));
   }
@@ -256,7 +256,7 @@ _hsocket_sys_accept(hsocket_t * sock, hsocket_t * dest)
   if ((dest->sock =
        accept(sock->sock, (struct sockaddr *) &(dest->addr), &len)) == -1)
   {
-    gcslog_warn("accept failed (%s)", strerror(errno));
+    log_warn("accept failed (%s)", strerror(errno));
     return herror_new("hsocket_accept", HSOCKET_ERROR_ACCEPT,
                       "Cannot accept network connection (%s)",
                       strerror(errno));
@@ -283,11 +283,11 @@ hsocket_accept(hsocket_t * sock, hsocket_t * dest)
 
   if ((status = hssl_server_ssl(dest)) != H_OK)
   {
-    gcslog_warn("SSL startup failed (%s)", herror_message(status));
+    log_warn("SSL startup failed (%s)", herror_message(status));
     return status;
   }
 
-  gcslog_debug("accepting connection from '%s' socket=%d",
+  log_debug("accepting connection from '%s' socket=%d",
                SAVE_STR(((char *) inet_ntoa(dest->addr.sin_addr))),
                dest->sock);
 
@@ -306,7 +306,7 @@ hsocket_listen(hsocket_t * sock)
 
   if (listen(sock->sock, 15) == -1)
   {
-    gcslog_error("listen failed (%s)", strerror(errno));
+    log_error("listen failed (%s)", strerror(errno));
     return herror_new("hsocket_listen", HSOCKET_ERROR_LISTEN,
                       "Cannot listen on this socket (%s)", strerror(errno));
   }
@@ -348,13 +348,13 @@ FUNCTION: hsocket_close
 void
 hsocket_close(hsocket_t * sock)
 {
-  gcslog_debug("closing socket %p (%d)...", sock, sock->sock);
+  log_debug("closing socket %p (%d)...", sock, sock->sock);
 
   hssl_cleanup(sock);
 
   _hsocket_sys_close(sock);
 
-  gcslog_debug("socket closed");
+  log_debug("socket closed");
 
   return;
 }
@@ -369,19 +369,19 @@ hsocket_nsend(hsocket_t * sock, const byte_t * bytes, int n)
   size_t total = 0;
   size_t size;
 
-  gcslog_debug("Starting to send on sock=%p", &sock);
+  log_debug("Starting to send on sock=%p", &sock);
   if (sock->sock < 0)
     return herror_new("hsocket_nsend", HSOCKET_ERROR_NOT_INITIALIZED,
                       "hsocket not initialized");
 
-  /* gcslog_debug( "SENDING %s", bytes ); */
+  /* log_debug( "SENDING %s", bytes ); */
 
   while (1)
   {
 
     if ((status = hssl_write(sock, bytes + total, n, &size)) != H_OK)
     {
-      gcslog_warn("hssl_write failed (%s)", herror_message(status));
+      log_warn("hssl_write failed (%s)", herror_message(status));
       return status;
     }
 
@@ -417,7 +417,7 @@ hsocket_select_read(int sock, char *buf, size_t len)
   if (ret == 0)
   {
     errno = ETIMEDOUT;
-    gcslog_debug("Socket %d timeout", sock);
+    log_debug("Socket %d timeout", sock);
     return -1;
   }
 #ifdef WIN32
@@ -435,7 +435,7 @@ hsocket_read(hsocket_t * sock, byte_t * buffer, int total, int force,
   size_t totalRead;
   size_t count;
 
-/* gcslog_debug("Entering hsocket_read(total=%d,force=%d)", total, force); */
+/* log_debug("Entering hsocket_read(total=%d,force=%d)", total, force); */
 
   totalRead = 0;
   do
@@ -445,13 +445,13 @@ hsocket_read(hsocket_t * sock, byte_t * buffer, int total, int force,
          hssl_read(sock, &buffer[totalRead], (size_t) total - totalRead,
                    &count)) != H_OK)
     {
-      gcslog_warn("hssl_read failed (%s)", herror_message(status));
+      log_warn("hssl_read failed (%s)", herror_message(status));
       return status;
     }
 
     if (!force)
     {
-      /* gcslog_debug("Leaving !force (received=%d)(status=%d)", *received,
+      /* log_debug("Leaving !force (received=%d)(status=%d)", *received,
          status); */
       *received = count;
       return H_OK;
@@ -463,7 +463,7 @@ hsocket_read(hsocket_t * sock, byte_t * buffer, int total, int force,
     {
       *received = totalRead;
       /* 
-         gcslog_debug("Leaving totalRead == total
+         log_debug("Leaving totalRead == total
          (received=%d)(status=%d)(totalRead=%d)", *received, status,
          totalRead); */
       return H_OK;

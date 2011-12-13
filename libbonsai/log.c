@@ -52,28 +52,28 @@ static char *_leveltostr(int lev)
 {
     switch (lev) {
 
-    case GCS_LOG_FATAL:
+    case LOG_FATAL:
         return "Fatal   ";
 
-    case GCS_LOG_CRITICAL:
+    case LOG_CRITICAL:
         return "Critical";
 
-    case GCS_LOG_ERROR:
+    case LOG_ERROR:
         return "Error   ";
 
-    case GCS_LOG_WARN:
+    case LOG_WARN:
         return "Warn    ";
 
-    case GCS_LOG_NOTICE:
+    case LOG_NOTICE:
         return "Notice  ";
 
-    case GCS_LOG_INFO:
+    case LOG_INFO:
         return "Info    ";
 
-    case GCS_LOG_DEBUG:
+    case LOG_DEBUG:
         return "Debug   ";
 
-    case GCS_LOG_TRACE:
+    case LOG_TRACE:
         return "Trace   ";
 
     default:
@@ -91,25 +91,25 @@ static char *_leveltostr(int lev)
  *
  * @return 1 on success, 0 on failure
  */
-int gcs_log_open(const char *filename, int ll, int fg)
+int log_open(const char *filename, int ll, int fg)
 {
-    _loglevel = (ll >= GCS_LOG_FATAL) ? ll : GCS_LOG_FATAL;
+    _loglevel = (ll >= LOG_FATAL) ? ll : LOG_FATAL;
     _foreground = fg;
 
     if (filename && !(_logfile = fopen(filename, "a"))) {
-        gcslog_fatal("failed to open log file");
+        log_fatal("failed to open log file");
         return 0;
     }
 
-    gcslog_notice("LOG OPEN");
+    log_notice("LOG OPEN");
     return 1;
 }
 
 /**
- * Closes the log file. Subsequent calls to gcs_log_write() will
+ * Closes the log file. Subsequent calls to log_write() will
  * write to stdout.
  */
-void gcs_log_close()
+void log_close()
 {
     if (!_logfile)
         return;
@@ -123,7 +123,7 @@ void gcs_log_close()
  *
  * @return the log level value
  */
-int gcs_log_level()
+int log_level()
 {
     return _loglevel;
 }
@@ -136,7 +136,7 @@ int gcs_log_level()
  * @param ln        the calling line number
  * @param format    message format string followed by format args
  */
-void gcs_log_write(int lev, const char *fn, int ln, const char *format, ...)
+void log_write(int lev, const char *fn, int ln, const char *format, ...)
 {
     va_list args;
     char *msgstr;

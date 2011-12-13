@@ -36,7 +36,7 @@ soap_router_new(void)
 
   if (!(router = (SoapRouter *) malloc(sizeof(SoapRouter))))
   {
-    gcslog_error("malloc failed (%s)", strerror(errno));
+    log_error("malloc failed (%s)", strerror(errno));
     return NULL;
   }
   memset(router, 0, sizeof(SoapRouter));
@@ -149,7 +149,7 @@ void
 soap_router_free(SoapRouter * router)
 {
   SoapServiceNode *node;
-  gcslog_debug("enter: router=%p", router);
+  log_debug("enter: router=%p", router);
 
   if (!router)
     return;
@@ -157,7 +157,7 @@ soap_router_free(SoapRouter * router)
   while (router->service_head)
   {
     node = router->service_head->next;
-    /* gcslog_debug("soap_service_free(%p)\n",
+    /* log_debug("soap_service_free(%p)\n",
        router->service_head->service); */
     soap_service_free(router->service_head->service);
     free(router->service_head);
@@ -170,7 +170,7 @@ soap_router_free(SoapRouter * router)
     free(router->tag);
 
   free(router);
-  gcslog_debug("leave with success");
+  log_debug("leave with success");
 
   return;
 }
