@@ -23,10 +23,6 @@
  * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
-#include <cs/pcmain.h>
-#include <cs/registration.h>
-#include <cs/status.h>
-
 #include <gcs/pgcommon.h>
 #include <gcs/log.h>
 
@@ -35,6 +31,8 @@
 #include <tf/servicehost.h>
 #include <tf/webservices.h>
 #include <tf/xml.h>
+
+#include <csd.h>
 
 #define MAX_ROUTERS     1024
 

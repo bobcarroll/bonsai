@@ -23,12 +23,12 @@
  * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
-#include <cs/registration.h>
-
 #include <gcs/log.h>
 
 #include <tf/webservices.h>
 #include <tf/xml.h>
+
+#include <csd.h>
 
 /**
  * Registration SOAP service handler for GetRegistrationEntries.

@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <csoap.h>
+#include <libcsoap/soap-env.h>
 
 xmlNode *tf_fault_env(int, const char *, int, SoapEnv **);
 

@@ -29,13 +29,14 @@
 
 #include <libconfig.h>
 
+#include <libcsoap/soap-server.h>
+
 #include <gcs/log.h>
 #include <gcs/pgcommon.h>
 #include <gcs/pgctxpool.h>
 #include <gcs/authz.h>
 
-#include <cs/tfmain.h>
-#include <cs/pcmain.h>
+#include <csd.h>
 
 int main(int argc, char **argv)
 {

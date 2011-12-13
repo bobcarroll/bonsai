@@ -23,12 +23,12 @@
  * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
-#include <cs/status.h>
-
 #include <gcs/log.h>
 
 #include <tf/webservices.h>
 #include <tf/xml.h>
+
+#include <csd.h>
 
 /**
  * Server Status SOAP service handler for CheckAuthentication.

@@ -23,10 +23,6 @@
  * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
-#include <cs/tfmain.h>
-#include <cs/catalog.h>
-#include <cs/location.h>
-
 #include <gcs/log.h>
 
 #include <tf/catalog.h>
@@ -34,6 +30,8 @@
 #include <tf/servicehost.h>
 #include <tf/webservices.h>
 #include <tf/xml.h>
+
+#include <csd.h>
 
 static SoapRouter **_routers = NULL;
 
