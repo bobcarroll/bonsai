@@ -7,6 +7,10 @@ set(LIBGCS_SRC
     ntlmauth.c
     authz.c)
 
+set_source_files_properties(
+    ${Cabrillo_BINARY_DIR}/libgcs/pgcommon.c
+    PROPERTIES GENERATED 1)
+
 add_library(gcs ${LIBGCS_SRC})
 
 add_custom_command(OUTPUT ${Cabrillo_BINARY_DIR}/libgcs/pgcommon.c 

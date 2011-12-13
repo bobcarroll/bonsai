@@ -11,6 +11,13 @@ set(LIBTF_SRC
     fault.c
     dbhelp.c)
 
+set_source_files_properties(
+    ${Cabrillo_BINARY_DIR}/libtf/schema.c
+    ${Cabrillo_BINARY_DIR}/libtf/catalogdb.c
+    ${Cabrillo_BINARY_DIR}/libtf/locationdb.c
+    ${Cabrillo_BINARY_DIR}/libtf/servicehostdb.c
+    PROPERTIES GENERATED 1)
+
 add_library(tf ${LIBTF_SRC})
 
 add_custom_command(OUTPUT ${Cabrillo_BINARY_DIR}/libtf/schema.c 
