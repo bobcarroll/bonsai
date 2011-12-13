@@ -24,10 +24,10 @@ typedef struct {
     char *domain;
     char *display_name;
     char *sid;
-} gcs_userinfo;
+} userinfo_t;
 
-int gcs_authz_init(const char *, const char *, const char *);
-void gcs_authz_free();
-gcs_userinfo *gcs_authz_lookup_user(const char *);
-void gcs_authz_free_buffer(gcs_userinfo *);
+int authz_init(const char *, const char *, const char *);
+void authz_free();
+userinfo_t *authz_lookup_user(const char *);
+void authz_free_buffer(userinfo_t *);
 

@@ -224,7 +224,7 @@ _hrequest_parse_header(char *data)
   if (sid = hpairnode_get_ignore_case(req->header, HEADER_X_TFS_SESSION))
   {
       log_debug("TFS session ID is %s", sid);
-      req->session = gcs_session_init(sid);
+      req->session = session_init(sid);
   }
 
   return req;
@@ -250,7 +250,7 @@ hrequest_free(hrequest_t * req)
     attachments_free(req->attachments);
 
   if (req->session)
-    gcs_session_close(req->session);
+    session_close(req->session);
 
   free(req);
 

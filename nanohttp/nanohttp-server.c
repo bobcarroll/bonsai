@@ -570,7 +570,7 @@ _httpd_decode_authorization(const char *value, char **user, char **pass)
 static int
 _httpd_authenticate_request(hrequest_t * req, httpd_auth auth, char **authdata)
 {
-  gcs_ntlmctx *authctx = NULL;
+  ntlmctx_t *authctx = NULL;
   char *authorization = NULL;
 
   (*authdata) = NULL;
@@ -588,23 +588,23 @@ _httpd_authenticate_request(hrequest_t * req, httpd_auth auth, char **authdata)
       return 0;
     }
 
-    if (gcs_session_auth_check(req->session))
+    if (session_auth_check(req->session))
     {
       log_debug("re-using session for %s", req->session->userid);
       return 1;
     }
 
-    if (!gcs_session_auth_init(req->session, NULL))
+    if (!session_auth_init(req->session, NULL))
     {
       log_debug("initialising authentication context");
-      authctx = gcs_ntlmauth_init(_httpd_auth_helper);
+      authctx = ntlm_auth_init(_httpd_auth_helper);
     }
 
-    gcs_session_auth_init(req->session, &authctx);
+    session_auth_init(req->session, &authctx);
     authorization = hpairnode_get_ignore_case(req->header, HEADER_AUTHORIZATION);
 
-    if (gcs_ntlmauth_challenge(authctx, authorization, authdata)) {
-      gcs_session_bind_user(req->session, *authdata);
+    if (ntlm_auth_challenge(authctx, authorization, authdata)) {
+      session_bind_user(req->session, *authdata);
 
       free(*authdata);
       authdata = NULL;

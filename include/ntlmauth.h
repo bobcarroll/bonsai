@@ -34,9 +34,9 @@ typedef struct {
     int outfd;
     int errfd;
     int state;
-} gcs_ntlmctx;
+} ntlmctx_t;
 
-gcs_ntlmctx *gcs_ntlmauth_init(const char *);
-void gcs_ntlmauth_free(gcs_ntlmctx *);
-int gcs_ntlmauth_challenge(gcs_ntlmctx *, const char *, char **);
+ntlmctx_t *ntlm_auth_init(const char *);
+void ntlm_auth_free(ntlmctx_t *);
+int ntlm_auth_challenge(ntlmctx_t *, const char *, char **);
 

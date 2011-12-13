@@ -46,7 +46,7 @@ typedef struct hrequest
   attachments_t *attachments;
   char root_part_id[150];
 
-  gcs_session *session;
+  session_t *session;
 } hrequest_t;
 
 #ifdef __cplusplus

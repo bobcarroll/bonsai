@@ -54,7 +54,7 @@ static void _append_attr_kvoss(xmlNode *parent, const char *key, const char *val
  * @param parent    the AuthenticatedUser or AuthorizedUser node to attach to
  * @param ui        session user info
  */
-static void _append_auth_user(xmlNode *parent, gcs_userinfo *ui)
+static void _append_auth_user(xmlNode *parent, userinfo_t *ui)
 {
     xmlNewProp(parent, "DisplayName", ui->display_name);
     xmlNewProp(parent, "IsContainer", "false"); /* TODO */
@@ -197,7 +197,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     tf_node **nodearr = NULL;
     tf_host *host = NULL;
     tf_error dberr;
-    gcs_userinfo *ui = NULL;
+    userinfo_t *ui = NULL;
     const char *hostid = req->tag;
     int inclservices = 0;
     int lastchgid = -1;
@@ -220,7 +220,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    ui = gcs_authz_lookup_user(req->userid);
+    ui = authz_lookup_user(req->userid);
 
     if (!ui) {
         tf_fault_env(
@@ -252,7 +252,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     dberr = tf_fetch_single_host(ctx, hostid, &host);
 
     if (dberr != TF_ERROR_SUCCESS || !host) {
-        gcs_authz_free_buffer(ui);
+        authz_free_buffer(ui);
         pg_context_release(ctx);
         tf_fault_env(
                 Fault_Server, 
@@ -271,7 +271,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     free(idarr);
 
     if (dberr != TF_ERROR_SUCCESS || !nodearr[0]) {
-        gcs_authz_free_buffer(ui);
+        authz_free_buffer(ui);
 
         tf_free_host(host);
         free(host);
@@ -297,7 +297,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         filters = tf_free_service_filter_array(filters);
 
         if (dberr != TF_ERROR_SUCCESS) {
-            gcs_authz_free_buffer(ui);
+            authz_free_buffer(ui);
 
             tf_free_host(host);
             free(host);
@@ -317,7 +317,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
 
     dberr = tf_fetch_access_map(ctx, &accmaparr);
     if (dberr != TF_ERROR_SUCCESS) {
-        gcs_authz_free_buffer(ui);
+        authz_free_buffer(ui);
 
         tf_free_host(host);
         free(host);
@@ -357,7 +357,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     accmaparr = tf_free_access_map_array(accmaparr);
     nodearr = tf_free_node_array(nodearr);
 
-    gcs_authz_free_buffer(ui);
+    authz_free_buffer(ui);
 
     tf_free_host(host);
     free(host);

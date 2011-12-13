@@ -28,12 +28,12 @@ typedef struct {
     int refcount;
     time_t lastseen;
     char *userid;
-    gcs_ntlmctx *authctx;
-} gcs_session;
+    ntlmctx_t *authctx;
+} session_t;
 
-gcs_session *gcs_session_init(const char *);
-void gcs_session_close(gcs_session *);
-void gcs_session_bind_user(gcs_session *, const char *);
-int gcs_session_auth_init(gcs_session *, gcs_ntlmctx **);
-int gcs_session_auth_check(gcs_session *);
+session_t *session_init(const char *);
+void session_close(session_t *);
+void session_bind_user(session_t *, const char *);
+int session_auth_init(session_t *, ntlmctx_t **);
+int session_auth_check(session_t *);
 

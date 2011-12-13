@@ -34,13 +34,13 @@ enum pipes { READ, WRITE };
 
 /**
  * Initialises an NTLM authentication context. Calling functions
- * should call gcs_ntlmauth_free() to free the result.
+ * should call ntlm_auth_free() to free the result.
  *
  * @param helper    path to the NTLM helper tool
  *
  * @return a context or NULL on error
  */
-gcs_ntlmctx *gcs_ntlmauth_init(const char *helper)
+ntlmctx_t *ntlm_auth_init(const char *helper)
 {
     int infd[2];
     int outfd[2];
@@ -56,8 +56,8 @@ gcs_ntlmctx *gcs_ntlmauth_init(const char *helper)
         return NULL;
     }
 
-    gcs_ntlmctx *result = (gcs_ntlmctx *)malloc(sizeof(gcs_ntlmctx));
-    bzero(result, sizeof(gcs_ntlmctx));
+    ntlmctx_t *result = (ntlmctx_t *)malloc(sizeof(ntlmctx_t));
+    bzero(result, sizeof(ntlmctx_t));
 
     result->helper = strdup(helper);
 
@@ -77,7 +77,7 @@ gcs_ntlmctx *gcs_ntlmauth_init(const char *helper)
         close(errfd[READ]);
         close(errfd[WRITE]);
 
-        gcs_ntlmauth_free(result);
+        ntlm_auth_free(result);
         return NULL;
     }
 
@@ -114,7 +114,7 @@ gcs_ntlmctx *gcs_ntlmauth_init(const char *helper)
  *
  * @param ctx
  */
-void gcs_ntlmauth_free(gcs_ntlmctx *ctx)
+void ntlm_auth_free(ntlmctx_t *ctx)
 {
     if (!ctx)
         return;
@@ -144,7 +144,7 @@ void gcs_ntlmauth_free(gcs_ntlmctx *ctx)
  *
  * @return true on successful authentication, false otherwise
  */
-int gcs_ntlmauth_challenge(gcs_ntlmctx *ctx, const char *challenge, char **response)
+int ntlm_auth_challenge(ntlmctx_t *ctx, const char *challenge, char **response)
 {
     if (!ctx || !response || *response)
         return 0;

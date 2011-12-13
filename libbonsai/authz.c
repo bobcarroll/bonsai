@@ -46,7 +46,7 @@ static char *_host = NULL;
  *
  * @return true on success, false otherwise
  */
-int gcs_authz_init(const char *host, const char *username, const char *passwd)
+int authz_init(const char *host, const char *username, const char *passwd)
 {
     pthread_mutex_lock(&_ctxmtx);
 
@@ -75,7 +75,7 @@ int gcs_authz_init(const char *host, const char *username, const char *passwd)
 /**
  * Frees the NetApi context allocated with gcs_auth_init().
  */
-void gcs_authz_free()
+void authz_free()
 {
     pthread_mutex_lock(&_ctxmtx);
 
@@ -92,16 +92,16 @@ void gcs_authz_free()
 
 /**
  * Lookup a user based on a user ID. Calling functions should
- * free the result with gcs_authz_free_buffer().
+ * free the result with authz_free_buffer().
  *
  * @param userid    user name to lookup
  *
  * @return a user info structure or NULL on error
  */
-gcs_userinfo *gcs_authz_lookup_user(const char *userid)
+userinfo_t *authz_lookup_user(const char *userid)
 {
     struct USER_INFO_23 *buf = NULL;
-    gcs_userinfo *result = NULL;
+    userinfo_t *result = NULL;
     NET_API_STATUS status;
 
     pthread_mutex_lock(&_ctxmtx);
@@ -118,8 +118,8 @@ gcs_userinfo *gcs_authz_lookup_user(const char *userid)
         return NULL;
     }
 
-    result = (gcs_userinfo *)malloc(sizeof(gcs_userinfo));
-    bzero(result, sizeof(gcs_userinfo));
+    result = (userinfo_t *)malloc(sizeof(userinfo_t));
+    bzero(result, sizeof(userinfo_t));
 
     result->logon_name = strdup(userid);
     result->display_name = strdup(buf->usri23_full_name);
@@ -138,7 +138,7 @@ gcs_userinfo *gcs_authz_lookup_user(const char *userid)
  *
  * @param buf
  */
-void gcs_authz_free_buffer(gcs_userinfo *buf)
+void authz_free_buffer(userinfo_t *buf)
 {
     if (!buf)
         return;

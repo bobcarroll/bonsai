@@ -32,7 +32,7 @@
 
 #define MAX_SESSIONS    10240
 
-static gcs_session **_sessions = NULL;
+static session_t **_sessions = NULL;
 static pthread_mutex_t _sessionmtx = PTHREAD_MUTEX_INITIALIZER;
 static int _tail = -1;
 
@@ -43,9 +43,9 @@ static int _tail = -1;
  *
  * @return a session structure, or NULL on error
  */
-gcs_session *gcs_session_init(const char *id)
+session_t *session_init(const char *id)
 {
-    gcs_session *result = NULL;
+    session_t *result = NULL;
     int i;
 
     if (!id)
@@ -54,7 +54,7 @@ gcs_session *gcs_session_init(const char *id)
     pthread_mutex_lock(&_sessionmtx);
 
     if (!_sessions) {
-        _sessions = (gcs_session **)calloc(MAX_SESSIONS, sizeof(gcs_session *));
+        _sessions = (session_t **)calloc(MAX_SESSIONS, sizeof(session_t *));
         log_debug("initialised session storage with size %d", MAX_SESSIONS);
     }
 
@@ -69,8 +69,8 @@ gcs_session *gcs_session_init(const char *id)
         log_error("no session slots available!");
     else if (!result) {
         log_info("allocating session %d with ID %s", i, id);
-        result = _sessions[i] = (gcs_session *)malloc(sizeof(gcs_session));
-        bzero(result, sizeof(gcs_session));
+        result = _sessions[i] = (session_t *)malloc(sizeof(session_t));
+        bzero(result, sizeof(session_t));
         _tail = i;
 
         result->id = strdup(id);
@@ -92,7 +92,7 @@ gcs_session *gcs_session_init(const char *id)
  *
  * @param session
  */
-void gcs_session_close(gcs_session *session)
+void session_close(session_t *session)
 {
     if (!session)
         return;
@@ -109,7 +109,7 @@ void gcs_session_close(gcs_session *session)
  * @param session   a session structure
  * @param userid    the new user ID (cannot be NULL)
  */
-void gcs_session_bind_user(gcs_session *session, const char *userid)
+void session_bind_user(session_t *session, const char *userid)
 {
     if (!session || session->userid || !userid)
         return;
@@ -135,7 +135,7 @@ void gcs_session_bind_user(gcs_session *session, const char *userid)
  *
  * @return 1 if initialised, 0 if not initialised, or -1 on error
  */
-int gcs_session_auth_init(gcs_session *session, gcs_ntlmctx **authctx)
+int session_auth_init(session_t *session, ntlmctx_t **authctx)
 {
     if (!session || (authctx && *authctx && session->authctx))
         return -1;
@@ -163,7 +163,7 @@ int gcs_session_auth_init(gcs_session *session, gcs_ntlmctx **authctx)
  *
  * @return true if authenticated, false otherwise
  */
-int gcs_session_auth_check(gcs_session *session)
+int session_auth_check(session_t *session)
 {
     return (session->authctx && session->authctx->state == NTLM_SUCCESS);
 }

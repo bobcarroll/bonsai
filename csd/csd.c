@@ -207,7 +207,7 @@ int main(int argc, char **argv)
     pg_context_retag_default(instid);
     pc_services_init(prefix, instid, pguser, pgpasswd, dbconns);
 
-    gcs_authz_init(smbhost, smbuser, smbpasswd);
+    authz_init(smbhost, smbuser, smbpasswd);
 
     log_notice("starting SOAP server");
     soap_server_run();
@@ -219,7 +219,7 @@ int main(int argc, char **argv)
     free(soapargs);
 
     config_destroy(&config);
-    gcs_authz_free();
+    authz_free();
 
     pg_disconnect();
     log_close();
