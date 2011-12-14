@@ -30,8 +30,8 @@
 
 void log_close();
 int log_level();
-int log_open(const char *, int, int);
-void log_write(int, const char *, int, const char *format, ...);
+int log_open(const char *, unsigned int, int, int);
+void log_write(unsigned int, const char *, int, const char *format, ...);
 
 #define log_fatal(msg, args...) \
     log_write(LOG_FATAL, __FUNCTION__, __LINE__, msg, ##args)

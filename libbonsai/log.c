@@ -34,8 +34,9 @@
 
 #define MAX_LOG 8192
 
-static int _loglevel = 0;
+static unsigned int _loglevel = 0;
 static int _foreground = 0;
+static int _msgonly = 0;
 static FILE *_logfile = NULL;
 
 /**
@@ -48,7 +49,7 @@ static FILE *_logfile = NULL;
  *
  * @return the log level name
  */
-static char *_leveltostr(int lev)
+static char *_leveltostr(unsigned int lev)
 {
     switch (lev) {
 
@@ -82,19 +83,21 @@ static char *_leveltostr(int lev)
 }
 
 /**
- * Opens the log for writing. If "filename" is NULL then the log
+ * Opens the log for writing. If filename is NULL then the log
  * output is written to stdout.
  *
  * @param filename  the file to write the log to (optionally NULL)
  * @param ll        the logging level
  * @param fg        flag to enable writing to stdout even if filename isn't NULL
+ * @param msgonly   flag to limit stdout to the log message only (fg must be 1)
  *
  * @return 1 on success, 0 on failure
  */
-int log_open(const char *filename, int ll, int fg)
+int log_open(const char *filename, unsigned int ll, int fg, int msgonly)
 {
     _loglevel = (ll >= LOG_FATAL) ? ll : LOG_FATAL;
-    _foreground = fg;
+    _foreground = fg || !filename;
+    _msgonly = msgonly;
 
     if (filename && !(_logfile = fopen(filename, "a"))) {
         log_fatal("failed to open log file");
@@ -136,7 +139,7 @@ int log_level()
  * @param ln        the calling line number
  * @param format    message format string followed by format args
  */
-void log_write(int lev, const char *fn, int ln, const char *format, ...)
+void log_write(unsigned int lev, const char *fn, int ln, const char *format, ...)
 {
     va_list args;
     char *msgstr;
@@ -156,7 +159,7 @@ void log_write(int lev, const char *fn, int ln, const char *format, ...)
 
     snprintf(logstr, 
          MAX_LOG, 
-         "%d %15lu %s %s [%s:%d]\n", 
+         "%d %15lu %s %s [%s:%d]", 
          (int)getpid(), 
          (unsigned long)pthread_self(), 
          _leveltostr(lev), 
@@ -165,7 +168,7 @@ void log_write(int lev, const char *fn, int ln, const char *format, ...)
          ln);
 
     if (_foreground) {
-        printf("%s", logstr);
+        printf("%s\n", _msgonly ? msgstr : logstr);
         fflush(stdout);
     }
 
@@ -174,7 +177,7 @@ void log_write(int lev, const char *fn, int ln, const char *format, ...)
         datestr = ctime(&timestamp);
         datestr[strlen(datestr) - 1] = '\0';
 
-        fprintf(_logfile, "%s %s", datestr, logstr);
+        fprintf(_logfile, "%s %s\n", datestr, logstr);
         fflush(_logfile);
     }
 }
