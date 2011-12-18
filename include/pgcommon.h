@@ -19,6 +19,12 @@
 
 #pragma once
 
+#include <pgctxpool.h>
+
 int pg_connect(const char *, const char *, const char *, int, const char *);
 int pg_disconnect();
+
+pgctx *pg_acquire_trans(const char *);
+void pg_release_commit(pgctx *);
+void pg_release_rollback(pgctx *);
 

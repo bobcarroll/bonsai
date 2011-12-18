@@ -109,3 +109,68 @@ error:
     return 0;
 }
 
+/**
+ * Acquires a thread-exclusive database connection with a new transaction.
+ * This function will block until a connection becomes available.
+ *
+ * Passing NULL for the tag argument will always return bootstrapping
+ * contexts (as in, contexts created without a tag) even if the contexts
+ * were retagged by calling pg_context_retag_default().
+ *
+ * @param tag   an optional marker for PG contexts for targeting queries
+
+ * @return a connection context
+ */
+pgctx *pg_acquire_trans(const char *tag)
+{
+    pgctx *ctx = pg_context_acquire(tag);
+    log_debug("beginning transaction for PG context %s", ctx->conn);
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+    EXEC SQL AT :conn BEGIN WORK;
+
+    return ctx;
+}
+
+/**
+ * Releases the given context after committing the transaction.
+ *
+ * @param ctx
+ */
+void pg_release_commit(pgctx *ctx)
+{
+    log_debug("commiting work for PG context %s", ctx->conn);
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+    EXEC SQL AT :conn COMMIT WORK;
+
+    pg_context_release(ctx);
+}
+
+/**
+ * Releases the given context after rolling back the transaction.
+ *
+ * @param ctx
+ */
+void pg_release_rollback(pgctx *ctx)
+{
+    log_debug("rolling back PG context %s", ctx->conn);
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+    EXEC SQL AT :conn ROLLBACK WORK;
+
+    pg_context_release(ctx);
+}
+
