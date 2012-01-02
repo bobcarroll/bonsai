@@ -162,7 +162,8 @@ int pg_context_count()
     int count;
 
     pthread_mutex_lock(&_ctxmtx);
-    for (count = 0; count < _ctxcount && _ctxpool[count]; count++);
+    for (count = 0; count < _ctxcount && _ctxpool[count]; count++)
+        ;
     pthread_mutex_unlock(&_ctxmtx);
 
     return count;

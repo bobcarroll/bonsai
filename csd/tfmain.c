@@ -124,7 +124,8 @@ char *core_services_init(const char *prefix)
         return NULL;
     }
 
-    for (i = 0; refarr[i]; i++);
+    for (i = 0; refarr[i]; i++)
+        ;
     _routers = (SoapRouter **)calloc(i, sizeof(SoapRouter *));
 
     for (i = 0; refarr[i]; i++)
