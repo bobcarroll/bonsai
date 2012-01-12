@@ -500,6 +500,11 @@ soap_env_get_body(SoapEnv * env)
 
   for (node = soap_xml_get_children(env->root); node; node = soap_xml_get_next(node))
   {
+    if (!node->ns) {
+      log_error("Node has no namespace!");
+      continue;
+    }
+
     if (!xmlStrcmp(node->name, BAD_CAST "Body")
      && !xmlStrcmp(node->ns->href, BAD_CAST soap_env_ns2))
       return node;

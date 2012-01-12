@@ -308,6 +308,7 @@ hrequest_new_from_socket(hsocket_t *sock, hrequest_t ** out)
     }
     else
     {
+      http_input_stream_free(req->in);
       req->attachments = mimeMessage;
       req->in =
         http_input_stream_new_from_file(mimeMessage->root_part->filename);
