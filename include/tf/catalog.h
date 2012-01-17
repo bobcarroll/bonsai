@@ -58,6 +58,24 @@
 #define TF_CATALOG_PROPERTY_INSTANCE_ID_ID      10
 #define TF_CATALOG_PROPERTY_INSTANCE_ID_VALUE   "InstanceId"
 
+#define TF_CATALOG_TOOL_FRAMEWORK       "Framework"
+
+#define TF_CATALOG_ASSOCIATION_KEY_MAXLEN       257
+#define TF_CATALOG_CHILD_ITEM_MAXLEN            25
+#define TF_CATALOG_PARENT_PATH_MAXLEN           865
+#define TF_CATALOG_PROPERTY_NAME_MAXLEN         401
+#define TF_CATALOG_RESOURCE_ID_MAXLEN           37
+#define TF_CATALOG_RESOURCE_NAME_MAXLEN         257
+#define TF_CATALOG_RESOURCE_TYPE_MAXLEN         37
+#define TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN    257
+
+#define TF_CATALOG_NODE_DEPTH_NONE      0
+#define TF_CATALOG_NODE_DEPTH_SINGLE    1
+#define TF_CATALOG_NODE_DEPTH_FULL      2
+
+#define TF_CATALOG_QUERY_EXPAND_DEPS    1
+#define TF_CATALOG_QUERY_INC_PARENTS    2
+
 static const int _tf_rsrc_tbl_len = 26;
 static const int _tf_prop_tbl_len = 1;
 static const int _tf_tool_tbl_len = 1;
@@ -161,18 +179,8 @@ static const char *_tf_property_value[] = {
 };
 
 static const char *_tf_tool_types[] = {
-    "Framework"
+    TF_CATALOG_TOOL_FRAMEWORK
 };
-
-
-#define TF_CATALOG_ASSOCIATION_KEY_MAXLEN       257
-#define TF_CATALOG_CHILD_ITEM_MAXLEN            25
-#define TF_CATALOG_PARENT_PATH_MAXLEN           865
-#define TF_CATALOG_PROPERTY_NAME_MAXLEN         401
-#define TF_CATALOG_RESOURCE_ID_MAXLEN           37
-#define TF_CATALOG_RESOURCE_NAME_MAXLEN         257
-#define TF_CATALOG_RESOURCE_TYPE_MAXLEN         37
-#define TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN    257
 
 typedef struct {
     char id[TF_CATALOG_RESOURCE_TYPE_MAXLEN];
@@ -215,27 +223,26 @@ typedef struct {
     char *value;
 } tf_property;
 
-
-#define TF_CATALOG_QUERY_EXPAND_DEPS    1
-#define TF_CATALOG_QUERY_INC_PARENTS    2
-
+void *tf_free_node(tf_node *);
 void *tf_free_node_array(tf_node **);
 void *tf_free_path_spec_array(tf_path_spec **);
 void tf_free_property(tf_property *);
 void *tf_free_property_array(tf_property **);
 void tf_free_resource(tf_resource);
 void *tf_free_service_ref_array(tf_service_ref **);
+
 tf_error tf_query_nodes(pgctx *, const char * const *, const char * const *, tf_node ***);
 tf_error tf_query_single_node(pgctx *, const char *, const char *, tf_node ***);
 
-
-#define TF_CATALOG_NODE_DEPTH_NONE      0
-#define TF_CATALOG_NODE_DEPTH_SINGLE    1
-#define TF_CATALOG_NODE_DEPTH_FULL      2
+tf_node *tf_new_node(tf_node *, const char *, const char *, const char *);
+tf_service_ref *tf_new_service_ref(tf_resource *, tf_service *, const char *);
 
 tf_error tf_fetch_nodes(pgctx *, tf_path_spec **, const char * const *, tf_node ***);
 tf_error tf_fetch_resources(pgctx *, const char * const *, int, tf_node ***);
 tf_error tf_fetch_pc_service_refs(pgctx *, const char *, tf_service_ref ***);
 tf_error tf_fetch_service_refs(pgctx *, tf_node **, tf_service_ref ***);
 tf_error tf_fetch_properties(pgctx *, tf_node **, tf_property ***);
+
+tf_error tf_add_node(pgctx *, tf_node *);
+tf_error tf_add_service_ref(pgctx *, tf_service_ref *);
 

@@ -277,3 +277,104 @@ error:
     return TF_ERROR_PG_FAILURE;
 }
 
+/**
+ * Adds the given access mapping to the database.
+ *
+ * @param ctx       current database context
+ * @param accmap    access mapping to add
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_add_access_map(pgctx *ctx, tf_access_map *accmap)
+{
+    if (!ctx || !accmap || !accmap->moniker[0] || !accmap->name[0] ||
+            !accmap->apuri || !accmap->apuri[0])
+        return TF_ERROR_BAD_PARAMETER;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    const char *amstmt = 
+        "INSERT INTO access_mappings \
+           (moniker, display_name, access_point, is_default) \
+           VALUES (?, ?, ?, ?)";
+    const char *moniker = accmap->moniker;
+    const char *name = accmap->name;
+    const char *apuri = accmap->apuri;
+    int fdefault = accmap->fdefault;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL WHENEVER NOT FOUND CONTINUE;
+
+    log_debug("inserting new access mapping ('%s', '%s', '%s')", moniker, name, apuri);
+
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :amstmt;
+    EXEC SQL AT :conn EXECUTE sqlstmt USING :moniker, :name, :apuri, :fdefault;
+
+    return TF_ERROR_SUCCESS;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return TF_ERROR_PG_FAILURE;
+}
+
+/**
+ * Adds the given service definition to the database.
+ *
+ * @param ctx       current database context
+ * @param service   service definition to add
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_add_service(pgctx *ctx, tf_service *service)
+{
+    if (!ctx || !service || !service->id[0] || !service->name[0] || !service->type[0])
+        return TF_ERROR_BAD_PARAMETER;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    const char *ttstmt = "SELECT id FROM tool_types WHERE \"type\" = ?";
+    const char *servstmt = 
+        "INSERT INTO service_definitions \
+           (identifier, service_type, display_name, relative_to_setting, relative_path, \
+            singleton, description, fk_tool_id) \
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    const char *id = service->id;
+    const char *type = service->type;
+    const char *name = service->name;
+    int reltosetting = service->reltosetting;
+    const char *relpath = service->relpath;
+    int relpath_ind = relpath[0] ? 0 : -1;
+    int singleton = service->singleton;
+    const char *desc = service->description;
+    int desc_ind = desc ? 0 : -1;
+    char *tooltype = service->tooltype;
+    int ttid = -1;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL WHENEVER NOT FOUND GOTO not_found;
+
+    log_debug("looking up primary key for tool type '%s'", tooltype);
+
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :ttstmt;
+    EXEC SQL AT :conn EXECUTE sqlstmt USING :tooltype INTO :ttid;
+
+    EXEC SQL WHENEVER NOT FOUND CONTINUE;
+
+    log_debug("inserting new service definition ('%s', '%s', '%s')", id, type, name);
+
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :servstmt;
+    EXEC SQL AT :conn EXECUTE sqlstmt USING :id, :type, :name, :reltosetting, 
+        :relpath:relpath_ind, :singleton, :desc:desc_ind, :ttid;
+
+    return TF_ERROR_SUCCESS;
+
+not_found:
+    log_error("primary key for tool type '%s' not found", tooltype);
+    return TF_ERROR_NOT_FOUND;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return TF_ERROR_PG_FAILURE;
+}

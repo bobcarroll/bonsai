@@ -276,3 +276,54 @@ error:
     return TF_ERROR_PG_FAILURE;
 }
 
+/**
+ * Adds the given service host to the database.
+ *
+ * @param ctx   current database context
+ * @param host  service host to add
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_add_host(pgctx *ctx, tf_host *host)
+{
+    if (!ctx || !host || !host->id[0] || !host->name[0] || !host->connstr[0] ||
+            !host->resource[0])
+        return TF_ERROR_BAD_PARAMETER;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    const char *hoststmt = 
+        "INSERT INTO service_hosts \
+           (host_id, parent_host_id, \"name\", description, virtual_directory, resource_directory, \
+            connection_string, status, status_reason, supported_features, fk_resource_identifier) \
+           VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, 0, ?)";
+    const char *hostid = host->id;
+    const char *parentid = host->parent[0] ? host->parent : NULL;
+    int parentid_ind = parentid ? 0 : -1;
+    const char *name = host->name;
+    const char *desc = host->description;
+    int desc_ind = desc ? 0 : -1;
+    const char *vdir = host->vdir[0] ? host->vdir : NULL;
+    int vdir_ind = vdir ? 0 : -1;
+    const char *rsrcdir = host->rsrcdir[0] ? host->rsrcdir : NULL;
+    int rsrcdir_ind = rsrcdir ? 0 : -1;
+    const char *connstr = host->connstr;
+    const char *resource = host->resource;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL WHENEVER NOT FOUND CONTINUE;
+
+    log_debug("inserting new service host ('%s', '%s', '%s')", hostid, parentid, name);
+
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :hoststmt;
+    EXEC SQL AT :conn EXECUTE sqlstmt USING :hostid, :parentid:parentid_ind, :name,
+        :desc:desc_ind, :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr, :resource;
+
+    return TF_ERROR_SUCCESS;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return TF_ERROR_PG_FAILURE;
+}
+

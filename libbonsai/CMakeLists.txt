@@ -5,7 +5,8 @@ set(LIBBONSAI_SRC
     pgctxpool.c
     session.c
     ntlmauth.c
-    authz.c)
+    authz.c
+    base64.c)
 
 set_source_files_properties(
     ${Cabrillo_BINARY_DIR}/libbonsai/pgcommon.c

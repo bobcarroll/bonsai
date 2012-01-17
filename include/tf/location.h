@@ -32,6 +32,17 @@
 #define TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN    257
 #define TF_LOCATION_SERVICE_TYPE_MAXLEN         257
 
+#define TF_LOCATION_FILTER_SERVICE_ID       "567713db-d56d-4bb0-8f35-604e0e116174"
+#define TF_LOCATION_FILTER_SERVICE_TYPE     "*"
+
+#define TF_SERVICE_ID_CATALOG           "c2f9106f-127a-45b7-b0a3-e0ad8239a2a7"
+#define TF_SERVICE_ID_LOCATION          "bf9cf1d0-24ac-4d35-aeca-6cd18c69c1fe"
+
+#define TF_SERVICE_TYPE_CATALOG         "CatalogService"
+#define TF_SERVICE_TYPE_LOCATION        "LocationService"
+#define TF_SERVICE_TYPE_REGISTRATION    "RegistrationService"
+#define TF_SERVICE_TYPE_STATUS          "StatusService"
+
 typedef struct {
     char moniker[TF_LOCATION_ACCMAP_MONIKER_MAXLEN];
     char name[TF_LOCATION_ACCMAP_DISPLNAME_MAXLEN];
@@ -55,12 +66,6 @@ typedef struct {
     char *type;
 } tf_service_filter;
 
-
-#define TF_SERVICE_TYPE_CATALOG         "CatalogService"
-#define TF_SERVICE_TYPE_LOCATION        "LocationService"
-#define TF_SERVICE_TYPE_REGISTRATION    "RegistrationService"
-#define TF_SERVICE_TYPE_STATUS          "StatusService"
-
 char *tf_find_default_moniker(tf_access_map **);
 
 void tf_free_access_map(tf_access_map *);
@@ -69,10 +74,13 @@ void tf_free_service(tf_service *);
 void *tf_free_service_array(tf_service **);
 void *tf_free_service_filter_array(tf_service_filter **);
 
-
-#define TF_LOCATION_FILTER_SERVICE_ID       "567713db-d56d-4bb0-8f35-604e0e116174"
-#define TF_LOCATION_FILTER_SERVICE_TYPE     "*"
+tf_access_map *tf_new_access_map(const char *, const char *, const char *);
+tf_service *tf_new_service(const char *, const char *, const char *, const char *);
+int tf_set_service_url(tf_service *, const char *);
 
 tf_error tf_fetch_access_map(pgctx *, tf_access_map ***);
 tf_error tf_fetch_services(pgctx *, tf_service_filter **, tf_service ***);
+
+tf_error tf_add_access_map(pgctx *, tf_access_map *);
+tf_error tf_add_service(pgctx *, tf_service *);
 

@@ -44,11 +44,13 @@ typedef struct {
     char resource[TF_CATALOG_RESOURCE_ID_MAXLEN];
 } tf_host;
 
-
 void tf_free_host(tf_host *);
 void *tf_free_host_array(tf_host **);
 
+tf_host *tf_new_host(tf_host *, const char *, const char *, tf_resource *);
 
 tf_error tf_fetch_hosts(pgctx *, const char *, tf_host ***);
 tf_error tf_fetch_single_host(pgctx *, const char *, tf_host **);
+
+tf_error tf_add_host(pgctx *, tf_host *);
 

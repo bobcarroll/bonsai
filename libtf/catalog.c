@@ -26,9 +26,27 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <uuid/uuid.h>
+
+#include <base64.h>
 
 #include <tf/catalog.h>
 #include <tf/location.h>
+
+/**
+ * Frees memory associated with a catalog node.
+ *
+ * @param result    pointer to a catalog node
+ */
+void *tf_free_node(tf_node *result)
+{
+    if (result) {
+        tf_free_resource(result->resource);
+        free(result);
+    }
+
+    return NULL;
+}
 
 /**
  * Frees memory associated with a catalog node array.
@@ -41,10 +59,8 @@ void *tf_free_node_array(tf_node **result)
         return NULL;
 
     int i;
-    for (i = 0; result[i]; i++) {
-        tf_free_resource(result[i]->resource);
-        free(result[i]);
-    }
+    for (i = 0; result[i]; i++)
+        tf_free_node(result[i]);
 
     free(result);
     return NULL;
@@ -173,7 +189,8 @@ tf_error tf_query_nodes(pgctx *ctx, const char * const *patharr, const char * co
     if (!ctx || !patharr || !types || !result)
         return TF_ERROR_BAD_PARAMETER;
 
-    for (i = 0; patharr[i]; i++);
+    for (i = 0; patharr[i]; i++)
+        ;
     pathspecs = (tf_path_spec **)calloc(i + 1, sizeof(tf_path_spec *));
 
     for (i = 0; patharr[i]; i++) {
@@ -239,5 +256,85 @@ tf_error tf_query_single_node(pgctx *ctx, const char *path, const char *type, tf
     free(typearr);
 
     return dberr;
+}
+
+/**
+ * Creates a new catalog node structure. The caller is responsible for freeing
+ * the result using tf_free_node().
+ *
+ * @param parent    optional parent catalog node
+ * @param type      resource type ID
+ * @param name      new resource name
+ * @param desc      optional resource description
+ *
+ * @return a new catalog node or NULL on error
+ */
+tf_node *tf_new_node(tf_node *parent, const char *type, const char *name, const char *desc)
+{
+    tf_node *result;
+    uuid_t newid;
+    char newid_s[1024];
+    int n, i;
+
+    if (!type || !type[0] || !name || !name[0])
+        return NULL;
+
+    for (i = 0; i < _tf_rsrc_tbl_len && strcmp(_tf_rsrc_type_id[i], type) == 0; i++)
+        ;
+    if (i > _tf_rsrc_tbl_len)
+        return NULL;
+    
+    result = (tf_node *)malloc(sizeof(tf_node));
+    bzero(result, sizeof(tf_node));
+
+    if (parent) {
+        strncpy(result->parent, parent->parent, TF_CATALOG_PARENT_PATH_MAXLEN);
+        n = TF_CATALOG_PARENT_PATH_MAXLEN - strlen(result->parent) - 1;
+        strncat(result->parent, parent->child, n);
+    }
+
+    uuid_generate(newid);
+    base64_ntop(newid, sizeof(uuid_t), result->child, TF_CATALOG_CHILD_ITEM_MAXLEN);
+
+    strncpy(result->resource.type.id, type, TF_CATALOG_RESOURCE_TYPE_MAXLEN);
+    strncpy(result->resource.type.name, _tf_rsrc_type_name[i], TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
+    result->resource.type.description = strdup(_tf_rsrc_type_desc[i]);
+
+    uuid_generate(newid);
+    uuid_unparse_lower(newid, newid_s);
+    strncpy(result->resource.id, newid_s, TF_CATALOG_RESOURCE_ID_MAXLEN);
+
+    strncpy(result->resource.name, name, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+
+    if (desc)
+        result->resource.description = strdup(desc);
+
+    return result;
+}
+
+/**
+ * Creates a new catalog service reference. The caller is responsible for freeing
+ * the result using tf_free_service_ref().
+ *
+ * @param rsrc      catalog node resource to associate
+ * @param service   service definition structure
+ * @param assockey  reference association key
+ *
+ * @return a new catalog service reference or NULL on error
+ */
+tf_service_ref *tf_new_service_ref(tf_resource *rsrc, tf_service *service, const char *assockey)
+{
+    if (!rsrc || !service || !assockey || !assockey[0])
+        return NULL;
+
+    tf_service_ref *result = (tf_service_ref *)malloc(sizeof(tf_service_ref));
+    bzero(result, sizeof(tf_service_ref));
+
+    strncpy(result->id, rsrc->id, TF_CATALOG_RESOURCE_ID_MAXLEN);
+    strncpy(result->assockey, assockey, TF_CATALOG_ASSOCIATION_KEY_MAXLEN);
+
+    memcpy(&result->service, service, sizeof(tf_service));
+
+    return result;
 }
 

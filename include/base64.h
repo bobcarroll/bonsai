@@ -19,12 +19,6 @@
 
 #pragma once
 
-#include <pgctxpool.h>
-
-#include <tf/errors.h>
-
-#define TF_SCHEMA_REVISION  1
-
-tf_error tf_init_configdb(pgctx *);
-tf_error tf_init_pcdb(pgctx *);
+int base64_ntop(unsigned char const *, size_t, char *, size_t);
+int base64_pton(char const *, unsigned char *, size_t);
 

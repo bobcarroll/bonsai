@@ -794,3 +794,100 @@ error:
     return TF_ERROR_PG_FAILURE;
 }
 
+/**
+ * Adds the given node to the catalog.
+ *
+ * @param ctx   current database context
+ * @param node  catalog node to add
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_add_node(pgctx *ctx, tf_node *node)
+{
+    if (!ctx || !node || !node->resource.type.id[0] || !node->resource.id[0] ||
+            !node->resource.name[0] || !node->child[0])
+        return TF_ERROR_BAD_PARAMETER;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    const char *resstmt = 
+        "INSERT INTO catalog_resources \
+           (identifier, fk_resource_type, display_name, description, fk_property_artifact) \
+           VALUES (?, ?, ?, ?, NULL)";
+    const char *nodestmt = 
+        "INSERT INTO catalog_nodes \
+           (parent_path, child_item, fk_resource_identifier, \"default\") \
+           VALUES (?, ?, ?, ?)";
+    const char *typeid = node->resource.type.id;
+    const char *resid = node->resource.id;
+    const char *resname = node->resource.name;
+    const char *resdesc = node->resource.description;
+    int resdesc_ind = resdesc ? 0 : -1;
+    const char *parent = node->parent;
+    const char *child = node->child;
+    int fdefault = node->fdefault;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL WHENEVER NOT FOUND CONTINUE;
+
+    log_debug("inserting new catalog resource ('%s', '%s', '%s')", resid, typeid, resname);
+
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :resstmt;
+    EXEC SQL AT :conn EXECUTE sqlstmt USING :resid, :typeid, :resname, :resdesc:resdesc_ind;
+
+    log_debug("inserting new catalog node ('%s', '%s', '%s')", parent, child, resid);
+
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :nodestmt;
+    EXEC SQL AT :conn EXECUTE sqlstmt USING :parent, :child, :resid, :fdefault;
+
+    return TF_ERROR_SUCCESS;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return TF_ERROR_PG_FAILURE;
+}
+
+/**
+ * Adds the given service reference to the catalog.
+ *
+ * @param ctx   current database context
+ * @param ref   catalog service reference to add
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_add_service_ref(pgctx *ctx, tf_service_ref *ref)
+{
+    if (!ctx || !ref || !ref->id[0] || !ref->assockey[0] || 
+            !ref->service.id[0] || !ref->service.type[0])
+        return TF_ERROR_BAD_PARAMETER;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    const char *refstmt = 
+        "INSERT INTO catalog_service_references \
+           (resource_identifier, association_key, fk_service_identifier, fk_service_type) \
+           VALUES (?, ?, ?, ?)";
+    const char *refid = ref->id;
+    const char *assockey = ref->assockey;
+    const char *servid = ref->service.id;
+    const char *type = ref->service.type;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL WHENEVER NOT FOUND CONTINUE;
+
+    log_debug(
+        "inserting new catalog service reference ('%s', '%s', '%s', '%s')",
+        refid, assockey, servid, type);
+
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :refstmt;
+    EXEC SQL AT :conn EXECUTE sqlstmt USING :refid, :assockey, :servid, :type;
+
+    return TF_ERROR_SUCCESS;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return TF_ERROR_PG_FAILURE;
+}
+

@@ -24,6 +24,9 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <uuid/uuid.h>
 
 #include <tf/servicehost.h>
 
@@ -64,5 +67,42 @@ void *tf_free_host_array(tf_host **result)
 
     free(result);
     return NULL;
+}
+
+/**
+ * Creates a new service host. The caller is responsible for
+ * freeing the result using tf_free_host().
+ *
+ * @param parent    optional parent service host
+ * @param name      name of the new service host
+ * @param connstr   database connection string
+ * @param rsrc      catalog resource for the host
+ *
+ * @return a new service host or NULL on error
+ */
+tf_host *tf_new_host(tf_host *parent, const char *name, const char *connstr, tf_resource *rsrc)
+{
+    tf_host *result;
+    uuid_t newid;
+    char newid_s[1024];
+
+    if (!name || !name[0] || !connstr || !connstr[0] || !rsrc || !rsrc->id[0])
+        return NULL;
+
+    result = (tf_host *)malloc(sizeof(tf_host));
+    bzero(result, sizeof(tf_host));
+
+    if (parent)
+        strncpy(result->parent, parent->id, TF_SERVICE_HOST_ID_MAXLEN);
+
+    uuid_generate(newid);
+    uuid_unparse_lower(newid, newid_s);
+    strncpy(result->id, newid_s, TF_SERVICE_HOST_ID_MAXLEN);
+
+    strncpy(result->name, name, TF_SERVICE_HOST_NAME_MAXLEN);
+    strncpy(result->connstr, connstr, TF_SERVICE_HOST_CONN_STR_MAXLEN);
+    strncpy(result->resource, rsrc->id, TF_CATALOG_RESOURCE_ID_MAXLEN);
+
+    return result;
 }
 
