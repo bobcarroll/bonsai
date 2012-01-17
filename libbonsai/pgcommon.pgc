@@ -132,6 +132,7 @@ pgctx *pg_acquire_trans(const char *tag)
 
     EXEC SQL WHENEVER SQLERROR CONTINUE;
     EXEC SQL AT :conn BEGIN WORK;
+    EXEC SQL AT :conn SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
     return ctx;
 }
