@@ -67,6 +67,7 @@ static tf_error _create_catalog_objects(const char *connstr)
         parent_path character varying(864) NOT NULL,
         child_item character varying(24) NOT NULL,
         fk_resource_identifier uuid NOT NULL,
+        "default" bit(1) NOT NULL,
         CONSTRAINT "PK_catalog_nodes" PRIMARY KEY (parent_path, child_item),
         CONSTRAINT "FK_node_resource" FOREIGN KEY (fk_resource_identifier)
             REFERENCES catalog_resources (identifier) MATCH SIMPLE
@@ -103,10 +104,6 @@ static tf_error _create_catalog_objects(const char *connstr)
 
 error:
     log_error(sqlca.sqlerrm.sqlerrmc);
-
-    EXEC SQL WHENEVER SQLERROR CONTINUE;
-    EXEC SQL AT :conn ROLLBACK WORK;
-
     return TF_ERROR_PG_FAILURE;
 }
 
@@ -158,10 +155,6 @@ static tf_error _create_location_objects(const char *connstr)
 
 error:
     log_error(sqlca.sqlerrm.sqlerrmc);
-
-    EXEC SQL WHENEVER SQLERROR CONTINUE;
-    EXEC SQL AT :conn ROLLBACK WORK;
-
     return TF_ERROR_PG_FAILURE;
 }
 
@@ -188,7 +181,6 @@ tf_error tf_init_configdb(pgctx *ctx)
     EXEC SQL END DECLARE SECTION;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
-    EXEC SQL AT :conn BEGIN WORK;
 
     if (result = _create_location_objects(ctx->conn)) {
         log_critical("failed to create location services objects!");
@@ -254,16 +246,10 @@ tf_error tf_init_configdb(pgctx *ctx)
         EXEC SQL AT :conn EXECUTE sqlstmt USING :id, :type;
     }
 
-    EXEC SQL AT :conn COMMIT WORK;
-
     return TF_ERROR_SUCCESS;
 
 error:
     log_error(sqlca.sqlerrm.sqlerrmc);
-
-    EXEC SQL WHENEVER SQLERROR CONTINUE;
-    EXEC SQL AT :conn ROLLBACK;
-
     return TF_ERROR_PG_FAILURE;
 }
 
@@ -279,21 +265,10 @@ tf_error tf_init_pcdb(pgctx *ctx)
     if (!ctx)
         return TF_ERROR_BAD_PARAMETER;
 
-    EXEC SQL BEGIN DECLARE SECTION;
-    const char *conn = ctx->conn;
-    EXEC SQL END DECLARE SECTION;
-
-    EXEC SQL WHENEVER SQLERROR GOTO error;
-    EXEC SQL AT :conn BEGIN WORK;
-
     return _create_location_objects(ctx->conn);
 
 error:
     log_error(sqlca.sqlerrm.sqlerrmc);
-
-    EXEC SQL WHENEVER SQLERROR CONTINUE;
-    EXEC SQL AT :conn ROLLBACK WORK;
-
     return TF_ERROR_PG_FAILURE;
 }
 
