@@ -101,8 +101,7 @@ int main(int argc, char **argv)
 
     if (!log_open(logfile, lev, fg, 0)) {
         fprintf(stderr, "csd: failed to open log file!\n");
-        config_destroy(&config);
-        return 1;
+        goto cleanup_cfg;
     }
 
     config_lookup_string(&config, "configdsn", &pgdsn);
@@ -149,39 +148,23 @@ int main(int argc, char **argv)
     nport = (port) ? atoi(port) : 0;
     if (nport == 0 || nport != (nport & 0xffff)) {
         log_fatal("bindport must be a valid TCP port number (was %d)", nport);
-
-        config_destroy(&config);
-        log_close();
-
-        return 1;
+        goto cleanup_log;
     }
 
     config_lookup_string(&config, "prefix", &prefix);
     if (!prefix || strcmp(prefix, "") == 0 || prefix[0] != '/') {
         log_fatal("prefix must be a valid URI (was %s)", prefix);
-
-        config_destroy(&config);
-        log_close();
-
-        return 1;
+        goto cleanup_log;
     }
 
     if (pg_pool_init(maxconns) != maxconns) {
         log_fatal("failed to initialise PG context pool");
-
-        config_destroy(&config);
-        log_close();
-
-        return 1;
+        goto cleanup_log;
     }
 
     if (!pg_connect(pgdsn, pguser, pgpasswd, dbconns, NULL)) {
         log_fatal("failed to connect to PG");
-
-        config_destroy(&config);
-        log_close();
-
-        return 1;
+        goto cleanup_log;
     }
 
     httpd_set_timeout(10);
@@ -196,12 +179,7 @@ int main(int argc, char **argv)
     instid = core_services_init(prefix);
     if (!instid) {
         log_fatal("core services failed to start!");
-
-        pg_disconnect();
-        config_destroy(&config);
-        log_close();
-
-        return 1;
+        goto cleanup_db;
     }
 
     pg_context_retag_default(instid);
@@ -218,13 +196,17 @@ int main(int argc, char **argv)
     free(soapargs[2]);
     free(soapargs);
 
-    config_destroy(&config);
     authz_free();
+    free(instid);
 
+cleanup_db:
     pg_disconnect();
+
+cleanup_log:
     log_close();
 
-    free(instid);
+cleanup_cfg:
+    config_destroy(&config);
 
     return 0;
 }
