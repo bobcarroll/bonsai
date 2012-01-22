@@ -109,6 +109,7 @@ int main(int argc, char **argv)
     if (!logfile) {
         wordexp("~/tfprep.log", &expresult, 0);
         logfile = strdup(expresult.we_wordv[0]);
+        wordfree(&expresult);
     }
 
     dbdsn = strdup(argv[0]);
@@ -184,8 +185,7 @@ int main(int argc, char **argv)
     accmap = tf_new_access_map("public", "Public Access Mapping", serveruri);
     accmap->fdefault = 1;
     dberr = tf_add_access_map(ctx, accmap);
-    tf_free_access_map(accmap);
-    free(accmap); /* TODO */
+    accmap = tf_free_access_map(accmap);
 
     if (dberr != TF_ERROR_SUCCESS)
         goto error;
@@ -193,14 +193,14 @@ int main(int argc, char **argv)
     tf_service *service = tf_new_service(TF_SERVICE_ID_LOCATION, "LocationService", "Location Service", "Framework");
     tf_set_service_url(service, "/TeamFoundation/Administration/v3.0/LocationService.asmx");
     dberr = tf_add_service(ctx, service);
-    /* TODO free service */
 
     if (dberr != TF_ERROR_SUCCESS)
         goto error;
 
     tf_service_ref *ref = tf_new_service_ref(&servinst->resource, service, "Location");
+    service = tf_free_service(service);
     dberr = tf_add_service_ref(ctx, ref);
-    /* TODO free ref */
+    ref = tf_free_service_ref(ref);
 
     if (dberr != TF_ERROR_SUCCESS)
         goto error;
@@ -208,14 +208,14 @@ int main(int argc, char **argv)
     service = tf_new_service(TF_SERVICE_ID_CATALOG, "CatalogService", "Catalog Service", "Framework");
     tf_set_service_url(service, "/TeamFoundation/Administration/v3.0/CatalogService.asmx");
     dberr = tf_add_service(ctx, service);
-    /* TODO free service */
 
     if (dberr != TF_ERROR_SUCCESS)
         goto error;
 
     ref = tf_new_service_ref(&servinst->resource, service, "Catalog");
+    service = tf_free_service(service);
     dberr = tf_add_service_ref(ctx, ref);
-    /* TODO free ref */
+    ref = tf_free_service_ref(ref);
 
     if (dberr != TF_ERROR_SUCCESS)
         goto error;
@@ -223,8 +223,7 @@ int main(int argc, char **argv)
     log_notice("registering Team Foundation service host");
     host = tf_new_host(NULL, "TEAM FOUNDATION", dbdsn, &servinst->resource);
     dberr = tf_add_host(ctx, host);
-    tf_free_host(host);
-    free(host); /* TODO */
+    host = tf_free_host(host);
 
     if (dberr != TF_ERROR_SUCCESS)
         goto error;
@@ -241,6 +240,11 @@ cleanup:
     orgroot = tf_free_node(orgroot);
     infroot = tf_free_node(infroot);
     servinst = tf_free_node(servinst);
+
+    free(cfgfile);
+    free(logfile);
+    free(dbuser);
+    free(dbdsn);
 
     pg_disconnect();
     log_close();
