@@ -31,20 +31,23 @@
 #include <tf/servicehost.h>
 
 /**
- * Frees memory associated with a service host, but not the
- * service host itself.
+ * Frees memory associated with a service host.
  *
  * @param result    pointer to a service
+ *
+ * @return NULL
  */
-void tf_free_host(tf_host *result)
+void *tf_free_host(tf_host *result)
 {
-    if (!result)
-        return;
+    if (result) {
+        if (result->description)
+            free(result->description);
 
-    if (result->description)
-        free(result->description);
+        result->description = NULL;
+        free(result);
+    }
 
-    result->description = NULL;
+    return NULL;
 }
 
 /**
@@ -60,10 +63,8 @@ void *tf_free_host_array(tf_host **result)
         return NULL;
 
     int i;
-    for (i = 0; result[i]; i++) {
+    for (i = 0; result[i]; i++)
         tf_free_host(result[i]);
-        free(result[i]);
-    }
 
     free(result);
     return NULL;

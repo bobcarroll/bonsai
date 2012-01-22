@@ -225,10 +225,9 @@ typedef struct {
 
 void *tf_free_node(tf_node *);
 void *tf_free_node_array(tf_node **);
-void *tf_free_path_spec_array(tf_path_spec **);
-void tf_free_property(tf_property *);
+void *tf_free_property(tf_property *);
 void *tf_free_property_array(tf_property **);
-void tf_free_resource(tf_resource);
+void *tf_free_service_ref(tf_service_ref *);
 void *tf_free_service_ref_array(tf_service_ref **);
 
 tf_error tf_query_nodes(pgctx *, const char * const *, const char * const *, tf_node ***);

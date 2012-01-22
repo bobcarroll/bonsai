@@ -41,7 +41,15 @@
 void *tf_free_node(tf_node *result)
 {
     if (result) {
-        tf_free_resource(result->resource);
+        if (result->resource.description)
+            free(result->resource.description);
+
+        if (result->resource.type.description)
+            free(result->resource.type.description);
+
+        result->resource.description = NULL;
+        result->resource.type.description = NULL;
+
         free(result);
     }
 
@@ -67,44 +75,23 @@ void *tf_free_node_array(tf_node **result)
 }
 
 /**
- * Frees memory associated with a catalog path spec array.
+ * Frees memory associated with a catalog property.
  *
- * @param result    a null-terminated path spec array
+ * @param result    pointer to a catalog property
  *
  * @return NULL
  */
-void *tf_free_path_spec_array(tf_path_spec **result)
+void *tf_free_property(tf_property *result)
 {
-    if (!result)
-        return NULL;
+    if (result) {
+        if (result->value)
+            free(result->value);
 
-    int i;
-    for (i = 0; result[i]; i++) {
-        if (result[i]->path)
-            free(result[i]->path);
-
-        free(result[i]);
+        result->value = NULL;
+        free(result);
     }
 
-    free(result);
     return NULL;
-}
-
-/**
- * Frees memory associated with a catalog property, but not
- * the property itself.
- *
- * @param result    pointer to a catalog property
- */
-void tf_free_property(tf_property *result)
-{
-    if (!result)
-        return;
-
-    if (result->value)
-        free(result->value);
-
-    result->value = NULL;
 }
 
 /**
@@ -120,31 +107,31 @@ void *tf_free_property_array(tf_property **result)
         return NULL;
 
     int i;
-    for (i = 0; result[i]; i++) {
+    for (i = 0; result[i]; i++)
         tf_free_property(result[i]);
-        free(result[i]);
-    }
 
     free(result);
     return NULL;
 }
 
 /**
- * Frees memory associated with a catalog resource, but not
- * the resource itself.
+ * Frees memory associated with a service reference.
  *
- * @param result    a catalog resource
+ * @param result    a service reference structure
+ *
+ * @return NULL
  */
-void tf_free_resource(tf_resource result)
+void *tf_free_service_ref(tf_service_ref *result)
 {
-    if (result.description)
-        free(result.description);
+    if (result) {
+        if (result->service.description)
+            free(result->service.description);
 
-    if (result.type.description)
-        free(result.type.description);
+        result->service.description = NULL;
+        free(result);
+    }
 
-    result.description = NULL;
-    result.type.description = NULL;
+    return NULL;
 }
 
 /**
@@ -160,10 +147,8 @@ void *tf_free_service_ref_array(tf_service_ref **result)
         return NULL;
 
     int i;
-    for (i = 0; result[i]; i++) {
-        tf_free_service(&result[i]->service);
-        free(result[i]);
-    }
+    for (i = 0; result[i]; i++)
+        tf_free_service_ref(result[i]);
 
     free(result);
     return NULL;
@@ -215,7 +200,16 @@ tf_error tf_query_nodes(pgctx *ctx, const char * const *patharr, const char * co
     }
 
     dberr = tf_fetch_nodes(ctx, pathspecs, types, result);
-    pathspecs = tf_free_path_spec_array(pathspecs);
+
+    for (i = 0; pathspecs[i]; i++) {
+        if (pathspecs[i]->path)
+            free(pathspecs[i]->path);
+
+        free(pathspecs[i]);
+    }
+
+    free(pathspecs);
+    pathspecs = NULL;
 
     return dberr;
 }

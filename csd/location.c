@@ -273,9 +273,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     if (dberr != TF_ERROR_SUCCESS || !nodearr[0]) {
         authz_free_buffer(ui);
 
-        tf_free_host(host);
-        free(host);
-
+        host = tf_free_host(host);
         pg_context_release(ctx);
 
         tf_fault_env(
@@ -299,9 +297,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         if (dberr != TF_ERROR_SUCCESS) {
             authz_free_buffer(ui);
 
-            tf_free_host(host);
-            free(host);
-
+            host = tf_free_host(host);
             nodearr = tf_free_node_array(nodearr);
             pg_context_release(ctx);
 
@@ -319,9 +315,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     if (dberr != TF_ERROR_SUCCESS) {
         authz_free_buffer(ui);
 
-        tf_free_host(host);
-        free(host);
-
+        host = tf_free_host(host);
         nodearr = tf_free_node_array(nodearr);
         svcarr = tf_free_service_array(svcarr);
         pg_context_release(ctx);
@@ -356,12 +350,9 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     svcarr = tf_free_service_array(svcarr);
     accmaparr = tf_free_access_map_array(accmaparr);
     nodearr = tf_free_node_array(nodearr);
+    host = tf_free_host(host);
 
     authz_free_buffer(ui);
-
-    tf_free_host(host);
-    free(host);
-
     pg_context_release(ctx);
 
     return H_OK;

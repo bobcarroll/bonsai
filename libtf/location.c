@@ -52,20 +52,23 @@ char *tf_find_default_moniker(tf_access_map **accmaparr)
 }
 
 /**
- * Frees memory associated with an access mapping, but not the
- * mapping itself.
+ * Frees memory associated with an access mapping.
  *
  * @param result    pointer to an access mapping
+ *
+ * @return NULL
  */
-void tf_free_access_map(tf_access_map *result)
+void *tf_free_access_map(tf_access_map *result)
 {
-    if (!result)
-        return;
+    if (result) {
+        if (result->apuri)
+            free(result->apuri);
 
-    if (result->apuri)
-        free(result->apuri);
+        result->apuri = NULL;
+        free(result);
+    }
 
-    result->apuri = NULL;
+    return NULL;
 }
 
 /**
@@ -81,30 +84,31 @@ void *tf_free_access_map_array(tf_access_map **result)
         return NULL;
 
     int i;
-    for (i = 0; result[i]; i++) {
+    for (i = 0; result[i]; i++)
         tf_free_access_map(result[i]);
-        free(result[i]);
-    }
 
     free(result);
     return NULL;
 }
 
 /**
- * Frees memory associated with a service, but not the
- * service itself.
+ * Frees memory associated with a service.
  *
  * @param result    pointer to a service
+ *
+ * @return NULL
  */
-void tf_free_service(tf_service *result)
+void *tf_free_service(tf_service *result)
 {
-    if (!result)
-        return;
+    if (result) {
+        if (result->description)
+            free(result->description);
 
-    if (result->description)
-        free(result->description);
+        result->description = NULL;
+        free(result);
+    }
 
-    result->description = NULL;
+    return NULL;
 }
 
 /**
@@ -120,10 +124,8 @@ void *tf_free_service_array(tf_service **result)
         return NULL;
 
     int i;
-    for (i = 0; result[i]; i++) {
+    for (i = 0; result[i]; i++)
         tf_free_service(result[i]);
-        free(result[i]);
-    }
 
     free(result);
     return NULL;
@@ -148,6 +150,9 @@ void *tf_free_service_filter_array(tf_service_filter **result)
 
         if (result[i]->type)
             free(result[i]->type);
+
+        result[i]->id = NULL;
+        result[i]->type = NULL;
 
         free(result[i]);
     }
