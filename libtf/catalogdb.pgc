@@ -406,7 +406,7 @@ tf_error tf_fetch_pc_service_refs(pgctx *ctx, const char *instid, tf_service_ref
         JOIN tool_types AS tt \
            ON sd.fk_tool_id = tt.id \
         WHERE pv.value = '%s'",
-        TF_CATALOG_TYPE_TEAM_PRJ_COLLECITON,
+        TF_CATALOG_TYPE_TEAM_PRJ_COLLECTION,
         TF_CATALOG_PROPERTY_INSTANCE_ID_ID,
         instid);
     log_trace("fetch catalog services SQL: %s", countstmt);
@@ -443,7 +443,7 @@ tf_error tf_fetch_pc_service_refs(pgctx *ctx, const char *instid, tf_service_ref
         JOIN tool_types AS tt \
            ON sd.fk_tool_id = tt.id \
         WHERE pv.value = '%s'",
-        TF_CATALOG_TYPE_TEAM_PRJ_COLLECITON,
+        TF_CATALOG_TYPE_TEAM_PRJ_COLLECTION,
         TF_CATALOG_PROPERTY_INSTANCE_ID_ID,
         instid);
 

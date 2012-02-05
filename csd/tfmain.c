@@ -46,9 +46,9 @@ static SoapRouter **_routers = NULL;
 static void _start_service(tf_service_ref *ref, SoapRouter **router, const char *prefix,
     const char *instid)
 {
-    if (strcmp(ref->service.type, TF_SERVICE_TYPE_LOCATION) == 0)
+    if (strcmp(ref->service.type, TF_SERVICE_LOCATION_TYPE) == 0)
         location_service_init(router, prefix, ref, instid);
-    else if (strcmp(ref->service.type, TF_SERVICE_TYPE_CATALOG) == 0)
+    else if (strcmp(ref->service.type, TF_SERVICE_CATALOG_TYPE) == 0)
         catalog_service_init(router, prefix, ref, instid);
     else
         log_warn("cannot start unknown service type %s", ref->service.type);
@@ -99,7 +99,7 @@ char *core_services_init(const char *prefix)
 
     log_info("initialising team foundation services");
 
-    dberr = tf_query_single_node(
+    dberr = tf_query_tree(
         ctx,
         TF_CATALOG_ORGANIZATION_ROOT,
         TF_CATALOG_TYPE_SERVER_INSTANCE,

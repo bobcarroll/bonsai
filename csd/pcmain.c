@@ -49,11 +49,11 @@ static SoapRouter **_routers = NULL;
 static void _start_service(tf_service_ref *ref, SoapRouter **router, const char *prefix,
     const char *instid)
 {
-    if (strcmp(ref->service.type, TF_SERVICE_TYPE_LOCATION) == 0)
+    if (strcmp(ref->service.type, TF_SERVICE_LOCATION_TYPE) == 0)
         location_service_init(router, prefix, ref, instid);
-    else if (strcmp(ref->service.type, TF_SERVICE_TYPE_REGISTRATION) == 0)
+    else if (strcmp(ref->service.type, TF_SERVICE_REGISTRATION_TYPE) == 0)
         registration_service_init(router, prefix, ref, instid);
-    else if (strcmp(ref->service.type, TF_SERVICE_TYPE_STATUS) == 0)
+    else if (strcmp(ref->service.type, TF_SERVICE_STATUS_TYPE) == 0)
         status_service_init(router, prefix, ref, instid);
     else
         log_warn("cannot start unknown service type %s", ref->service.type);

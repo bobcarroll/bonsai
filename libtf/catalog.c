@@ -215,7 +215,7 @@ tf_error tf_query_nodes(pgctx *ctx, const char * const *patharr, const char * co
 }
 
 /**
- * Queries the catalog for a node in the given path. Calling functions
+ * Queries the catalog for nodes of a single type in the given path. Calling functions
  * should call tf_free_node_array() to free "result".
  *
  * @param ctx       current database context
@@ -225,7 +225,7 @@ tf_error tf_query_nodes(pgctx *ctx, const char * const *patharr, const char * co
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_query_single_node(pgctx *ctx, const char *path, const char *type, tf_node ***result)
+tf_error tf_query_tree(pgctx *ctx, const char *path, const char *type, tf_node ***result)
 {
     tf_error dberr;
 

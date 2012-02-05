@@ -51,7 +51,7 @@
 #define TF_CATALOG_TYPE_SQL_REPORTING_INST  "F756975E-3593-448B-A6B8-E34010908621"
 #define TF_CATALOG_TYPE_TEST_CONTROLLER     "3C856555-8737-48B6-8B61-4B24DB7FEB15"
 #define TF_CATALOG_TYPE_TEST_ENVIRONMENT    "D457AA94-F00E-4342-92E8-FFE81535E74B"
-#define TF_CATALOG_TYPE_TEAM_PRJ_COLLECITON "26338D9E-D437-44AA-91F2-55880A328B54"
+#define TF_CATALOG_TYPE_TEAM_PRJ_COLLECTION "26338D9E-D437-44AA-91F2-55880A328B54"
 #define TF_CATALOG_TYPE_TEAM_PROJECT        "48577A4A-801E-412C-B8AE-CF7EF3529616"
 #define TF_CATALOG_TYPE_TEAM_WEB_ACCESS     "47FA57A4-8157-4FB5-9A64-A7A4954BD284"
 
@@ -75,6 +75,8 @@
 
 #define TF_CATALOG_QUERY_EXPAND_DEPS    1
 #define TF_CATALOG_QUERY_INC_PARENTS    2
+
+#define TF_MAX_PATH_SIZE    TF_CATALOG_PARENT_PATH_MAXLEN + TF_CATALOG_CHILD_ITEM_MAXLEN - 1
 
 static const int _tf_rsrc_tbl_len = 26;
 static const int _tf_prop_tbl_len = 1;
@@ -105,7 +107,7 @@ static const char *_tf_rsrc_type_id[] = {
     TF_CATALOG_TYPE_SQL_REPORTING_INST,
     TF_CATALOG_TYPE_TEST_CONTROLLER,
     TF_CATALOG_TYPE_TEST_ENVIRONMENT,
-    TF_CATALOG_TYPE_TEAM_PRJ_COLLECITON,
+    TF_CATALOG_TYPE_TEAM_PRJ_COLLECTION,
     TF_CATALOG_TYPE_TEAM_PROJECT,
     TF_CATALOG_TYPE_TEAM_WEB_ACCESS
 };
@@ -231,7 +233,7 @@ void *tf_free_service_ref(tf_service_ref *);
 void *tf_free_service_ref_array(tf_service_ref **);
 
 tf_error tf_query_nodes(pgctx *, const char * const *, const char * const *, tf_node ***);
-tf_error tf_query_single_node(pgctx *, const char *, const char *, tf_node ***);
+tf_error tf_query_tree(pgctx *, const char *, const char *, tf_node ***);
 
 tf_node *tf_new_node(tf_node *, const char *, const char *, const char *);
 tf_service_ref *tf_new_service_ref(tf_resource *, tf_service *, const char *);
