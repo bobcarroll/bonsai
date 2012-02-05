@@ -7,6 +7,7 @@ set(LIBTF_SRC
     locationdb.c
     servicehost.c
     servicehostdb.c
+    collection.c
     xml.c
     fault.c
     dbhelp.c)
@@ -48,5 +49,5 @@ add_custom_command(OUTPUT ${Cabrillo_BINARY_DIR}/libtf/servicehostdb.c
                    MAIN_DEPENDENCY servicehostdb.pgc
                    COMMENT "Running ecpg on servicehostdb.pgc")
 
-target_link_libraries(tf ${LIBXML2_LIBRARIES} ecpg)
+target_link_libraries(tf bonsai ${LIBXML2_LIBRARIES} ecpg)
 
