@@ -19,13 +19,13 @@
 
 #pragma once
 
-#define TF_ERROR_SUCCESS            0
-#define TF_ERROR_BAD_PARAMETER      1
-#define TF_ERROR_PARAM_TOO_LONG     2
-#define TF_ERROR_PG_FAILURE         3
-#define TF_ERROR_NOT_FOUND          4
-#define TF_ERROR_INTERNAL           5
-#define TF_ERROR_ACCESS_DENIED      6
+#define TF_ERROR_SUCCESS            0       /* no error */
+#define TF_ERROR_BAD_PARAMETER      1       /* a function encountered an invalid argument */
+#define TF_ERROR_PARAM_TOO_LONG     2       /* an argument or parameter was longer than expected */
+#define TF_ERROR_PG_FAILURE         3       /* a generic error for failed database queries */
+#define TF_ERROR_NOT_FOUND          4       /* the requested resources was not found in the database */
+#define TF_ERROR_INTERNAL           5       /* a generic internal error */
+#define TF_ERROR_ACCESS_DENIED      6       /* user does not have permission to access the requested resource */
 
 typedef int tf_error;
 
