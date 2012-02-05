@@ -72,7 +72,7 @@ int pg_connect(const char *dsn, const char *username, const char *passwd, int co
         sprintf(connval, "conn%d", ctxcount + i);
 
         EXEC SQL CONNECT TO :dsnval AS :connval USER :usernameval USING :passwdval;
-        pg_context_alloc(connval, tag);
+        pg_context_alloc(connval, dsn, tag);
     }
 
     log_notice("connected to PG (%s)", dsn);

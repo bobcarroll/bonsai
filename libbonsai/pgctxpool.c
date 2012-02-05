@@ -76,6 +76,7 @@ void pg_pool_free()
                     free(_ctxpool[i]->tag);
 
                 free(_ctxpool[i]->conn);
+                free(_ctxpool[i]->dsn);
                 free(_ctxpool[i]);
             }
 
@@ -112,11 +113,12 @@ int pg_pool_size()
  * Allocates a new database context.
  *
  * @param conn  the PG connection name
+ * @param dsn   connection data source name
  * @param tag   a marker for PG contexts for targeting queries
  *
  * @return 1 on success, 0 on failure
  */
-int pg_context_alloc(const char *conn, const char *tag)
+int pg_context_alloc(const char *conn, const char *dsn, const char *tag)
 {
     if (!conn)
         return 0;
@@ -136,6 +138,7 @@ int pg_context_alloc(const char *conn, const char *tag)
         bzero(_ctxpool[i], sizeof(pgctx));
 
         _ctxpool[i]->conn = strdup(conn);
+        _ctxpool[i]->dsn = strdup(dsn);
 
         if (tag)
             _ctxpool[i]->tag = strdup(tag);
