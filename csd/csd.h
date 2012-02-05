@@ -21,19 +21,19 @@
 
 #include <libcsoap/soap-router.h>
 
-#include <tf/catalog.h>
+#include <tf/location.h>
 #include <tf/xml.h>
 
-void catalog_service_init(SoapRouter **, const char *, tf_service_ref *, const char *);
+void catalog_service_init(SoapRouter **, const char *, const char *, const char *);
 
 void location_append_service(xmlNode *, tf_service *);
-void location_service_init(SoapRouter **, const char *, tf_service_ref *, const char *);
+void location_service_init(SoapRouter **, const char *, const char *, const char *);
 
 void pc_services_init(const char *, const char *, const char *, const char *, int);
 
-void registration_service_init(SoapRouter **, const char *, tf_service_ref *, const char *);
+void registration_service_init(SoapRouter **, const char *, const char *, const char *);
 
-void status_service_init(SoapRouter **, const char *, tf_service_ref *, const char *);
+void status_service_init(SoapRouter **, const char *, const char *, const char *);
 
 char *core_services_init(const char *);
 

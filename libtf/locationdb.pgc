@@ -35,14 +35,14 @@
  * call tf_free_service_array() to free "result"..
  *
  * @param ctx       current database context
- * @param filters   a null-terminated array of service filters
+ * @param filters   an optional null-terminated array of service filters
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
 tf_error tf_fetch_services(pgctx *ctx, tf_service_filter **filters, tf_service ***result)
 {
-    if (!ctx || !filters || !filters[0] || !result || *result)
+    if (!ctx || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
 
     log_debug("looking up service definitions");
@@ -62,7 +62,7 @@ tf_error tf_fetch_services(pgctx *ctx, tf_service_filter **filters, tf_service *
 
     bzero(&idtypelst, idtypelen);
 
-    for (i = 0; filters[i]; i++) {
+    for (i = 0; filters && filters[i]; i++) {
         if (strcmp(filters[i]->id, TF_LOCATION_FILTER_SERVICE_ID) == 0 &&
             strcmp(filters[i]->type, TF_LOCATION_FILTER_SERVICE_TYPE) == 0)
             continue;

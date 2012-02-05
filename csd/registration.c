@@ -114,10 +114,10 @@ static herror_t _get_registration_entries(SoapCtx *req, SoapCtx *res)
  *
  * @param router    output buffer for the SOAP router
  * @param prefix    the URI prefix for this service
- * @param ref       service reference info
+ * @param relpath   relative path of the service
  * @param instid    host instance ID
  */
-void registration_service_init(SoapRouter **router, const char *prefix, tf_service_ref *ref,
+void registration_service_init(SoapRouter **router, const char *prefix, const char *relpath,
     const char *instid)
 {
     char url[1024];
@@ -126,7 +126,7 @@ void registration_service_init(SoapRouter **router, const char *prefix, tf_servi
     soap_router_register_security(*router, NTLM_SPNEGO);
     soap_router_set_tag(*router, instid);
 
-    sprintf(url, "%s%s", prefix ? prefix : "", ref->service.relpath);
+    sprintf(url, "%s%s", prefix ? prefix : "", relpath);
     soap_server_register_router(*router, url);
 
     soap_router_register_service(

@@ -38,7 +38,7 @@ static SoapRouter **_routers = NULL;
 /**
  * Start the given SOAP service.
  *
- * @param service   service to start
+ * @param ref       reference to service to start
  * @param router    SOAP router
  * @param prefix    service path prefix
  * @param instid    host instance ID
@@ -47,9 +47,9 @@ static void _start_service(tf_service_ref *ref, SoapRouter **router, const char 
     const char *instid)
 {
     if (strcmp(ref->service.type, TF_SERVICE_LOCATION_TYPE) == 0)
-        location_service_init(router, prefix, ref, instid);
+        location_service_init(router, prefix, ref->service.relpath, instid);
     else if (strcmp(ref->service.type, TF_SERVICE_CATALOG_TYPE) == 0)
-        catalog_service_init(router, prefix, ref, instid);
+        catalog_service_init(router, prefix, ref->service.relpath, instid);
     else
         log_warn("cannot start unknown service type %s", ref->service.type);
 }

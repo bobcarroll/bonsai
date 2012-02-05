@@ -23,6 +23,8 @@
  * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
 
+#include <ctype.h>
+
 #include <pgcommon.h>
 #include <log.h>
 
@@ -46,17 +48,17 @@ static SoapRouter **_routers = NULL;
  * @param prefix    service path prefix
  * @param instid    host instance ID
  */
-static void _start_service(tf_service_ref *ref, SoapRouter **router, const char *prefix,
+static void _start_service(tf_service *service, SoapRouter **router, const char *prefix,
     const char *instid)
 {
-    if (strcmp(ref->service.type, TF_SERVICE_LOCATION_TYPE) == 0)
-        location_service_init(router, prefix, ref, instid);
-    else if (strcmp(ref->service.type, TF_SERVICE_REGISTRATION_TYPE) == 0)
-        registration_service_init(router, prefix, ref, instid);
-    else if (strcmp(ref->service.type, TF_SERVICE_STATUS_TYPE) == 0)
-        status_service_init(router, prefix, ref, instid);
+    if (strcmp(service->type, TF_SERVICE_LOCATION_TYPE) == 0)
+        location_service_init(router, prefix, service->relpath, instid);
+    else if (strcmp(service->type, TF_SERVICE_REGISTRATION_TYPE) == 0)
+        registration_service_init(router, prefix, service->relpath, instid);
+    else if (strcmp(service->type, TF_SERVICE_STATUS_TYPE) == 0)
+        status_service_init(router, prefix, service->relpath, instid);
     else
-        log_warn("cannot start unknown service type %s", ref->service.type);
+        log_warn("cannot start unknown service type %s", service->type);
 }
 
 /**
@@ -73,8 +75,10 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
 {
     pgctx *ctx;
     tf_host **hostarr = NULL;
-    tf_service_ref **refarr = NULL;
+    tf_service **svcarr = NULL;
     tf_error dberr;
+    char pcprefix[TF_LOCATION_SERVICE_REL_PATH_MAXLEN + 1024];
+    char lpcname[TF_SERVICE_HOST_NAME_MAXLEN];
     int i, n;
 
     if (!prefix || !instid || !pguser || !pgpasswd || dbconns < 1)
@@ -87,6 +91,7 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
 
     ctx = pg_context_acquire(NULL);
     dberr = tf_fetch_hosts(ctx, instid, &hostarr);
+    pg_context_release(ctx);
 
     if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {
         log_warn("no project collections were found for instance %s", instid);
@@ -103,15 +108,25 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
         }
 
         log_info("initialising project collection services for %s", hostarr[i]->name);
-        dberr = tf_fetch_pc_service_refs(ctx, hostarr[i]->id, &refarr);
 
-        if (dberr != TF_ERROR_SUCCESS || !refarr[0]) {
+        bzero(lpcname, TF_SERVICE_HOST_NAME_MAXLEN);
+        strncpy(lpcname, hostarr[i]->name, TF_SERVICE_HOST_NAME_MAXLEN - 1);
+        for (n = 0; lpcname[n]; n++)
+            lpcname[n] = tolower(lpcname[n]);
+
+        snprintf(pcprefix, TF_LOCATION_SERVICE_REL_PATH_MAXLEN + 1024, "%s/%s", prefix, lpcname);
+
+        ctx = pg_context_acquire(hostarr[i]->id);
+        dberr = tf_fetch_services(ctx, NULL, &svcarr);
+        pg_context_release(ctx);
+
+        if (dberr != TF_ERROR_SUCCESS || !svcarr[0]) {
             log_warn("failed to retrieve project collection services for %s", hostarr[i]->id);
-            refarr = tf_free_service_ref_array(refarr);
+            svcarr = tf_free_service_array(svcarr);
             continue;
         }
 
-        for (n = 0; refarr[n]; n++) {
+        for (n = 0; svcarr[n]; n++) {
             if (n == MAX_ROUTERS) {
                 log_error(
                     "unable to start service because the maximum count was reached (%d)", 
@@ -119,13 +134,13 @@ void pc_services_init(const char *prefix, const char *instid, const char *pguser
                 break;
             }
 
-            _start_service(refarr[n], &_routers[n], prefix, hostarr[i]->id);
+            if (svcarr[n]->reltosetting == TF_SERVICE_RELTO_CONTEXT)
+                _start_service(svcarr[n], &_routers[n], pcprefix, hostarr[i]->id);
         }
 
-        refarr = tf_free_service_ref_array(refarr);
+        svcarr = tf_free_service_array(svcarr);
     }
 
     hostarr = tf_free_host_array(hostarr);
-    pg_context_release(ctx);
 }
 
