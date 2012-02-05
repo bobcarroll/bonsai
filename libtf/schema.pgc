@@ -159,6 +159,42 @@ error:
 }
 
 /**
+ * Fills tool types table with setup data.
+ *
+ * @param connstr   connection identifier
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+static tf_error _fill_tool_types_table(const char *connstr)
+{
+    if (!connstr)
+        return TF_ERROR_BAD_PARAMETER;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = connstr;
+    char *ttstmt = "INSERT INTO tool_types (id, \"type\") VALUES (?, ?)";
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :ttstmt;
+
+    int i;
+    for (i = 0; i < _tf_tool_tbl_len; i++) {
+        EXEC SQL BEGIN DECLARE SECTION;
+        const int id = i;
+        const char *type = _tf_tool_types[i];
+        EXEC SQL END DECLARE SECTION;
+
+        EXEC SQL AT :conn EXECUTE sqlstmt USING :id, :type;
+    }
+
+    return TF_ERROR_SUCCESS;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return TF_ERROR_PG_FAILURE;
+}
+
+/**
  * Initialises a configuration database schema in the given conext.
  *
  * @param ctx       current database context
@@ -173,21 +209,22 @@ tf_error tf_init_configdb(pgctx *ctx)
     if (!ctx)
         return TF_ERROR_BAD_PARAMETER;
 
+    log_info("initialising configuration database (schema revision %d)", TF_SCHEMA_REVISION);
+
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
     char *resstmt = "INSERT INTO catalog_resource_types (identifier, display_name, description) VALUES (?, ?, ?)";
     char *propstmt = "INSERT INTO property_definitions (id, \"name\", type_id) VALUES (?, ?, ?)";
-    char *ttstmt = "INSERT INTO tool_types (id, \"type\") VALUES (?, ?)";
     EXEC SQL END DECLARE SECTION;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
 
-    if (result = _create_location_objects(ctx->conn)) {
+    if ((result = _create_location_objects(ctx->conn)) != TF_ERROR_SUCCESS) {
         log_critical("failed to create location services objects!");
         return result;
     }
 
-    if (result = _create_catalog_objects(ctx->conn)) {
+    if ((result = _create_catalog_objects(ctx->conn)) != TF_ERROR_SUCCESS) {
         log_critical("failed to create server catalog objects!");
         return result;
     }
@@ -235,15 +272,9 @@ tf_error tf_init_configdb(pgctx *ctx)
         EXEC SQL AT :conn EXECUTE sqlstmt USING :id, :value, 0;
     }
 
-    EXEC SQL AT :conn PREPARE sqlstmt FROM :ttstmt;
-
-    for (i = 0; i < _tf_tool_tbl_len; i++) {
-        EXEC SQL BEGIN DECLARE SECTION;
-        const int id = i;
-        const char *type = _tf_tool_types[i];
-        EXEC SQL END DECLARE SECTION;
-
-        EXEC SQL AT :conn EXECUTE sqlstmt USING :id, :type;
+    if ((result = _fill_tool_types_table(ctx->conn)) != TF_ERROR_SUCCESS) {
+        log_critical("failed to fill tool type table!");
+        return result;
     }
 
     return TF_ERROR_SUCCESS;
@@ -262,13 +293,23 @@ error:
  */
 tf_error tf_init_pcdb(pgctx *ctx)
 {
+    tf_error result;
+
     if (!ctx)
         return TF_ERROR_BAD_PARAMETER;
 
-    return _create_location_objects(ctx->conn);
+    log_info("initialising project collection database (schema revision %d)", TF_SCHEMA_REVISION);
 
-error:
-    log_error(sqlca.sqlerrm.sqlerrmc);
-    return TF_ERROR_PG_FAILURE;
+    if ((result = _create_location_objects(ctx->conn)) != TF_ERROR_SUCCESS) {
+        log_critical("failed to create location services objects!");
+        return result;
+    }
+
+    if ((result = _fill_tool_types_table(ctx->conn)) != TF_ERROR_SUCCESS) {
+        log_critical("failed to fill tool type table!");
+        return result;
+    }
+
+    return TF_ERROR_SUCCESS;
 }
 
