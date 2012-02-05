@@ -80,6 +80,18 @@ tf_error tf_create_collection(pgctx *ctx)
     if (dberr != TF_ERROR_SUCCESS)
         return TF_ERROR_PG_FAILURE;
 
+    service = tf_new_service(
+        TF_SERVICE_REGISTRATION_ID, 
+        TF_SERVICE_REGISTRATION_TYPE, 
+        TF_SERVICE_REGISTRATION_NAME, 
+        TF_CATALOG_TOOL_FRAMEWORK);
+    tf_set_service_url(service, TF_REGISTRATION_SERVICE_ENDPOINT, TF_SERVICE_RELTO_CONTEXT);
+    dberr = tf_add_service(ctx, service);
+    service = tf_free_service(service);
+
+    if (dberr != TF_ERROR_SUCCESS)
+        return TF_ERROR_PG_FAILURE;
+
     return TF_ERROR_SUCCESS;
 }
 
@@ -98,10 +110,13 @@ tf_error tf_attach_collection(pgctx *pcctx, const char *name, pgctx *tfctx, tf_h
     char hostname[_POSIX_HOST_NAME_MAX];
     char serveruri[_POSIX_HOST_NAME_MAX * 2];
     char **idarr = NULL;
+    char path[1024];
     tf_access_map *accmap = NULL;
     tf_node **nodearr = NULL;
     tf_node *colnode = NULL;
     tf_host *pchost = NULL;
+    tf_service *service = NULL;
+    tf_service_ref *ref = NULL;
     tf_error dberr;
 
     if (!pcctx || !name || !name[0] || !tfctx || !tfhost)
@@ -162,9 +177,47 @@ tf_error tf_attach_collection(pgctx *pcctx, const char *name, pgctx *tfctx, tf_h
         return TF_ERROR_INTERNAL;
     }
 
-    colnode = tf_free_node(colnode);
     dberr = tf_add_host(tfctx, pchost);
+
+    if (dberr != TF_ERROR_SUCCESS) {
+        colnode = tf_free_node(colnode);
+        return TF_ERROR_PG_FAILURE;
+    }
+
+    service = tf_new_service(
+        pchost->id, 
+        TF_SERVICE_LOCATION_TYPE, 
+        TF_SERVICE_LOCATION_NAME, 
+        TF_CATALOG_TOOL_FRAMEWORK);
     pchost = tf_free_host(pchost);
+
+    if (!service) {
+        log_error("failed to create location service definition for collection");
+        colnode = tf_free_node(colnode);
+        return TF_ERROR_INTERNAL;
+    }
+
+    snprintf(path, 1024, "/%s%s", name, TF_LOCATION_SERVICE_PC_ENDPOINT);
+    tf_set_service_url(service, path, TF_SERVICE_RELTO_CONTEXT);
+    dberr = tf_add_service(tfctx, service);
+
+    if (dberr != TF_ERROR_SUCCESS) {
+        colnode = tf_free_node(colnode);
+        service = tf_free_service(service);
+        return TF_ERROR_PG_FAILURE;
+    }
+
+    ref = tf_new_service_ref(&colnode->resource, service, "Location");
+    colnode = tf_free_node(colnode);
+    service = tf_free_service(service);
+
+    if (!ref) {
+        log_error("failed to create Location catalog service reference for collection");
+        return TF_ERROR_INTERNAL;
+    }
+
+    dberr = tf_add_service_ref(tfctx, ref);
+    ref = tf_free_service_ref(ref);
 
     if (dberr != TF_ERROR_SUCCESS)
         return TF_ERROR_PG_FAILURE;

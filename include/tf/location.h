@@ -37,6 +37,7 @@
 
 #define TF_SERVICE_CATALOG_ID           "c2f9106f-127a-45b7-b0a3-e0ad8239a2a7"
 #define TF_SERVICE_LOCATION_ID          "bf9cf1d0-24ac-4d35-aeca-6cd18c69c1fe"
+#define TF_SERVICE_REGISTRATION_ID      "b8f97328-80d2-412d-9810-67c5a3f4190f"
 
 /* When used in a project collection database, this points to the location
    service on a Team Foundation service host. */
@@ -49,6 +50,8 @@
 
 #define TF_SERVICE_CATALOG_NAME         "Catalog Service"
 #define TF_SERVICE_LOCATION_NAME        "Location Service"
+#define TF_SERVICE_REGISTRATION_NAME    "Registration Service"
+#define TF_SERVICE_STATUS_NAME          "Status Service"
 
 #define TF_SERVICE_RELTO_CONTEXT            0
 #define TF_SERVICE_RELTO_WEB_APPLICATION    1
