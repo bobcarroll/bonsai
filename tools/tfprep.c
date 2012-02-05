@@ -37,6 +37,7 @@
 #include <tf/catalog.h>
 #include <tf/location.h>
 #include <tf/servicehost.h>
+#include <tf/webservices.h>
 
 int main(int argc, char **argv)
 {
@@ -94,7 +95,7 @@ int main(int argc, char **argv)
     if (argc < 1 || err) {
         printf("USAGE: tfprep [options] <dsn>\n");
         printf("\n");
-        printf("Example DSN: tfs_config@dbserver.example.com\n");
+        printf("Example DSN: tfsconfig@dbserver.example.com\n");
         printf("\n");
         printf("Options:\n");
         printf("  -c <file>             configuration file\n");
@@ -142,7 +143,6 @@ int main(int argc, char **argv)
 
     pgctx *ctx = pg_acquire_trans(NULL);
 
-    log_notice("initialising configuration database (schema revision %d)", TF_SCHEMA_REVISION);
     if (tf_init_configdb(ctx) != TF_ERROR_SUCCESS)
         goto error;
 
@@ -156,7 +156,7 @@ int main(int argc, char **argv)
     sprintf(orgroot->child, TF_CATALOG_ORGANIZATION_ROOT);
     
     if ((dberr = tf_add_node(ctx, orgroot)) != TF_ERROR_SUCCESS)
-        return dberr;
+        goto error;
 
     infroot = tf_new_node(
         NULL, 
@@ -166,7 +166,7 @@ int main(int argc, char **argv)
     sprintf(infroot->child, TF_CATALOG_INFRASTRUCTURE_ROOT);
     
     if ((dberr = tf_add_node(ctx, infroot)) != TF_ERROR_SUCCESS)
-        return dberr;
+        goto error;
 
     servinst = tf_new_node(
         orgroot, 
@@ -190,8 +190,12 @@ int main(int argc, char **argv)
     if (dberr != TF_ERROR_SUCCESS)
         goto error;
 
-    tf_service *service = tf_new_service(TF_SERVICE_ID_LOCATION, "LocationService", "Location Service", "Framework");
-    tf_set_service_url(service, "/TeamFoundation/Administration/v3.0/LocationService.asmx");
+    tf_service *service = tf_new_service(
+        TF_SERVICE_LOCATION_ID, 
+        TF_SERVICE_LOCATION_TYPE, 
+        TF_SERVICE_LOCATION_NAME, 
+        TF_CATALOG_TOOL_FRAMEWORK);
+    tf_set_service_url(service, TF_LOCATION_SERVICE_ENDPOINT, TF_SERVICE_RELTO_CONTEXT);
     dberr = tf_add_service(ctx, service);
 
     if (dberr != TF_ERROR_SUCCESS)
@@ -205,8 +209,12 @@ int main(int argc, char **argv)
     if (dberr != TF_ERROR_SUCCESS)
         goto error;
 
-    service = tf_new_service(TF_SERVICE_ID_CATALOG, "CatalogService", "Catalog Service", "Framework");
-    tf_set_service_url(service, "/TeamFoundation/Administration/v3.0/CatalogService.asmx");
+    service = tf_new_service(
+        TF_SERVICE_CATALOG_ID, 
+        TF_SERVICE_CATALOG_TYPE, 
+        TF_SERVICE_CATALOG_NAME, 
+        TF_CATALOG_TOOL_FRAMEWORK);
+    tf_set_service_url(service, TF_CATALOG_SERVICE_ENDPOINT, TF_SERVICE_RELTO_CONTEXT);
     dberr = tf_add_service(ctx, service);
 
     if (dberr != TF_ERROR_SUCCESS)

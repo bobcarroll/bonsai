@@ -219,15 +219,18 @@ tf_service *tf_new_service(const char *id, const char *type, const char *name, c
  *
  * @param service   service structure to modify
  * @param url       new service url
+ * @param relto     relative to path setting
  *
  * @return 1 on success, 0 on error
  */
-int tf_set_service_url(tf_service *service, const char *url)
+int tf_set_service_url(tf_service *service, const char *url, int relto)
 {
     if (!service || !url || strlen(url) >= TF_LOCATION_SERVICE_REL_PATH_MAXLEN)
         return 0;
 
     strncpy(service->relpath, url, TF_LOCATION_SERVICE_REL_PATH_MAXLEN);
+    service->reltosetting = relto;
+
     return 1;
 }
 

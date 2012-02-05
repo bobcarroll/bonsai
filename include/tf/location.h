@@ -35,13 +35,24 @@
 #define TF_LOCATION_FILTER_SERVICE_ID       "567713db-d56d-4bb0-8f35-604e0e116174"
 #define TF_LOCATION_FILTER_SERVICE_TYPE     "*"
 
-#define TF_SERVICE_ID_CATALOG           "c2f9106f-127a-45b7-b0a3-e0ad8239a2a7"
-#define TF_SERVICE_ID_LOCATION          "bf9cf1d0-24ac-4d35-aeca-6cd18c69c1fe"
+#define TF_SERVICE_CATALOG_ID           "c2f9106f-127a-45b7-b0a3-e0ad8239a2a7"
+#define TF_SERVICE_LOCATION_ID          "bf9cf1d0-24ac-4d35-aeca-6cd18c69c1fe"
 
-#define TF_SERVICE_TYPE_CATALOG         "CatalogService"
-#define TF_SERVICE_TYPE_LOCATION        "LocationService"
-#define TF_SERVICE_TYPE_REGISTRATION    "RegistrationService"
-#define TF_SERVICE_TYPE_STATUS          "StatusService"
+/* When used in a project collection database, this points to the location
+   service on a Team Foundation service host. */
+#define TF_SERVICE_LOCATION2_ID        "8d299418-9467-402b-a171-9165e2f703e2"
+
+#define TF_SERVICE_CATALOG_TYPE         "CatalogService"
+#define TF_SERVICE_LOCATION_TYPE        "LocationService"
+#define TF_SERVICE_REGISTRATION_TYPE    "RegistrationService"
+#define TF_SERVICE_STATUS_TYPE          "StatusService"
+
+#define TF_SERVICE_CATALOG_NAME         "Catalog Service"
+#define TF_SERVICE_LOCATION_NAME        "Location Service"
+
+#define TF_SERVICE_RELTO_CONTEXT            0
+#define TF_SERVICE_RELTO_WEB_APPLICATION    1
+#define TF_SERVICE_RELTO_FULLY_QUALIFIED    2
 
 typedef struct {
     char moniker[TF_LOCATION_ACCMAP_MONIKER_MAXLEN];
@@ -76,7 +87,7 @@ void *tf_free_service_filter_array(tf_service_filter **);
 
 tf_access_map *tf_new_access_map(const char *, const char *, const char *);
 tf_service *tf_new_service(const char *, const char *, const char *, const char *);
-int tf_set_service_url(tf_service *, const char *);
+int tf_set_service_url(tf_service *, const char *, int relto);
 
 tf_error tf_fetch_access_map(pgctx *, tf_access_map ***);
 tf_error tf_fetch_services(pgctx *, tf_service_filter **, tf_service ***);
