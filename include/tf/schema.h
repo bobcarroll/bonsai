@@ -23,7 +23,7 @@
 
 #include <tf/errors.h>
 
-#define TF_SCHEMA_REVISION  1
+#define TF_SCHEMA_REVISION  2
 
 tf_error tf_init_configdb(pgctx *);
 tf_error tf_init_pcdb(pgctx *);
