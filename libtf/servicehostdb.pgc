@@ -87,7 +87,7 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
         "SELECT host_id, parent_host_id, \"name\", description, \
                 virtual_directory, resource_directory, \
                 connection_string, status, status_reason, \
-                supported_features, fk_resource_identifier \
+                supported_features \
         FROM service_hosts \
         %s",
         where);
@@ -120,13 +120,12 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
         char reason[TF_SERVICE_HOST_STATUS_REASON_MAXLEN];
         int reason_ind;
         int features;
-        char resource[TF_CATALOG_RESOURCE_ID_MAXLEN];
         EXEC SQL END DECLARE SECTION;
 
         EXEC SQL AT :conn FETCH NEXT FROM fetch_hosts
             INTO :id, :parent:parent_ind, :name, :description:desc_ind, 
                  :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr, 
-                 :status:status_ind, :reason:reason_ind, :features, :resource;
+                 :status:status_ind, :reason:reason_ind, :features;
 
         tf_host *item = (*result)[i] = (tf_host *)malloc(sizeof(tf_host));
         bzero(item, sizeof(tf_host));
@@ -153,7 +152,6 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
             strncpy(item->reason, reason, TF_SERVICE_HOST_STATUS_REASON_MAXLEN);
 
         item->features = features;
-        strncpy(item->resource, resource, TF_CATALOG_RESOURCE_ID_MAXLEN);
 
         free(description);
     }
@@ -203,7 +201,7 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
         "SELECT host_id, parent_host_id, \"name\", description, \
                 virtual_directory, resource_directory, \
                 connection_string, status, status_reason, \
-                supported_features, fk_resource_identifier \
+                supported_features \
         FROM service_hosts \
         WHERE host_id = '%s'",
         hostid);
@@ -228,13 +226,12 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
     char reason[TF_SERVICE_HOST_STATUS_REASON_MAXLEN];
     int reason_ind;
     int features;
-    char resource[TF_CATALOG_RESOURCE_ID_MAXLEN];
     EXEC SQL END DECLARE SECTION;
 
     EXEC SQL AT :conn EXECUTE sqlstmt
         INTO :id, :parent:parent_ind, :name, :description:desc_ind, 
              :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr, 
-             :status:status_ind, :reason:reason_ind, :features, :resource;
+             :status:status_ind, :reason:reason_ind, :features;
 
     tf_host *item = *result = (tf_host *)malloc(sizeof(tf_host));
     bzero(item, sizeof(tf_host));
@@ -261,7 +258,6 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
         strncpy(item->reason, reason, TF_SERVICE_HOST_STATUS_REASON_MAXLEN);
 
     item->features = features;
-    strncpy(item->resource, resource, TF_CATALOG_RESOURCE_ID_MAXLEN);
 
     free(description);
 
@@ -286,8 +282,7 @@ error:
  */
 tf_error tf_add_host(pgctx *ctx, tf_host *host)
 {
-    if (!ctx || !host || !host->id[0] || !host->name[0] || !host->connstr[0] ||
-            !host->resource[0])
+    if (!ctx || !host || !host->id[0] || !host->name[0] || !host->connstr[0])
         return TF_ERROR_BAD_PARAMETER;
 
     EXEC SQL BEGIN DECLARE SECTION;
@@ -295,8 +290,8 @@ tf_error tf_add_host(pgctx *ctx, tf_host *host)
     const char *hoststmt = 
         "INSERT INTO service_hosts \
            (host_id, parent_host_id, \"name\", description, virtual_directory, resource_directory, \
-            connection_string, status, status_reason, supported_features, fk_resource_identifier) \
-           VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, 0, ?)";
+            connection_string, status, status_reason, supported_features) \
+           VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, 0)";
     const char *hostid = host->id;
     const char *parentid = host->parent[0] ? host->parent : NULL;
     int parentid_ind = parentid ? 0 : -1;
@@ -308,7 +303,6 @@ tf_error tf_add_host(pgctx *ctx, tf_host *host)
     const char *rsrcdir = host->rsrcdir[0] ? host->rsrcdir : NULL;
     int rsrcdir_ind = rsrcdir ? 0 : -1;
     const char *connstr = host->connstr;
-    const char *resource = host->resource;
     EXEC SQL END DECLARE SECTION;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -318,7 +312,7 @@ tf_error tf_add_host(pgctx *ctx, tf_host *host)
 
     EXEC SQL AT :conn PREPARE sqlstmt FROM :hoststmt;
     EXEC SQL AT :conn EXECUTE sqlstmt USING :hostid, :parentid:parentid_ind, :name,
-        :desc:desc_ind, :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr, :resource;
+        :desc:desc_ind, :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr;
 
     return TF_ERROR_SUCCESS;
 

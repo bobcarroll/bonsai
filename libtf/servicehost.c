@@ -77,17 +77,16 @@ void *tf_free_host_array(tf_host **result)
  * @param parent    optional parent service host
  * @param name      name of the new service host
  * @param connstr   database connection string
- * @param rsrc      catalog resource for the host
  *
  * @return a new service host or NULL on error
  */
-tf_host *tf_new_host(tf_host *parent, const char *name, const char *connstr, tf_resource *rsrc)
+tf_host *tf_new_host(tf_host *parent, const char *name, const char *connstr)
 {
     tf_host *result;
     uuid_t newid;
     char newid_s[1024];
 
-    if (!name || !name[0] || !connstr || !connstr[0] || !rsrc || !rsrc->id[0])
+    if (!name || !name[0] || !connstr || !connstr[0])
         return NULL;
 
     result = (tf_host *)malloc(sizeof(tf_host));
@@ -102,7 +101,6 @@ tf_host *tf_new_host(tf_host *parent, const char *name, const char *connstr, tf_
 
     strncpy(result->name, name, TF_SERVICE_HOST_NAME_MAXLEN);
     strncpy(result->connstr, connstr, TF_SERVICE_HOST_CONN_STR_MAXLEN);
-    strncpy(result->resource, rsrc->id, TF_CATALOG_RESOURCE_ID_MAXLEN);
 
     return result;
 }

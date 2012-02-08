@@ -194,7 +194,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     tf_service_filter **filters = NULL;
     tf_service **svcarr = NULL;
     tf_access_map **accmaparr = NULL;
-    tf_node **nodearr = NULL;
+    tf_node *node = NULL;
     tf_host *host = NULL;
     tf_error dberr;
     userinfo_t *ui = NULL;
@@ -262,15 +262,9 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    char **idarr = (char **)calloc(2, sizeof(char *));
-    idarr[0] = strdup(host->resource);
+    dberr = tf_fetch_instance_node(ctx, host->id, &node);
 
-    dberr = tf_fetch_resources(ctx, (const char * const *)idarr, 0, &nodearr);
-
-    free(idarr[0]);
-    free(idarr);
-
-    if (dberr != TF_ERROR_SUCCESS || !nodearr[0]) {
+    if (dberr != TF_ERROR_SUCCESS) {
         authz_free_buffer(ui);
 
         host = tf_free_host(host);
@@ -298,7 +292,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
             authz_free_buffer(ui);
 
             host = tf_free_host(host);
-            nodearr = tf_free_node_array(nodearr);
+            node = tf_free_node(node);
             pg_context_release(ctx);
 
             tf_fault_env(
@@ -316,7 +310,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         authz_free_buffer(ui);
 
         host = tf_free_host(host);
-        nodearr = tf_free_node_array(nodearr);
+        node = tf_free_node(node);
         svcarr = tf_free_service_array(svcarr);
         pg_context_release(ctx);
 
@@ -333,7 +327,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
 
     xmlNode *connresult = xmlNewChild(res->env->body->children->next, NULL, "ConnectResult", NULL);
     xmlNewProp(connresult, "InstanceId", hostid);
-    xmlNewProp(connresult, "CatalogResourceId", nodearr[0]->resource.id);
+    xmlNewProp(connresult, "CatalogResourceId", node->resource.id);
 
     if (host->vdir)
         xmlNewProp(connresult, "WebApplicationRelativeDirectory", host->vdir);
@@ -349,7 +343,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
 
     svcarr = tf_free_service_array(svcarr);
     accmaparr = tf_free_access_map_array(accmaparr);
-    nodearr = tf_free_node_array(nodearr);
+    node = tf_free_node(node);
     host = tf_free_host(host);
 
     authz_free_buffer(ui);

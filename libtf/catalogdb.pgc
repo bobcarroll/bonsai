@@ -370,155 +370,6 @@ error:
  * should call tf_free_service_ref_array() to free "result".
  *
  * @param ctx       current database context
- * @param instid    project collection instance ID
- * @param result    pointer to an output buffer for the results
- *
- * @return TF_ERROR_SUCCESS or an error code
- */
-tf_error tf_fetch_pc_service_refs(pgctx *ctx, const char *instid, tf_service_ref ***result)
-{
-    if (!ctx || !instid || !result || *result)
-        return TF_ERROR_BAD_PARAMETER;
-
-    log_debug("looking up service references for host instance %s", instid);
-
-    EXEC SQL BEGIN DECLARE SECTION;
-    const char *conn = ctx->conn;
-    char countstmt[20480];
-    char selstmt[20480];
-    int count = 0;
-    EXEC SQL END DECLARE SECTION;
-
-    sprintf(countstmt, 
-        "SELECT COUNT(*) \
-        FROM catalog_nodes AS cn \
-        JOIN catalog_resources AS cr \
-            ON cn.fk_resource_identifier = cr.identifier \
-            AND cr.fk_resource_type = '%s' \
-        JOIN property_values AS pv \
-            ON cr.fk_property_artifact = pv.artifact_id \
-            AND pv.fk_property_id = %d \
-        JOIN catalog_service_references AS csr \
-            ON cr.identifier = csr.resource_identifier \
-        JOIN service_definitions AS sd \
-            ON csr.fk_service_identifier = sd.identifier \
-            AND csr.fk_service_type = sd.service_type \
-        JOIN tool_types AS tt \
-           ON sd.fk_tool_id = tt.id \
-        WHERE pv.value = '%s'",
-        TF_CATALOG_TYPE_TEAM_PRJ_COLLECTION,
-        TF_CATALOG_PROPERTY_INSTANCE_ID_ID,
-        instid);
-    log_trace("fetch catalog services SQL: %s", countstmt);
-
-    EXEC SQL WHENEVER SQLERROR GOTO error;
-    EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
-
-    EXEC SQL WHENEVER NOT FOUND CONTINUE;
-    EXEC SQL AT :conn EXECUTE sqlstmt INTO :count;
-
-    log_debug("found %d catalog service(s)", count);
-    *result = (tf_service_ref **)calloc(count + 1, sizeof(tf_service_ref *));
-
-    if (count == 0)
-        return TF_ERROR_SUCCESS;
-
-    sprintf(selstmt, 
-        "SELECT csr.resource_identifier, csr.association_key, \
-                sd.identifier, sd.service_type, sd.display_name, \
-                sd.relative_to_setting, sd.relative_path, \
-                sd.singleton, sd.description, tt.type \
-        FROM catalog_nodes AS cn \
-        JOIN catalog_resources AS cr \
-            ON cn.fk_resource_identifier = cr.identifier \
-            AND cr.fk_resource_type = '%s' \
-        JOIN property_values AS pv \
-            ON cr.fk_property_artifact = pv.artifact_id \
-            AND pv.fk_property_id = %d \
-        JOIN catalog_service_references AS csr \
-            ON cr.identifier = csr.resource_identifier \
-        JOIN service_definitions AS sd \
-            ON csr.fk_service_identifier = sd.identifier \
-            AND csr.fk_service_type = sd.service_type \
-        JOIN tool_types AS tt \
-           ON sd.fk_tool_id = tt.id \
-        WHERE pv.value = '%s'",
-        TF_CATALOG_TYPE_TEAM_PRJ_COLLECTION,
-        TF_CATALOG_PROPERTY_INSTANCE_ID_ID,
-        instid);
-
-    EXEC SQL AT :conn PREPARE sqlstmt FROM :selstmt;
-
-    EXEC SQL AT :conn DECLARE fetch_pc_service_refs CURSOR FOR sqlstmt;
-    EXEC SQL AT :conn OPEN fetch_pc_service_refs;
-    EXEC SQL WHENEVER SQLERROR GOTO error_cur;
-
-    int i;
-    for (i = 0; ; i++) {
-        EXEC SQL WHENEVER NOT FOUND DO BREAK;
-
-        EXEC SQL BEGIN DECLARE SECTION;
-        char resid[TF_CATALOG_RESOURCE_ID_MAXLEN];
-        char assockey[TF_CATALOG_ASSOCIATION_KEY_MAXLEN];
-        char svcid[TF_LOCATION_SERVICE_ID_MAXLEN];
-        char svctype[TF_LOCATION_SERVICE_TYPE_MAXLEN];
-        char svcname[TF_LOCATION_SERVICE_NAME_MAXLEN];
-        int reltosetting;
-        char relpath[TF_LOCATION_SERVICE_REL_PATH_MAXLEN];
-        int relpath_ind;
-        int singleton;
-        char *svcdesc = NULL;
-        int svcdesc_ind;
-        char tooltype[TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN];
-        EXEC SQL END DECLARE SECTION;
-
-        EXEC SQL AT :conn FETCH NEXT FROM fetch_pc_service_refs
-            INTO :resid, :assockey, :svcid, :svctype, :svcname, :reltosetting,
-                 :relpath:relpath_ind, :singleton, :svcdesc:svcdesc_ind, :tooltype;
-
-        tf_service_ref *item = (*result)[i] = (tf_service_ref *)malloc(sizeof(tf_service_ref));
-        bzero(item, sizeof(tf_service_ref));
-
-        strncpy(item->id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
-        strncpy(item->assockey, assockey, TF_CATALOG_ASSOCIATION_KEY_MAXLEN);
-
-        strncpy(item->service.id, svcid, TF_LOCATION_SERVICE_ID_MAXLEN);
-        strncpy(item->service.type, svctype, TF_LOCATION_SERVICE_TYPE_MAXLEN);
-        strncpy(item->service.name, svcname, TF_LOCATION_SERVICE_NAME_MAXLEN);
-        strncpy(item->service.tooltype, tooltype, TF_LOCATION_SERVICE_TOOL_TYPE_MAXLEN);
-
-        item->service.reltosetting = reltosetting;
-        item->service.singleton = singleton;
-
-        if (!relpath_ind)
-            strncpy(item->service.relpath, relpath, TF_LOCATION_SERVICE_REL_PATH_MAXLEN);
-
-        item->service.description = !svcdesc_ind ? strdup(svcdesc) : NULL;
-
-        free(svcdesc);
-    }
-
-    EXEC SQL AT :conn CLOSE fetch_pc_service_refs;
-    return TF_ERROR_SUCCESS;
-
-error_cur:
-    log_error(sqlca.sqlerrm.sqlerrmc);
-
-    EXEC SQL WHENEVER SQLERROR GOTO error;
-    EXEC SQL AT :conn CLOSE fetch_pc_service_refs;
-
-    return TF_ERROR_PG_FAILURE;
-
-error:
-    log_error(sqlca.sqlerrm.sqlerrmc);
-    return TF_ERROR_PG_FAILURE;
-}
-
-/**
- * Retrieves catalog service references from the database. Calling functions
- * should call tf_free_service_ref_array() to free "result".
- *
- * @param ctx       current database context
  * @param nodes     a null-terminated array of nodes to lookup services for
  * @param result    pointer to an output buffer for the results
  *
@@ -891,3 +742,91 @@ error:
     return TF_ERROR_PG_FAILURE;
 }
 
+/**
+ * Retrieves the catalog node for the given host instance from the database. Calling
+ * functions should call tf_catalog_free_node() prior to freeing "result".
+ *
+ * @param ctx           current database context
+ * @param instance      host instance ID
+ * @param result        pointer to an output buffer for the result
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_fetch_instance_node(pgctx *ctx, const char *instance, tf_node **result)
+{
+    if (!ctx || !instance || !instance[0] || !result || *result)
+        return TF_ERROR_BAD_PARAMETER;
+
+    log_debug("looking up catalog node with instance property %s", instance);
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    char selstmt[20480];
+    char parent[TF_CATALOG_PARENT_PATH_MAXLEN];
+    char child[TF_CATALOG_CHILD_ITEM_MAXLEN];
+    int fdefault;
+    char resid[TF_CATALOG_RESOURCE_ID_MAXLEN];
+    char resname[TF_CATALOG_RESOURCE_NAME_MAXLEN];
+    char *resdesc = NULL;
+    int resdesc_ind;
+    int propid;
+    int propid_ind;
+    char typeid[TF_CATALOG_RESOURCE_TYPE_MAXLEN];
+    char typename[TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN];
+    char *typedesc = NULL;
+    int typedesc_ind;
+    EXEC SQL END DECLARE SECTION;
+
+    sprintf(selstmt, 
+        "SELECT cn.parent_path, cn.child_item, cn.\"default\", \
+                cr.identifier, cr.display_name, cr.description, cr.fk_property_artifact, \
+                crt.identifier, crt.display_name, crt.description \
+         FROM catalog_nodes AS cn \
+         INNER JOIN catalog_resources AS cr \
+            ON cn.fk_resource_identifier = cr.identifier \
+         INNER JOIN catalog_resource_types AS crt \
+            ON cr.fk_resource_type = crt.identifier \
+         INNER JOIN property_values AS pv \
+            ON cr.fk_property_artifact = pv.artifact_id \
+         WHERE pv.fk_property_id = %d AND pv.value = '%s'", 
+        TF_CATALOG_PROPERTY_INSTANCE_ID_ID,
+        instance);
+    log_trace("fetch catalog node SQL: %s", selstmt);
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :selstmt;
+
+    EXEC SQL WHENEVER NOT FOUND GOTO not_found;
+    EXEC SQL AT :conn EXECUTE sqlstmt INTO :parent, :child, :fdefault,
+        :resid, :resname, :resdesc:resdesc_ind, :propid:propid_ind,
+        :typeid, :typename, :typedesc:typedesc_ind;
+
+    tf_node *item = *result = (tf_node *)malloc(sizeof(tf_node));
+    bzero(item, sizeof(tf_node));
+
+    strncpy(item->parent, parent, TF_CATALOG_PARENT_PATH_MAXLEN);
+    strncpy(item->child, child, TF_CATALOG_CHILD_ITEM_MAXLEN);
+    item->fdefault = fdefault;
+
+    strncpy(item->resource.id, resid, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+    strncpy(item->resource.name, resname, TF_CATALOG_RESOURCE_NAME_MAXLEN);
+    item->resource.description = !resdesc_ind ? strdup(resdesc) : NULL;
+    item->resource.propertyid = !propid_ind ? propid : 0;
+
+    strncpy(item->resource.type.id, typeid, TF_CATALOG_RESOURCE_TYPE_MAXLEN);
+    strncpy(item->resource.type.name, typename, TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
+    item->resource.type.description = !typedesc_ind ? strdup(typedesc) : NULL;
+
+    free(resdesc);
+    free(typedesc);
+
+    return TF_ERROR_SUCCESS;
+
+not_found:
+    log_debug("no matching records found");
+    return TF_ERROR_NOT_FOUND;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return TF_ERROR_PG_FAILURE;
+}
