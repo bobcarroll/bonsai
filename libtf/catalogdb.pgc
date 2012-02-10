@@ -149,7 +149,7 @@ tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const
 
     sprintf(selstmt, 
         "SELECT cn.parent_path, cn.child_item, cn.\"default\", \
-                cr.identifier, cr.display_name, cr.description, cr.fk_property_artifact, \
+                cr.identifier, cr.display_name, cr.description, cr.property_artifact, \
                 crt.identifier, crt.display_name, crt.description \
          FROM catalog_nodes AS cn \
          INNER JOIN catalog_resources AS cr \
@@ -287,7 +287,7 @@ tf_error tf_fetch_resources(pgctx *ctx, const char * const *idarr, int types, tf
 
     sprintf(selstmt, 
         "SELECT cn.parent_path, cn.child_item, cn.\"default\", \
-                cr.identifier, cr.display_name, cr.description, cr.fk_property_artifact, \
+                cr.identifier, cr.display_name, cr.description, cr.property_artifact, \
                 crt.identifier, crt.display_name, crt.description \
          FROM catalog_nodes AS cn \
          INNER JOIN catalog_resources AS cr \
@@ -663,7 +663,7 @@ tf_error tf_add_node(pgctx *ctx, tf_node *node)
     const char *conn = ctx->conn;
     const char *resstmt = 
         "INSERT INTO catalog_resources \
-           (identifier, fk_resource_type, display_name, description, fk_property_artifact) \
+           (identifier, fk_resource_type, display_name, description, property_artifact) \
            VALUES (?, ?, ?, ?, NULL)";
     const char *nodestmt = 
         "INSERT INTO catalog_nodes \
@@ -779,7 +779,7 @@ tf_error tf_fetch_instance_node(pgctx *ctx, const char *instance, tf_node **resu
 
     sprintf(selstmt, 
         "SELECT cn.parent_path, cn.child_item, cn.\"default\", \
-                cr.identifier, cr.display_name, cr.description, cr.fk_property_artifact, \
+                cr.identifier, cr.display_name, cr.description, cr.property_artifact, \
                 crt.identifier, crt.display_name, crt.description \
          FROM catalog_nodes AS cn \
          INNER JOIN catalog_resources AS cr \
@@ -787,7 +787,7 @@ tf_error tf_fetch_instance_node(pgctx *ctx, const char *instance, tf_node **resu
          INNER JOIN catalog_resource_types AS crt \
             ON cr.fk_resource_type = crt.identifier \
          INNER JOIN property_values AS pv \
-            ON cr.fk_property_artifact = pv.artifact_id \
+            ON cr.property_artifact = pv.artifact_id \
          WHERE pv.fk_property_id = %d AND pv.value = '%s'", 
         TF_CATALOG_PROPERTY_INSTANCE_ID_ID,
         instance);

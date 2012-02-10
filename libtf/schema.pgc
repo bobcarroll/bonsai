@@ -29,6 +29,49 @@
 #include <tf/catalog.h>
 
 /**
+ * Creates property bag objects.
+ *
+ * @param connstr   connection identifier
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+static tf_error _create_property_objects(const char *connstr)
+{
+    if (!connstr)
+        return TF_ERROR_BAD_PARAMETER;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = connstr;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+
+    EXEC SQL AT :conn CREATE TABLE property_definitions (
+        id integer NOT NULL,
+        "name" character varying(400) NOT NULL,
+        type_id integer NOT NULL,
+        CONSTRAINT "PK_property_definitions" PRIMARY KEY (id));
+
+    EXEC SQL AT :conn CREATE TABLE property_values (
+        artifact_id integer NOT NULL,
+        "version" integer NOT NULL,
+        fk_property_id integer NOT NULL,
+        internal_kind_id integer NOT NULL,
+        "value" text NOT NULL,
+        CONSTRAINT "PK_property_values" PRIMARY KEY
+            (artifact_id, fk_property_id, version, internal_kind_id),
+        CONSTRAINT "FK_property_definition" FOREIGN KEY (fk_property_id)
+            REFERENCES property_definitions (id) MATCH SIMPLE
+            ON UPDATE NO ACTION ON DELETE NO ACTION);
+
+    return TF_ERROR_SUCCESS;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return TF_ERROR_PG_FAILURE;
+}
+
+/**
  * Creates server catalog objects.
  *
  * @param connstr   connection identifier
@@ -57,11 +100,12 @@ static tf_error _create_catalog_objects(const char *connstr)
         fk_resource_type uuid,
         display_name character varying(256) NOT NULL,
         description text,
-        fk_property_artifact integer,
+        property_artifact integer UNIQUE,
         CONSTRAINT "PK_catalog_resources" PRIMARY KEY (identifier),
         CONSTRAINT "FK_catalog_resource_type" FOREIGN KEY (fk_resource_type)
             REFERENCES catalog_resource_types (identifier) MATCH SIMPLE
-            ON UPDATE NO ACTION ON DELETE NO ACTION);
+            ON UPDATE NO ACTION ON DELETE NO ACTION,
+        CONSTRAINT "AK_catalog_resource_artifact" UNIQUE (identifier, property_artifact));
 
     EXEC SQL AT :conn CREATE TABLE catalog_nodes (
         parent_path character varying(864) NOT NULL,
@@ -83,21 +127,22 @@ static tf_error _create_catalog_objects(const char *connstr)
             REFERENCES service_definitions (identifier, service_type) MATCH SIMPLE
             ON UPDATE NO ACTION ON DELETE NO ACTION);
 
-    EXEC SQL AT :conn CREATE TABLE property_definitions (
-        id integer NOT NULL,
-        "name" character varying(400) NOT NULL,
-        type_id integer NOT NULL,
-        CONSTRAINT "PK_proeprty_definitions" PRIMARY KEY (id));
-
-    EXEC SQL AT :conn CREATE TABLE property_values (
-        artifact_id integer NOT NULL,
-        "version" integer NOT NULL,
+    EXEC SQL AT :conn CREATE SEQUENCE catalog_resource_properties_seq;
+    EXEC SQL AT :conn CREATE TABLE catalog_resource_properties (
+        id integer NOT NULL DEFAULT NEXTVAL('catalog_resource_properties_seq'),
+        fk_resource_identifier uuid NOT NULL,
+        fk_artifact_id integer NOT NULL,
+        fk_version integer NOT NULL,
         fk_property_id integer NOT NULL,
-        internal_kind_id integer NOT NULL,
-        "value" text NOT NULL,
-        CONSTRAINT "PK_property_values" PRIMARY KEY (artifact_id, fk_property_id, version, internal_kind_id),
-        CONSTRAINT "FK_property_definition" FOREIGN KEY (fk_property_id)
-            REFERENCES property_definitions (id) MATCH SIMPLE
+        fk_internal_kind_id integer NOT NULL,
+        CONSTRAINT "PK_catalog_resource_property" PRIMARY KEY (id),
+        CONSTRAINT "FK_catalog_resource_property_id" FOREIGN KEY (fk_resource_identifier, fk_artifact_id)
+            REFERENCES catalog_resources (identifier, property_artifact) MATCH SIMPLE
+            ON UPDATE NO ACTION ON DELETE NO ACTION,
+        CONSTRAINT "FK_catalog_resource_property" FOREIGN KEY 
+                (fk_artifact_id, fk_version, fk_property_id, fk_internal_kind_id)
+            REFERENCES property_values 
+                (artifact_id, "version", fk_property_id, internal_kind_id) MATCH SIMPLE
             ON UPDATE NO ACTION ON DELETE NO ACTION);
 
     return TF_ERROR_SUCCESS;
@@ -221,6 +266,11 @@ tf_error tf_init_configdb(pgctx *ctx)
 
     if ((result = _create_location_objects(ctx->conn)) != TF_ERROR_SUCCESS) {
         log_critical("failed to create location services objects!");
+        return result;
+    }
+
+    if ((result = _create_property_objects(ctx->conn)) != TF_ERROR_SUCCESS) {
+        log_critical("failed to create property bag objects!");
         return result;
     }
 
