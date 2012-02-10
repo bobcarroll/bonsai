@@ -75,46 +75,6 @@ void *tf_free_node_array(tf_node **result)
 }
 
 /**
- * Frees memory associated with a catalog property.
- *
- * @param result    pointer to a catalog property
- *
- * @return NULL
- */
-void *tf_free_property(tf_property *result)
-{
-    if (result) {
-        if (result->value)
-            free(result->value);
-
-        result->value = NULL;
-        free(result);
-    }
-
-    return NULL;
-}
-
-/**
- * Frees memory associated with a catalog property array.
- *
- * @param result    a null-terminated property array
- *
- * @return NULL
- */
-void *tf_free_property_array(tf_property **result)
-{
-    if (!result)
-        return NULL;
-
-    int i;
-    for (i = 0; result[i]; i++)
-        tf_free_property(result[i]);
-
-    free(result);
-    return NULL;
-}
-
-/**
  * Frees memory associated with a service reference.
  *
  * @param result    a service reference structure

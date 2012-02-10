@@ -526,7 +526,7 @@ error:
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_properties(pgctx *ctx, tf_node **nodes, tf_property ***result)
+tf_error tf_fetch_node_properties(pgctx *ctx, tf_node **nodes, tf_property ***result)
 {
     if (!ctx || !nodes || !nodes[0] || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
@@ -608,7 +608,7 @@ tf_error tf_fetch_properties(pgctx *ctx, tf_node **nodes, tf_property ***result)
         int kindid;
         char *value = NULL;
         int value_ind;
-        char property[TF_CATALOG_PROPERTY_NAME_MAXLEN];
+        char property[TF_PROPERTY_NAME_MAXLEN];
         int typeid;
         EXEC SQL END DECLARE SECTION;
 
@@ -623,7 +623,7 @@ tf_error tf_fetch_properties(pgctx *ctx, tf_node **nodes, tf_property ***result)
         item->version = version;
         item->kindid = kindid;
 
-        strncpy(item->property, property, TF_CATALOG_PROPERTY_NAME_MAXLEN);
+        strncpy(item->property, property, TF_PROPERTY_NAME_MAXLEN);
         item->value = !value_ind ? strdup(value) : NULL;
 
         free(value);
@@ -789,7 +789,7 @@ tf_error tf_fetch_instance_node(pgctx *ctx, const char *instance, tf_node **resu
          INNER JOIN property_values AS pv \
             ON cr.property_artifact = pv.artifact_id \
          WHERE pv.fk_property_id = %d AND pv.value = '%s'", 
-        TF_CATALOG_PROPERTY_INSTANCE_ID_ID,
+        TF_PROPERTY_INSTANCE_ID_ID,
         instance);
     log_trace("fetch catalog node SQL: %s", selstmt);
 

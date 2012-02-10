@@ -22,6 +22,7 @@
 #include <pgctxpool.h>
 
 #include <tf/location.h>
+#include <tf/property.h>
 #include <tf/errors.h>
 
 #define TF_CATALOG_INFRASTRUCTURE_ROOT  "Vc1S6XwnTEe/isOiPfhmxw=="
@@ -55,15 +56,11 @@
 #define TF_CATALOG_TYPE_TEAM_PROJECT        "48577A4A-801E-412C-B8AE-CF7EF3529616"
 #define TF_CATALOG_TYPE_TEAM_WEB_ACCESS     "47FA57A4-8157-4FB5-9A64-A7A4954BD284"
 
-#define TF_CATALOG_PROPERTY_INSTANCE_ID_ID      10
-#define TF_CATALOG_PROPERTY_INSTANCE_ID_VALUE   "InstanceId"
-
 #define TF_CATALOG_TOOL_FRAMEWORK       "Framework"
 
 #define TF_CATALOG_ASSOCIATION_KEY_MAXLEN       257
 #define TF_CATALOG_CHILD_ITEM_MAXLEN            25
 #define TF_CATALOG_PARENT_PATH_MAXLEN           865
-#define TF_CATALOG_PROPERTY_NAME_MAXLEN         401
 #define TF_CATALOG_RESOURCE_ID_MAXLEN           37
 #define TF_CATALOG_RESOURCE_NAME_MAXLEN         257
 #define TF_CATALOG_RESOURCE_TYPE_MAXLEN         37
@@ -79,7 +76,6 @@
 #define TF_MAX_PATH_SIZE    TF_CATALOG_PARENT_PATH_MAXLEN + TF_CATALOG_CHILD_ITEM_MAXLEN - 1
 
 static const int _tf_rsrc_tbl_len = 26;
-static const int _tf_prop_tbl_len = 1;
 static const int _tf_tool_tbl_len = 1;
 
 static const char *_tf_rsrc_type_id[] = {
@@ -172,14 +168,6 @@ static const char *_tf_rsrc_type_desc[] = {
     "Team Web Access Location"
 };
 
-static const int _tf_property_id[] = {
-    TF_CATALOG_PROPERTY_INSTANCE_ID_ID
-};
-
-static const char *_tf_property_value[] = {
-    TF_CATALOG_PROPERTY_INSTANCE_ID_VALUE
-};
-
 static const char *_tf_tool_types[] = {
     TF_CATALOG_TOOL_FRAMEWORK
 };
@@ -216,19 +204,8 @@ typedef struct {
     int depth;
 } tf_path_spec;
 
-typedef struct {
-    int artifactid;
-    int version;
-    char property[TF_CATALOG_PROPERTY_NAME_MAXLEN];
-    int type;
-    int kindid;
-    char *value;
-} tf_property;
-
 void *tf_free_node(tf_node *);
 void *tf_free_node_array(tf_node **);
-void *tf_free_property(tf_property *);
-void *tf_free_property_array(tf_property **);
 void *tf_free_service_ref(tf_service_ref *);
 void *tf_free_service_ref_array(tf_service_ref **);
 
@@ -239,10 +216,10 @@ tf_node *tf_new_node(tf_node *, const char *, const char *, const char *);
 tf_service_ref *tf_new_service_ref(tf_resource *, tf_service *, const char *);
 
 tf_error tf_fetch_instance_node(pgctx *, const char *, tf_node **);
+tf_error tf_fetch_node_properties(pgctx *, tf_node **, tf_property ***);
 tf_error tf_fetch_nodes(pgctx *, tf_path_spec **, const char * const *, tf_node ***);
 tf_error tf_fetch_resources(pgctx *, const char * const *, int, tf_node ***);
 tf_error tf_fetch_service_refs(pgctx *, tf_node **, tf_service_ref ***);
-tf_error tf_fetch_properties(pgctx *, tf_node **, tf_property ***);
 
 tf_error tf_add_node(pgctx *, tf_node *);
 tf_error tf_add_service_ref(pgctx *, tf_service_ref *);

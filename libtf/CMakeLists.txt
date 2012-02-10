@@ -7,6 +7,7 @@ set(LIBTF_SRC
     locationdb.c
     servicehost.c
     servicehostdb.c
+    property.c
     collection.c
     xml.c
     fault.c

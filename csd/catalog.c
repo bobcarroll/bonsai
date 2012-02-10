@@ -222,7 +222,7 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    dberr = tf_fetch_properties(ctx, nodearr, &proparr);
+    dberr = tf_fetch_node_properties(ctx, nodearr, &proparr);
     if (dberr != TF_ERROR_SUCCESS) {
         nodearr = tf_free_node_array(nodearr);
         svcarr = tf_free_service_ref_array(svcarr);
@@ -355,7 +355,7 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
             return H_OK;
         }
 
-        dberr = tf_fetch_properties(ctx, nodearr, &proparr);
+        dberr = tf_fetch_node_properties(ctx, nodearr, &proparr);
         if (dberr != TF_ERROR_SUCCESS) {
             nodearr = tf_free_node_array(nodearr);
             svcarr = tf_free_service_ref_array(svcarr);
