@@ -111,7 +111,8 @@ error:
 
 /**
  * Acquires a thread-exclusive database connection with a new transaction.
- * This function will block until a connection becomes available.
+ * If a transaction is already started for this thread then it will be
+ * reused. This function will block until a connection becomes available.
  *
  * Passing NULL for the tag argument will always return bootstrapping
  * contexts (as in, contexts created without a tag) even if the contexts
@@ -124,7 +125,15 @@ error:
 pgctx *pg_acquire_trans(const char *tag)
 {
     pgctx *ctx = pg_context_acquire(tag);
+
+    if (ctx->trans) {
+        log_debug("re-using existing transaction for PG context %s", ctx->conn);
+        ctx->trans++;
+        return ctx;
+    }
+
     log_debug("beginning transaction for PG context %s", ctx->conn);
+    ctx->trans = 1;
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
@@ -138,40 +147,80 @@ pgctx *pg_acquire_trans(const char *tag)
 }
 
 /**
- * Releases the given context after committing the transaction.
+ * Releases the given context after committing the transaction. If
+ * there are other open handles to the context, then the transaction
+ * will only be marked for commit. If the context is already marked
+ * for rollback, then it will be released without commit.
  *
  * @param ctx
+ *
+ * @return 1 on success, 0 on failure
  */
-void pg_release_commit(pgctx *ctx)
+int pg_release_commit(pgctx *ctx)
 {
-    log_debug("commiting work for PG context %s", ctx->conn);
+    if (!ctx->trans) {
+        log_error("no transaction for PG context %s", ctx->conn);
+        return 0;
+    }
 
-    EXEC SQL BEGIN DECLARE SECTION;
-    const char *conn = ctx->conn;
-    EXEC SQL END DECLARE SECTION;
+    if (ctx->trans == 1 && ctx->commit != -1) {
+        log_debug("commiting work for PG context %s", ctx->conn);
+        ctx->commit = 0;
 
-    EXEC SQL WHENEVER SQLERROR CONTINUE;
-    EXEC SQL AT :conn COMMIT WORK;
+        EXEC SQL BEGIN DECLARE SECTION;
+        const char *conn = ctx->conn;
+        EXEC SQL END DECLARE SECTION;
 
+        EXEC SQL WHENEVER SQLERROR CONTINUE;
+        EXEC SQL AT :conn COMMIT WORK;
+    } else if (ctx->commit == -1) {
+        log_debug("PG context %s is already marked for rollback", ctx->conn);
+    } else {
+        log_debug("marking PG context %s for commit", ctx->conn);
+        ctx->commit = 1;
+    }
+
+    ctx->trans--;
     pg_context_release(ctx);
+
+    return 1;
 }
 
 /**
- * Releases the given context after rolling back the transaction.
+ * Releases the given context after rolling back the transaction. If
+ * there are other open handles to the context, then the transaction
+ * will only be marked for rollback. Calling this function will
+ * override any previous commit requests for the transaction.
  *
  * @param ctx
+ *
+ * @return 1 on success, 0 on failure
  */
-void pg_release_rollback(pgctx *ctx)
+int pg_release_rollback(pgctx *ctx)
 {
-    log_debug("rolling back PG context %s", ctx->conn);
+    if (!ctx->trans) {
+        log_error("no transaction for PG context %s", ctx->conn);
+        return 0;
+    }
 
-    EXEC SQL BEGIN DECLARE SECTION;
-    const char *conn = ctx->conn;
-    EXEC SQL END DECLARE SECTION;
+    if (ctx->trans == 1 && ctx->commit == -1) {
+        log_debug("rolling back PG context %s", ctx->conn);
+        ctx->commit = 0;
 
-    EXEC SQL WHENEVER SQLERROR CONTINUE;
-    EXEC SQL AT :conn ROLLBACK WORK;
+        EXEC SQL BEGIN DECLARE SECTION;
+        const char *conn = ctx->conn;
+        EXEC SQL END DECLARE SECTION;
 
+        EXEC SQL WHENEVER SQLERROR CONTINUE;
+        EXEC SQL AT :conn ROLLBACK WORK;
+    } else {
+        log_debug("marking PG context %s for rollback", ctx->conn);
+        ctx->commit = -1;
+    }
+
+    ctx->trans--;
     pg_context_release(ctx);
+
+    return 1;
 }
 
