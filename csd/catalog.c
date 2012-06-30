@@ -404,6 +404,43 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
 }
 
 /**
+ * Catalog SOAP service handler for QueryResourceTypes.
+ *
+ * @param req   SOAP request context
+ * @param res   SOAP response context
+ *
+ * @return H_OK on success
+ */
+static herror_t _query_resource_types(SoapCtx *req, SoapCtx *res)
+{
+    tf_resource_type **typelst = NULL;
+    tf_error dberr;
+    int i;
+
+    dberr = tf_query_resource_types(&typelst);
+    if (dberr != TF_ERROR_SUCCESS) {
+        tf_fault_env(
+                Fault_Server, 
+                "Failed to retrieve resource types from the database", 
+                dberr, 
+                &res->env);
+        return H_OK;
+    }
+
+    xmlNode *cmd = soap_env_get_method(req->env);
+    soap_env_new_with_method(cmd->ns->href, "QueryResourceTypesResponse", &res->env);
+
+    xmlNode *result = xmlNewChild(res->env->body->children->next, NULL, "QueryResourceTypesResult", NULL);
+
+    for (i = 0; typelst[i]; i++)
+        _append_resource_type(result, *(typelst[i]));
+
+    typelst = tf_free_resource_type_array(typelst);
+
+    return H_OK;
+}
+
+/**
  * Catalog service initialisation.
  *
  * @param router    output buffer for the SOAP router
@@ -432,6 +469,11 @@ void catalog_service_init(SoapRouter **router, const char *prefix, const char *r
         *router,
         _query_nodes,
         "QueryNodes",
+        TF_DEFAULT_NAMESPACE);
+    soap_router_register_service(
+        *router,
+        _query_resource_types,
+        "QueryResourceTypes",
         TF_DEFAULT_NAMESPACE);
 
     log_info("registered catalog service %s for host %s", url, instid);

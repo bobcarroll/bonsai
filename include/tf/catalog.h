@@ -206,11 +206,14 @@ typedef struct {
 
 void *tf_free_node(tf_node *);
 void *tf_free_node_array(tf_node **);
+void *tf_free_resource_type(tf_resource_type *);
+void *tf_free_resource_type_array(tf_resource_type **);
 void *tf_free_service_ref(tf_service_ref *);
 void *tf_free_service_ref_array(tf_service_ref **);
 
 tf_error tf_query_nodes(pgctx *, const char * const *, const char * const *, tf_node ***);
 tf_error tf_query_tree(pgctx *, const char *, const char *, tf_node ***);
+tf_error tf_query_resource_types(tf_resource_type ***);
 
 tf_node *tf_new_node(tf_node *, const char *, const char *, const char *);
 tf_service_ref *tf_new_service_ref(tf_resource *, tf_service *, const char *);

@@ -20,8 +20,16 @@ find_package(NTLM REQUIRED)
 find_package(Threads REQUIRED)
 find_package(LibConfig REQUIRED)
 find_package(Samba REQUIRED)
+find_package(Valgrind)
 
 find_program(ECPG ecpg)
+
+if(VALGRIND_FOUND)
+    set(VALGRIND ${VALGRIND_PROGRAM})
+endif()
+
+enable_testing()
+set(RUNTEST ${Cabrillo_SOURCE_DIR}/tests/runtest.sh)
 
 if(CMAKE_SYSTEM_NAME MATCHES Linux)
     add_definitions(-DLINUX)
@@ -61,5 +69,6 @@ add_subdirectory(libbonsai)
 add_subdirectory(libcsoap)
 add_subdirectory(libtf)
 add_subdirectory(nanohttp)
+add_subdirectory(tests)
 add_subdirectory(tools)
 

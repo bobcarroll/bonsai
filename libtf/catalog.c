@@ -75,6 +75,41 @@ void *tf_free_node_array(tf_node **result)
 }
 
 /**
+ * Frees memory associated with a resource type.
+ *
+ * @param result    pointer to a catalog node
+ */
+void *tf_free_resource_type(tf_resource_type *result)
+{
+    if (result) {
+        if (result->description)
+            free(result->description);
+
+        free(result);
+    }
+
+    return NULL;
+}
+
+/**
+ * Frees memory associated with a resource type array.
+ *
+ * @param result    a null-terminated resource type array
+ */
+void *tf_free_resource_type_array(tf_resource_type **result)
+{
+    if (!result)
+        return NULL;
+
+    int i;
+    for (i = 0; result[i]; i++)
+        tf_free_resource_type(result[i]);
+
+    free(result);
+    return NULL;
+}
+
+/**
  * Frees memory associated with a service reference.
  *
  * @param result    a service reference structure
@@ -210,6 +245,34 @@ tf_error tf_query_tree(pgctx *ctx, const char *path, const char *type, tf_node *
     free(typearr);
 
     return dberr;
+}
+
+/**
+ * Queries the catalog for resource types. The caller is responsible for freeing
+ * the result using tf_free_resource_type_array().
+ *
+ * @param   pointer to an output buffer for the results
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_query_resource_types(tf_resource_type ***results)
+{
+    if (!results || *results)
+        return TF_ERROR_BAD_PARAMETER;
+
+    *results = (tf_resource_type **)calloc(_tf_rsrc_tbl_len + 1, sizeof(tf_resource_type *));
+
+    int i;
+    for (i = 0; i < _tf_rsrc_tbl_len; i++) {
+        tf_resource_type *rt = (*results)[i] = (tf_resource_type *)malloc(sizeof(tf_resource_type));
+        bzero(rt, sizeof(tf_resource_type));
+
+        strncpy(rt->id, _tf_rsrc_type_id[i], TF_CATALOG_RESOURCE_TYPE_MAXLEN);
+        strncpy(rt->name, _tf_rsrc_type_name[i], TF_CATALOG_RESOURCE_TYPE_NAME_MAXLEN);
+        rt->description = strdup(_tf_rsrc_type_desc[i]);
+    }
+
+    return TF_ERROR_SUCCESS;
 }
 
 /**
