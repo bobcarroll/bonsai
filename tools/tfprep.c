@@ -57,6 +57,7 @@ int main(int argc, char **argv)
     tf_node *servinst = NULL;
     tf_host *host = NULL;
     tf_access_map *accmap = NULL;
+    tf_property *instprop = NULL;
     tf_error dberr;
     int result = 0;
 
@@ -229,9 +230,17 @@ int main(int argc, char **argv)
         goto error;
 
     log_notice("registering Team Foundation service host");
-    host = tf_new_host(NULL, "TEAM FOUNDATION", dbdsn, &servinst->resource);
+    host = tf_new_host(NULL, "TEAM FOUNDATION", dbdsn);
     dberr = tf_add_host(ctx, host);
-    host = tf_free_host(host);
+
+    if (dberr != TF_ERROR_SUCCESS)
+        goto error;
+
+    instprop = tf_new_property(
+        TF_PROPERTY_INSTANCE_ID_ID,
+        servinst->resource.propertyid,
+        host->id);
+    dberr = tf_add_property(ctx, instprop);
 
     if (dberr != TF_ERROR_SUCCESS)
         goto error;
@@ -248,6 +257,7 @@ cleanup:
     orgroot = tf_free_node(orgroot);
     infroot = tf_free_node(infroot);
     servinst = tf_free_node(servinst);
+    host = tf_free_host(host);
 
     free(cfgfile);
     free(logfile);

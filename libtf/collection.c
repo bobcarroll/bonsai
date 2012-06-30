@@ -109,14 +109,14 @@ tf_error tf_attach_collection(pgctx *pcctx, const char *name, pgctx *tfctx, tf_h
 {
     char hostname[_POSIX_HOST_NAME_MAX];
     char serveruri[_POSIX_HOST_NAME_MAX * 2];
-    char **idarr = NULL;
     char path[1024];
     tf_access_map *accmap = NULL;
-    tf_node **nodearr = NULL;
+    tf_node *instnode = NULL;
     tf_node *colnode = NULL;
     tf_host *pchost = NULL;
     tf_service *service = NULL;
     tf_service_ref *ref = NULL;
+    tf_property *instprop = NULL;
     tf_error dberr;
 
     if (!pcctx || !name || !name[0] || !tfctx || !tfhost)
@@ -125,37 +125,27 @@ tf_error tf_attach_collection(pgctx *pcctx, const char *name, pgctx *tfctx, tf_h
     log_notice("attaching project collection %s to instance %s", name, tfhost->id);
 
     gethostname(hostname, _POSIX_HOST_NAME_MAX);
-    snprintf(serveruri, _POSIX_HOST_NAME_MAX * 2, "http://%s:8080/tfs", hostname);
+    snprintf(serveruri, _POSIX_HOST_NAME_MAX * 2, "http://%s:8080/tfs", hostname); /* HACK */
     accmap = tf_new_access_map("public", "Public Access Mapping", serveruri);
-    accmap->fdefault = 1;
+    accmap->fdefault = 1; /* HACK */
     dberr = tf_add_access_map(pcctx, accmap);
     accmap = tf_free_access_map(accmap);
 
     if (dberr != TF_ERROR_SUCCESS)
         return TF_ERROR_PG_FAILURE;
 
-    idarr = (char **)calloc(2, sizeof(char *));
-    idarr[0] = strdup(tfhost->resource);
+    dberr = tf_fetch_instance_node(tfctx, tfhost->id, &instnode);
 
-    dberr = tf_fetch_resources(tfctx, (const char * const *)idarr, 0, &nodearr);
-
-    free(idarr[0]);
-    free(idarr);
-    idarr = NULL;
-
-    if (dberr != TF_ERROR_SUCCESS) {
-        nodearr = tf_free_node_array(nodearr);
+    if (dberr == TF_ERROR_NOT_FOUND) {
+        log_error("could not find instance catalog node");
+        return TF_ERROR_INTERNAL;
+    } else if (dberr != TF_ERROR_SUCCESS) {
+        instnode = tf_free_node(instnode);
         return TF_ERROR_PG_FAILURE;
     }
 
-    if (!nodearr[0]) {
-        log_error("could not find instance catalog node");
-        nodearr = tf_free_node_array(nodearr);
-        return TF_ERROR_INTERNAL;
-    }
-
-    colnode = tf_new_node(nodearr[0], TF_CATALOG_TYPE_TEAM_PRJ_COLLECTION, name, NULL);
-    nodearr = tf_free_node_array(nodearr);
+    colnode = tf_new_node(instnode, TF_CATALOG_TYPE_TEAM_PRJ_COLLECTION, name, NULL);
+    instnode = tf_free_node(instnode);
 
     if (!colnode) {
         log_error("failed to create new catalog node for project collection");
@@ -169,7 +159,8 @@ tf_error tf_attach_collection(pgctx *pcctx, const char *name, pgctx *tfctx, tf_h
         return TF_ERROR_PG_FAILURE;
     }
 
-    pchost = tf_new_host(tfhost, name, pcctx->dsn, &colnode->resource);
+    pchost = tf_new_host(tfhost, name, pcctx->dsn);
+    tf_set_host_vdir(pchost, name);
 
     if (!pchost) {
         log_error("failed to create new service host for project collection");
@@ -181,6 +172,28 @@ tf_error tf_attach_collection(pgctx *pcctx, const char *name, pgctx *tfctx, tf_h
 
     if (dberr != TF_ERROR_SUCCESS) {
         colnode = tf_free_node(colnode);
+        pchost = tf_free_host(pchost);
+        return TF_ERROR_PG_FAILURE;
+    }
+
+    instprop = tf_new_property(
+        TF_PROPERTY_INSTANCE_ID_ID,
+        colnode->resource.propertyid,
+        pchost->id);
+
+    if (!instprop) {
+        log_error("failed to create instance property for collection node");
+        colnode = tf_free_node(colnode);
+        pchost = tf_free_host(pchost);
+        return TF_ERROR_INTERNAL;
+    }
+
+    dberr = tf_add_property(tfctx, instprop);
+    instprop = tf_free_property(instprop);
+
+    if (dberr != TF_ERROR_SUCCESS) {
+        colnode = tf_free_node(colnode);
+        pchost = tf_free_host(pchost);
         return TF_ERROR_PG_FAILURE;
     }
 

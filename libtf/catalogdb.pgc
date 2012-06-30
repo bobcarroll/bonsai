@@ -585,8 +585,8 @@ tf_error tf_fetch_node_properties(pgctx *ctx, tf_node **nodes, tf_property ***re
         return TF_ERROR_SUCCESS;
 
     sprintf(selstmt, 
-        "SELECT pv.artifact_id, pv.\"version\", pv.internal_kind_id, pv.value, \
-                pd.name, pd.type_id \
+        "SELECT pd.id, pv.artifact_id, pv.\"version\", pv.internal_kind_id, \
+                pv.value, pd.name \
         FROM property_values AS pv \
         JOIN property_definitions AS pd \
            ON pv.fk_property_id = pd.id \
@@ -603,24 +603,24 @@ tf_error tf_fetch_node_properties(pgctx *ctx, tf_node **nodes, tf_property ***re
         EXEC SQL WHENEVER NOT FOUND DO BREAK;
 
         EXEC SQL BEGIN DECLARE SECTION;
+        int propid;
         int artifactid;
         int version;
         int kindid;
         char *value = NULL;
         int value_ind;
         char property[TF_PROPERTY_NAME_MAXLEN];
-        int typeid;
         EXEC SQL END DECLARE SECTION;
 
         EXEC SQL AT :conn FETCH NEXT FROM fetch_properties
-            INTO :artifactid, :version, :kindid, :value:value_ind,
-                 :property, :typeid;
+            INTO :propid, :artifactid, :version, :kindid, :value:value_ind, :property;
 
         tf_property *item = (*result)[i] = (tf_property *)malloc(sizeof(tf_property));
         bzero(item, sizeof(tf_property));
 
         item->artifactid = artifactid;
         item->version = version;
+        item->propertyid = propid;
         item->kindid = kindid;
 
         strncpy(item->property, property, TF_PROPERTY_NAME_MAXLEN);
@@ -664,7 +664,7 @@ tf_error tf_add_node(pgctx *ctx, tf_node *node)
     const char *resstmt = 
         "INSERT INTO catalog_resources \
            (identifier, fk_resource_type, display_name, description, property_artifact) \
-           VALUES (?, ?, ?, ?, NULL)";
+           VALUES (?, ?, ?, ?, ?)";
     const char *nodestmt = 
         "INSERT INTO catalog_nodes \
            (parent_path, child_item, fk_resource_identifier, \"default\") \
@@ -673,11 +673,15 @@ tf_error tf_add_node(pgctx *ctx, tf_node *node)
     const char *resid = node->resource.id;
     const char *resname = node->resource.name;
     const char *resdesc = node->resource.description;
+    int artifactid = 0;
     int resdesc_ind = resdesc ? 0 : -1;
     const char *parent = node->parent;
     const char *child = node->child;
     int fdefault = node->fdefault;
     EXEC SQL END DECLARE SECTION;
+
+    if (tf_gen_artifact_id(ctx, &artifactid) != TF_ERROR_SUCCESS)
+        return TF_ERROR_PG_FAILURE;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
@@ -685,12 +689,14 @@ tf_error tf_add_node(pgctx *ctx, tf_node *node)
     log_debug("inserting new catalog resource ('%s', '%s', '%s')", resid, typeid, resname);
 
     EXEC SQL AT :conn PREPARE sqlstmt FROM :resstmt;
-    EXEC SQL AT :conn EXECUTE sqlstmt USING :resid, :typeid, :resname, :resdesc:resdesc_ind;
+    EXEC SQL AT :conn EXECUTE sqlstmt USING :resid, :typeid, :resname, :resdesc:resdesc_ind, :artifactid;
 
     log_debug("inserting new catalog node ('%s', '%s', '%s')", parent, child, resid);
 
     EXEC SQL AT :conn PREPARE sqlstmt FROM :nodestmt;
     EXEC SQL AT :conn EXECUTE sqlstmt USING :parent, :child, :resid, :fdefault;
+
+    node->resource.propertyid = artifactid;
 
     return TF_ERROR_SUCCESS;
 

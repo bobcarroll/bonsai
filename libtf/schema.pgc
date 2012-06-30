@@ -49,7 +49,6 @@ static tf_error _create_property_objects(const char *connstr)
     EXEC SQL AT :conn CREATE TABLE property_definitions (
         id integer NOT NULL,
         "name" character varying(400) NOT NULL,
-        type_id integer NOT NULL,
         CONSTRAINT "PK_property_definitions" PRIMARY KEY (id));
 
     EXEC SQL AT :conn CREATE TABLE property_values (
@@ -63,6 +62,8 @@ static tf_error _create_property_objects(const char *connstr)
         CONSTRAINT "FK_property_definition" FOREIGN KEY (fk_property_id)
             REFERENCES property_definitions (id) MATCH SIMPLE
             ON UPDATE NO ACTION ON DELETE NO ACTION);
+
+    EXEC SQL AT :conn CREATE SEQUENCE property_artifact_seq START WITH 1;
 
     return TF_ERROR_SUCCESS;
 
@@ -125,24 +126,6 @@ static tf_error _create_catalog_objects(const char *connstr)
         CONSTRAINT "PK_catalog_service_references" PRIMARY KEY (resource_identifier, association_key),
         CONSTRAINT "FK_service_ref_definition" FOREIGN KEY (fk_service_identifier, fk_service_type)
             REFERENCES service_definitions (identifier, service_type) MATCH SIMPLE
-            ON UPDATE NO ACTION ON DELETE NO ACTION);
-
-    EXEC SQL AT :conn CREATE SEQUENCE catalog_resource_properties_seq;
-    EXEC SQL AT :conn CREATE TABLE catalog_resource_properties (
-        id integer NOT NULL DEFAULT NEXTVAL('catalog_resource_properties_seq'),
-        fk_resource_identifier uuid NOT NULL,
-        fk_artifact_id integer NOT NULL,
-        fk_version integer NOT NULL,
-        fk_property_id integer NOT NULL,
-        fk_internal_kind_id integer NOT NULL,
-        CONSTRAINT "PK_catalog_resource_property" PRIMARY KEY (id),
-        CONSTRAINT "FK_catalog_resource_property_id" FOREIGN KEY (fk_resource_identifier, fk_artifact_id)
-            REFERENCES catalog_resources (identifier, property_artifact) MATCH SIMPLE
-            ON UPDATE NO ACTION ON DELETE NO ACTION,
-        CONSTRAINT "FK_catalog_resource_property" FOREIGN KEY 
-                (fk_artifact_id, fk_version, fk_property_id, fk_internal_kind_id)
-            REFERENCES property_values 
-                (artifact_id, "version", fk_property_id, internal_kind_id) MATCH SIMPLE
             ON UPDATE NO ACTION ON DELETE NO ACTION);
 
     return TF_ERROR_SUCCESS;
@@ -259,7 +242,7 @@ tf_error tf_init_configdb(pgctx *ctx)
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
     char *resstmt = "INSERT INTO catalog_resource_types (identifier, display_name, description) VALUES (?, ?, ?)";
-    char *propstmt = "INSERT INTO property_definitions (id, \"name\", type_id) VALUES (?, ?, ?)";
+    char *propstmt = "INSERT INTO property_definitions (id, \"name\") VALUES (?, ?)";
     EXEC SQL END DECLARE SECTION;
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -315,7 +298,7 @@ tf_error tf_init_configdb(pgctx *ctx)
         const char *value = _tf_property_value[i];
         EXEC SQL END DECLARE SECTION;
 
-        EXEC SQL AT :conn EXECUTE sqlstmt USING :id, :value, 0;
+        EXEC SQL AT :conn EXECUTE sqlstmt USING :id, :value;
     }
 
     if ((result = _fill_tool_types_table(ctx->conn)) != TF_ERROR_SUCCESS) {

@@ -1,0 +1,104 @@
+/**
+ * Bonsai - open source group collaboration and application lifecycle management
+ * Copyright (c) 2011 Bob Carroll
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+/**
+ * @brief   Team Foundation property service database functions
+ *
+ * @author  Bob Carroll (bob.carroll@alum.rit.edu)
+ */
+
+#include <string.h>
+#include <stdlib.h>
+
+#include <log.h>
+
+#include <tf/property.h>
+
+/**
+ * Generates a new artifact ID.
+ *
+ * @param ctx       current database context
+ * @param result    output buffer for the new ID
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_gen_artifact_id(pgctx *ctx, int *result)
+{
+    if (!ctx || !result || *result)
+        return TF_ERROR_BAD_PARAMETER;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    int nextval = 0;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL WHENEVER NOT FOUND CONTINUE;
+
+    EXEC SQL AT :conn SELECT nextval('property_artifact_seq') INTO :nextval;
+    *result = nextval;
+
+    return TF_ERROR_SUCCESS;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return TF_ERROR_PG_FAILURE;
+}
+
+/**
+ * Adds the given property to the database.
+ *
+ * @param ctx   current database context
+ * @param prop  property to add
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_add_property(pgctx *ctx, tf_property *prop)
+{
+    if (!ctx || !prop || prop->artifactid < 1 || !prop->property || !prop->value)
+        return TF_ERROR_BAD_PARAMETER;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    const char *pvstmt = 
+        "INSERT INTO property_values \
+            (artifact_id, \"version\", fk_property_id, internal_kind_id, \"value\") \
+            VALUES (?, ?, ?, ?, ?)";
+    int artifactid = prop->artifactid;
+    int version = prop->version;
+    int propid = prop->propertyid;
+    int kindid = prop->kindid;
+    const char *value = prop->value;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL WHENEVER NOT FOUND CONTINUE;
+
+    log_debug("inserting new property (%d, %d, '%s')", artifactid, propid, value);
+
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :pvstmt;
+    EXEC SQL AT :conn EXECUTE sqlstmt USING :artifactid, :version, :propid, :kindid, :value;
+
+    return TF_ERROR_SUCCESS;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return TF_ERROR_PG_FAILURE;
+}
+

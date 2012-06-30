@@ -105,3 +105,20 @@ tf_host *tf_new_host(tf_host *parent, const char *name, const char *connstr)
     return result;
 }
 
+/**
+ * Sets the service host virtual directory path.
+ *
+ * @param host      service host to modify
+ * @param vdir      virtual directory path
+ *
+ * @return true on success, false otherwise
+ */
+int tf_set_host_vdir(tf_host *host, const char *vdir)
+{
+    if (!host || !vdir)
+        return 0;
+
+    strncpy(host->vdir, vdir, TF_SERVICE_HOST_PATH_MAXLEN);
+    return 1;
+}
+

@@ -51,4 +51,5 @@ tf_error tf_fetch_hosts(pgctx *, const char *, tf_host ***);
 tf_error tf_fetch_single_host(pgctx *, const char *, tf_host **);
 
 tf_error tf_add_host(pgctx *, tf_host *);
+int tf_set_host_vdir(tf_host *, const char *);
 

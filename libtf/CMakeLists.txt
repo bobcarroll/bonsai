@@ -8,6 +8,7 @@ set(LIBTF_SRC
     servicehost.c
     servicehostdb.c
     property.c
+    propertydb.c
     collection.c
     xml.c
     fault.c
@@ -18,6 +19,7 @@ set_source_files_properties(
     ${Cabrillo_BINARY_DIR}/libtf/catalogdb.c
     ${Cabrillo_BINARY_DIR}/libtf/locationdb.c
     ${Cabrillo_BINARY_DIR}/libtf/servicehostdb.c
+    ${Cabrillo_BINARY_DIR}/libtf/propertydb.c
     PROPERTIES GENERATED 1)
 
 add_library(tf ${LIBTF_SRC})
@@ -49,6 +51,13 @@ add_custom_command(OUTPUT ${Cabrillo_BINARY_DIR}/libtf/servicehostdb.c
                    -o ${Cabrillo_BINARY_DIR}/libtf/servicehostdb.c
                    MAIN_DEPENDENCY servicehostdb.pgc
                    COMMENT "Running ecpg on servicehostdb.pgc")
+
+add_custom_command(OUTPUT ${Cabrillo_BINARY_DIR}/libtf/propertydb.c 
+                   COMMAND ${ECPG}
+                   -t ${Cabrillo_SOURCE_DIR}/libtf/propertydb.pgc
+                   -o ${Cabrillo_BINARY_DIR}/libtf/propertydb.c
+                   MAIN_DEPENDENCY propertydb.pgc
+                   COMMENT "Running ecpg on propertydb.pgc")
 
 target_link_libraries(tf bonsai ${LIBXML2_LIBRARIES} ecpg)
 

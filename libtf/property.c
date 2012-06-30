@@ -26,6 +26,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <log.h>
+
 #include <tf/property.h>
 
 /**
@@ -66,5 +68,43 @@ void *tf_free_property_array(tf_property **result)
 
     free(result);
     return NULL;
+}
+
+/**
+ * Creates a new property.
+ *
+ * @param id            property ID
+ * @param artifactid    unique artifact ID
+ * @param value         new property value
+ *
+ * @return the new property structure
+ */
+tf_property *tf_new_property(int id, int artifactid, char *value)
+{
+    if (id < 1 || artifactid < 1 || !value) {
+        log_debug("bad parameter: id=%d, artifactid=%d, value=%s", id, artifactid, value);
+        return NULL;
+    }
+
+    int i;
+    for (i = 0; i < _tf_prop_tbl_len && _tf_property_id[i] != id; i++)
+        ;
+
+    if (i == _tf_prop_tbl_len) {
+        log_debug("property %d not found in ID table", id);
+        return NULL;
+    }
+
+    tf_property *result = (tf_property *)malloc(sizeof(tf_property));
+    bzero(result, sizeof(tf_property));
+
+    result->artifactid = artifactid;
+    result->propertyid = id;
+    result->kindid = 2; /* TODO figure out what this is used for */
+    result->value = strdup(value);
+
+    strncpy(result->property, _tf_property_value[i], TF_PROPERTY_NAME_MAXLEN);
+
+    return result;
 }
 

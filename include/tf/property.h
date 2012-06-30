@@ -41,12 +41,17 @@ static const char *_tf_property_value[] = {
 typedef struct {
     int artifactid;
     int version;
+    int propertyid;
     char property[TF_PROPERTY_NAME_MAXLEN];
-    int type;
     int kindid;
     char *value;
 } tf_property;
 
 void *tf_free_property(tf_property *);
 void *tf_free_property_array(tf_property **);
+
+tf_property *tf_new_property(int, int, char *);
+
+tf_error tf_gen_artifact_id(pgctx *, int *);
+tf_error tf_add_property(pgctx *, tf_property *);
 
