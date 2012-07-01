@@ -11,5 +11,5 @@ set(CSD_SRC
     status.c)
 
 add_executable(csd ${CSD_SRC})
-target_link_libraries(csd bonsai tf ${CSOAP_LIBRARIES} ${LIBCONFIG_LIBRARY})
+target_link_libraries(csd bonsai tf ${LIBCONFIG_LIBRARY})
 

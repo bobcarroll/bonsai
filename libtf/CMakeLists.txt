@@ -22,7 +22,7 @@ set_source_files_properties(
     ${Cabrillo_BINARY_DIR}/libtf/propertydb.c
     PROPERTIES GENERATED 1)
 
-add_library(tf ${LIBTF_SRC})
+add_library(tf SHARED ${LIBTF_SRC})
 
 add_custom_command(OUTPUT ${Cabrillo_BINARY_DIR}/libtf/schema.c 
                    COMMAND ${ECPG}
@@ -59,5 +59,5 @@ add_custom_command(OUTPUT ${Cabrillo_BINARY_DIR}/libtf/propertydb.c
                    MAIN_DEPENDENCY propertydb.pgc
                    COMMENT "Running ecpg on propertydb.pgc")
 
-target_link_libraries(tf bonsai ${LIBXML2_LIBRARIES} ecpg)
+target_link_libraries(tf bonsai ${LIBXML2_LIBRARIES} ecpg ${CSOAP_LIBRARIES})
 
