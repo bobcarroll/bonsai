@@ -1,0 +1,58 @@
+
+# --- Logging Configuration ---
+
+# Location of the log files
+logfile = "/var/log/tf/csd.log";
+
+# Logging verbosity.
+#
+# 0 = fatal errors only
+# 1 = critical errors, and < 1
+# 2 = minor errors, and < 2
+# 3 = warnings, and < 3
+# 4 = important non-error messages, and < 4
+# 5 = status information, and < 5
+# 6 = debug messages, and < 6
+# 7 = extra verbose debug information, and < 7
+loglevel = 3;
+
+
+# --- Postgresql Configuration ---
+
+# Database user and password. This is the same user for all TF services.
+pguser = "tfsowner";
+pgpasswd = "password";
+
+# Data source name in the format of database@host. The user defined in 'pguser'
+# above needs owner-level permissions to the database.
+configdsn = "tfsconfig@example";
+
+# The number of connections to open for each database (per daemon instance).
+dbconns = 2;
+
+# The maximum number of connections for all databases. This number must be
+# greater than or equal to 'dbconns'.
+maxconns = 10;
+
+
+# --- Team Services Configuration ---
+
+# The TCP port the daemon listens on.
+bindport = "8080";
+
+# The team services URL prefix.
+prefix = "/tfs";
+
+
+# --- Samba Integration ---
+
+# Path to the ntlm_auth tool in the samba package.
+ntlmhelper = "/usr/bin/ntlm_auth";
+
+# Logon server hostname. This can be either a WinNT server or Samba.
+smbhost = "localhost";
+
+# Daemon service account username and password.
+smbuser = "tfs";
+smbpasswd = "password";
+
