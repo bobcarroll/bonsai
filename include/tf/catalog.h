@@ -211,7 +211,7 @@ void *tf_free_resource_type_array(tf_resource_type **);
 void *tf_free_service_ref(tf_service_ref *);
 void *tf_free_service_ref_array(tf_service_ref **);
 
-tf_error tf_query_nodes(pgctx *, const char * const *, const char * const *, tf_node ***);
+tf_error tf_query_nodes(pgctx *, const char * const *, const char * const *, int, tf_node ***);
 tf_error tf_query_tree(pgctx *, const char *, const char *, tf_node ***);
 tf_error tf_query_resource_types(tf_resource_type ***);
 
@@ -220,7 +220,7 @@ tf_service_ref *tf_new_service_ref(tf_resource *, tf_service *, const char *);
 
 tf_error tf_fetch_instance_node(pgctx *, const char *, tf_node **);
 tf_error tf_fetch_node_properties(pgctx *, tf_node **, tf_property ***);
-tf_error tf_fetch_nodes(pgctx *, tf_path_spec **, const char * const *, tf_node ***);
+tf_error tf_fetch_nodes(pgctx *, tf_path_spec **, const char * const *, int, tf_node ***);
 tf_error tf_fetch_resources(pgctx *, const char * const *, int, tf_node ***);
 tf_error tf_fetch_service_refs(pgctx *, tf_node **, tf_service_ref ***);
 

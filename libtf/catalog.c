@@ -156,11 +156,12 @@ void *tf_free_service_ref_array(tf_service_ref **result)
  * @param ctx       current database context
  * @param patharr   a null-terminated array of catalog paths, optionally with depth markers
  * @param types     a null-terminated array of resource type ID strings to filter by
+ * @param flags     query flags bitfield
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_query_nodes(pgctx *ctx, const char * const *patharr, const char * const *types, tf_node ***result)
+tf_error tf_query_nodes(pgctx *ctx, const char * const *patharr, const char * const *types, int flags, tf_node ***result)
 {
     tf_path_spec **pathspecs = NULL;
     tf_error dberr;
@@ -190,11 +191,14 @@ tf_error tf_query_nodes(pgctx *ctx, const char * const *patharr, const char * co
             pathspecs[i]->depth = TF_CATALOG_NODE_DEPTH_SINGLE;
             pathspecs[i]->path = (char *)calloc(pathlen, sizeof(char));
             strncpy(pathspecs[i]->path, path, pathlen - 1);
+        } else if (strcmp(path, "...") == 0) {
+            pathspecs[i]->depth = TF_CATALOG_NODE_DEPTH_FULL;
+            pathspecs[i]->path = strdup("");
         } else
             pathspecs[i]->path = strdup(path);
     }
 
-    dberr = tf_fetch_nodes(ctx, pathspecs, types, result);
+    dberr = tf_fetch_nodes(ctx, pathspecs, types, flags, result);
 
     for (i = 0; pathspecs[i]; i++) {
         if (pathspecs[i]->path)
@@ -238,6 +242,7 @@ tf_error tf_query_tree(pgctx *ctx, const char *path, const char *type, tf_node *
             ctx,
             (const char * const *)pathspec,
             (const char * const *)typearr,
+            0,
             result);
 
     free(pathspec);

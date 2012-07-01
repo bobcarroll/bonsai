@@ -278,6 +278,8 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
 {
     xmlNode *body = req->env->body;
     xmlXPathObject *xpres;
+    xmlNode *qoptsnode;
+    int queryopts = 0;
     pgctx *ctx;
     char **pathspec = NULL;
     char **typefilter = NULL;
@@ -313,15 +315,19 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
         xmlXPathFreeObject(xpres);
     }
 
+    qoptsnode = tf_xml_find_first(body, "m", TF_DEFAULT_NAMESPACE, "//m:queryOptions/text()");
+    if (qoptsnode && qoptsnode->content)
+        queryopts = atoi(qoptsnode->content);
+
     ctx = pg_context_acquire(NULL);
 
     /* TODO property filter */
-    /* TODO query options */
 
     dberr = tf_query_nodes(
         ctx,
         (const char * const *)pathspec, 
         (const char * const *)typefilter, 
+        queryopts, 
         &nodearr);
 
     for (i = 0; pathspec[i]; i++)

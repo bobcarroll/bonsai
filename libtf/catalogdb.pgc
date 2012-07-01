@@ -38,11 +38,12 @@
  * @param ctx           current database context
  * @param pathspecs     a null-terminated array of catalog paths without depth markers
  * @param types         a null-terminated array of resource type ID strings to filter by
+ * @param flags         query flags bitfield
  * @param result        pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const *types, tf_node ***result)
+tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const *types, int flags, tf_node ***result)
 {
     if (!ctx || !pathspecs || !pathspecs[0] || !types || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
@@ -87,7 +88,7 @@ tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const
             sprintf(pathval, "%s%%", pathspecs[i]->path);
 
             newpathlen = (pathspecs[i]->depth == TF_CATALOG_NODE_DEPTH_SINGLE) ?
-                TF_CATALOG_CHILD_ITEM_MAXLEN - 1 :
+                oldpathlen :
                 TF_CATALOG_PARENT_PATH_MAXLEN - 1;
         }
 
@@ -124,15 +125,36 @@ tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const
         curpos += strlen(where + curpos);
     }
 
+    int depth = (flags & TF_CATALOG_QUERY_INC_PARENTS == TF_CATALOG_QUERY_INC_PARENTS) ? 10 : 1;
+
     sprintf(countstmt, 
-        "SELECT COUNT(*) \
-         FROM catalog_nodes AS cn \
-         INNER JOIN catalog_resources AS cr \
-            ON cn.fk_resource_identifier = cr.identifier \
-         INNER JOIN catalog_resource_types AS crt \
-            ON cr.fk_resource_type = crt.identifier \
-         WHERE %s", 
-        where);
+        "WITH RECURSIVE catalog_nodes_tree AS ( \
+            SELECT cn.parent_path, cn.child_item, cn.fk_resource_identifier, cn.\"default\", 1 AS depth \
+            FROM catalog_nodes AS cn \
+            INNER JOIN catalog_resources AS cr \
+                ON cn.fk_resource_identifier = cr.identifier \
+            INNER JOIN catalog_resource_types AS crt \
+                ON cr.fk_resource_type = crt.identifier \
+            WHERE %s \
+            UNION ALL \
+            SELECT cn.parent_path, cn.child_item, cn.fk_resource_identifier, cn.\"default\", cnt.depth + 1 AS depth \
+            FROM catalog_nodes AS cn, catalog_nodes_tree AS cnt \
+            WHERE cn.parent_path || cn.child_item = cnt.parent_path \
+                AND cnt.depth <= %d \
+         ) \
+         SELECT COUNT(*) \
+         FROM ( \
+            SELECT DISTINCT cn.parent_path, cn.child_item, cn.\"default\", \
+                            cr.identifier, cr.display_name, cr.description, cr.property_artifact, \
+                            crt.identifier, crt.display_name, crt.description \
+            FROM catalog_nodes_tree AS cn \
+            INNER JOIN catalog_resources AS cr \
+                ON cn.fk_resource_identifier = cr.identifier \
+            INNER JOIN catalog_resource_types AS crt \
+                ON cr.fk_resource_type = crt.identifier \
+         ) AS r",
+        where,
+        depth);
     log_trace("fetch catalog nodes SQL: %s", countstmt);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
@@ -148,16 +170,30 @@ tf_error tf_fetch_nodes(pgctx *ctx, tf_path_spec **pathspecs, const char * const
         return TF_ERROR_SUCCESS;
 
     sprintf(selstmt, 
-        "SELECT cn.parent_path, cn.child_item, cn.\"default\", \
-                cr.identifier, cr.display_name, cr.description, cr.property_artifact, \
-                crt.identifier, crt.display_name, crt.description \
-         FROM catalog_nodes AS cn \
+        "WITH RECURSIVE catalog_nodes_tree AS ( \
+            SELECT cn.parent_path, cn.child_item, cn.fk_resource_identifier, cn.\"default\", 1 AS depth \
+            FROM catalog_nodes AS cn \
+            INNER JOIN catalog_resources AS cr \
+                ON cn.fk_resource_identifier = cr.identifier \
+            INNER JOIN catalog_resource_types AS crt \
+                ON cr.fk_resource_type = crt.identifier \
+            WHERE %s \
+            UNION ALL \
+            SELECT cn.parent_path, cn.child_item, cn.fk_resource_identifier, cn.\"default\", cnt.depth + 1 AS depth \
+            FROM catalog_nodes AS cn, catalog_nodes_tree AS cnt \
+            WHERE cn.parent_path || cn.child_item = cnt.parent_path \
+                AND cnt.depth <= %d \
+         ) \
+         SELECT DISTINCT cn.parent_path, cn.child_item, cn.\"default\", \
+                         cr.identifier, cr.display_name, cr.description, cr.property_artifact, \
+                         crt.identifier, crt.display_name, crt.description \
+         FROM catalog_nodes_tree AS cn \
          INNER JOIN catalog_resources AS cr \
             ON cn.fk_resource_identifier = cr.identifier \
          INNER JOIN catalog_resource_types AS crt \
-            ON cr.fk_resource_type = crt.identifier \
-         WHERE %s", 
-        where);
+            ON cr.fk_resource_type = crt.identifier",
+        where,
+        depth);
 
     EXEC SQL AT :conn PREPARE sqlstmt FROM :selstmt;
 
