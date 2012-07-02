@@ -4,7 +4,7 @@ include_directories(${Cabrillo_SOURCE_DIR}/csd)
 set(CSD_SRC
     csd.c
     tfmain.c
-    pcmain.c
+    tpcmain.c
     location.c
     catalog.c
     registration.c

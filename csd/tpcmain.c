@@ -18,7 +18,7 @@
  */
 
 /**
- * @brief   project collection bootstrapping
+ * @brief   team project collection bootstrapping
  *
  * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
@@ -62,7 +62,7 @@ static void _start_service(tf_service *service, SoapRouter **router, const char 
 }
 
 /**
- * Project Collection services initialisation.
+ * Team Project Collection services initialisation.
  *
  * @param prefix    the URI prefix for services.
  * @param instid    team foundation instance ID
@@ -70,7 +70,7 @@ static void _start_service(tf_service *service, SoapRouter **router, const char 
  * @param pgpasswd  database connection password
  * @param dbconns   database connection count
  */
-void pc_services_init(const char *prefix, const char *instid, const char *pguser, 
+void tpc_services_init(const char *prefix, const char *instid, const char *pguser, 
     const char *pgpasswd, int dbconns)
 {
     pgctx *ctx;

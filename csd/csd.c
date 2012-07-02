@@ -183,7 +183,7 @@ int main(int argc, char **argv)
     }
 
     pg_context_retag_default(instid);
-    pc_services_init(prefix, instid, pguser, pgpasswd, dbconns);
+    tpc_services_init(prefix, instid, pguser, pgpasswd, dbconns);
 
     authz_init(smbhost, smbuser, smbpasswd);
 
