@@ -30,7 +30,7 @@
 
 void log_close();
 int log_level();
-int log_open(const char *, unsigned int, int, int);
+int log_open(const char *, unsigned int, int);
 void log_write(unsigned int, const char *, int, const char *format, ...);
 
 #define log_fatal(msg, args...) \

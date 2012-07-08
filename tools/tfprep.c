@@ -125,7 +125,7 @@ int main(int argc, char **argv)
     if (!dbuser)
         dbuser = strdup("");
 
-    if (!log_open(logfile, lev, 1, 1)) {
+    if (!log_open(logfile, lev, 1)) {
         fprintf(stderr, "tfprep: failed to open log file!\n");
         return 1;
     }

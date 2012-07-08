@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     if (!levovrd)
         config_lookup_int(&config, "loglevel", &lev);
 
-    if (!log_open(logfile, lev, fg, 0)) {
+    if (!log_open(logfile, lev, fg)) {
         fprintf(stderr, "csd: failed to open log file!\n");
         goto cleanup_cfg;
     }

@@ -36,7 +36,6 @@
 
 static unsigned int _loglevel = 0;
 static int _foreground = 0;
-static int _msgonly = 0;
 static FILE *_logfile = NULL;
 
 /**
@@ -89,15 +88,13 @@ static char *_leveltostr(unsigned int lev)
  * @param filename  the file to write the log to (optionally NULL)
  * @param ll        the logging level
  * @param fg        flag to enable writing to stdout even if filename isn't NULL
- * @param msgonly   flag to limit stdout to the log message only (fg must be 1)
  *
  * @return 1 on success, 0 on failure
  */
-int log_open(const char *filename, unsigned int ll, int fg, int msgonly)
+int log_open(const char *filename, unsigned int ll, int fg)
 {
     _loglevel = (ll >= LOG_FATAL) ? ll : LOG_FATAL;
     _foreground = fg || !filename;
-    _msgonly = msgonly;
 
     if (filename && !(_logfile = fopen(filename, "a"))) {
         log_fatal("failed to open log file");
@@ -168,7 +165,7 @@ void log_write(unsigned int lev, const char *fn, int ln, const char *format, ...
          ln);
 
     if (_foreground) {
-        printf("%s\n", _msgonly ? msgstr : logstr);
+        printf("%s\n", logstr);
         fflush(stdout);
     }
 

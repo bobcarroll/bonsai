@@ -117,7 +117,7 @@ int main(int argc, char **argv)
     pcdbdsn = strdup(argv[0]);
     pcname = strdup(argv[1]);
 
-    if (!log_open(logfile, lev, 1, 1)) {
+    if (!log_open(logfile, lev, 1)) {
         fprintf(stderr, "pcnew: failed to open log file!\n");
         return 1;
     }
