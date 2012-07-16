@@ -296,7 +296,7 @@ tf_error tf_add_access_map(pgctx *ctx, tf_access_map *accmap)
     const char *amstmt = 
         "INSERT INTO access_mappings \
            (moniker, display_name, access_point, is_default) \
-           VALUES (?, ?, ?, ?)";
+           VALUES (?, ?, ?, '0')";
     const char *moniker = accmap->moniker;
     const char *name = accmap->name;
     const char *apuri = accmap->apuri;
@@ -309,7 +309,7 @@ tf_error tf_add_access_map(pgctx *ctx, tf_access_map *accmap)
     log_debug("inserting new access mapping ('%s', '%s', '%s')", moniker, name, apuri);
 
     EXEC SQL AT :conn PREPARE sqlstmt FROM :amstmt;
-    EXEC SQL AT :conn EXECUTE sqlstmt USING :moniker, :name, :apuri, :fdefault;
+    EXEC SQL AT :conn EXECUTE sqlstmt USING :moniker, :name, :apuri;
 
     return TF_ERROR_SUCCESS;
 
@@ -378,3 +378,40 @@ error:
     log_error(sqlca.sqlerrm.sqlerrmc);
     return TF_ERROR_PG_FAILURE;
 }
+
+/**
+ * Sets the default access mapping to the given moniker.
+ *
+ * @param ctx       current database context
+ * @param accmap    the new default access mapping
+ *
+ * @return TF_ERROR_SUCCESS or an error code
+ */
+tf_error tf_set_default_access_map(pgctx *ctx, tf_access_map *accmap)
+{
+    if (!ctx || !accmap || !accmap->moniker[0])
+        return TF_ERROR_BAD_PARAMETER;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    const char *stmt = "UPDATE access_mappings SET is_default = '1' WHERE moniker = ?";
+    const char *moniker = accmap->moniker;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR GOTO error;
+    EXEC SQL WHENEVER NOT FOUND CONTINUE;
+
+    log_debug("setting default access mapping to '%s'", accmap->moniker);
+
+    EXEC SQL AT :conn UPDATE access_mappings SET is_default = '0';
+
+    EXEC SQL AT :conn PREPARE sqlstmt FROM :stmt;
+    EXEC SQL AT :conn EXECUTE sqlstmt USING :moniker;
+
+    return TF_ERROR_SUCCESS;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return TF_ERROR_PG_FAILURE;
+}
+

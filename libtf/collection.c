@@ -100,15 +100,14 @@ tf_error tf_create_collection(pgctx *ctx)
  *
  * @param pcctx     project collection database context
  * @param name      project collection name
+ * @param amuri     project collection access mapping URI
  * @param tfctx     Team Foundation configuration database context
  * @param tfhost    Team Foundation host being attach to
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_attach_collection(pgctx *pcctx, const char *name, pgctx *tfctx, tf_host *tfhost)
+tf_error tf_attach_collection(pgctx *pcctx, const char *name, const char *amuri, pgctx *tfctx, tf_host *tfhost)
 {
-    char hostname[_POSIX_HOST_NAME_MAX];
-    char serveruri[_POSIX_HOST_NAME_MAX * 2];
     char path[1024];
     tf_access_map *accmap = NULL;
     tf_node *instnode = NULL;
@@ -119,16 +118,18 @@ tf_error tf_attach_collection(pgctx *pcctx, const char *name, pgctx *tfctx, tf_h
     tf_property *instprop = NULL;
     tf_error dberr;
 
-    if (!pcctx || !name || !name[0] || !tfctx || !tfhost)
+    if (!pcctx || !name || !name[0] || !amuri || !amuri[0] || !tfctx || !tfhost)
         return TF_ERROR_BAD_PARAMETER;
 
     log_notice("attaching project collection %s to instance %s", name, tfhost->id);
 
-    gethostname(hostname, _POSIX_HOST_NAME_MAX);
-    snprintf(serveruri, _POSIX_HOST_NAME_MAX * 2, "http://%s:8080/tfs", hostname); /* HACK */
-    accmap = tf_new_access_map("public", "Public Access Mapping", serveruri);
-    accmap->fdefault = 1; /* HACK */
+    accmap = tf_new_access_map("public", "Public Access Mapping", amuri);
     dberr = tf_add_access_map(pcctx, accmap);
+
+    if (dberr != TF_ERROR_SUCCESS)
+        return TF_ERROR_PG_FAILURE;
+
+    dberr = tf_set_default_access_map(pcctx, accmap);
     accmap = tf_free_access_map(accmap);
 
     if (dberr != TF_ERROR_SUCCESS)

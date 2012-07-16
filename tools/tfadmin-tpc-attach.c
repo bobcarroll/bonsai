@@ -44,7 +44,7 @@
 int main(int argc, char **argv)
 {
     int lev = LOG_NOTICE;
-    int opt, fg = 0, err = 0;
+    int opt, fg = 0, err = 0, nport;
     char *cfgfile = NULL;
     char *logfile = NULL;
     char *tpcdbdsn = NULL;
@@ -53,6 +53,10 @@ int main(int argc, char **argv)
     const char *cfgdbdsn = NULL;
     const char *pguser = NULL;
     const char *pgpasswd = NULL;
+    const char *port = NULL;
+    const char *prefix = NULL;
+    char hostname[_POSIX_HOST_NAME_MAX];
+    char serveruri[_POSIX_HOST_NAME_MAX * 2];
     wordexp_t expresult;
     tf_host **hostarr = NULL;
     tf_error dberr;
@@ -122,6 +126,24 @@ int main(int argc, char **argv)
     tpcdbdsn = strdup(argv[0]);
     tpcname = strdup(argv[1]);
 
+    config_lookup_string(&config, "bindport", &port);
+    nport = (port) ? atoi(port) : 0;
+    if (nport == 0 || nport != (nport & 0xffff)) {
+        log_fatal("bindport must be a valid TCP port number (was %d)", nport);
+        result = 1;
+        goto cleanup_config;
+    }
+
+    config_lookup_string(&config, "prefix", &prefix);
+    if (!prefix || strcmp(prefix, "") == 0 || prefix[0] != '/') {
+        log_fatal("prefix must be a valid URI (was %s)", prefix);
+        result = 1;
+        goto cleanup_config;
+    }
+
+    gethostname(hostname, _POSIX_HOST_NAME_MAX);
+    snprintf(serveruri, _POSIX_HOST_NAME_MAX * 2, "http://%s:%s/%s", hostname, port, prefix);
+
     if (!log_open(logfile, lev, fg)) {
         fprintf(stderr, "tfadmin: failed to open log file!\n");
         result = 1;
@@ -161,7 +183,7 @@ int main(int argc, char **argv)
     }
 
     /* TODO support more than one host */
-    if (tf_attach_collection(tpcctx, tpcname, cfgctx, hostarr[0]) != TF_ERROR_SUCCESS) {
+    if (tf_attach_collection(tpcctx, tpcname, serveruri, cfgctx, hostarr[0]) != TF_ERROR_SUCCESS) {
         log_fatal("failed to attach project collection to server instance!");
         hostarr = tf_free_host_array(hostarr);
         goto error;

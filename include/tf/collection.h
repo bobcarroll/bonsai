@@ -24,6 +24,6 @@
 #include <tf/errors.h>
 #include <tf/servicehost.h>
 
-tf_error tf_attach_collection(pgctx *, const char *, pgctx *, tf_host *);
+tf_error tf_attach_collection(pgctx *, const char *, const char *, pgctx *, tf_host *);
 tf_error tf_create_collection(pgctx *);
 

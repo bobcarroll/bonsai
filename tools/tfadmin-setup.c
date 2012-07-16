@@ -234,8 +234,12 @@ int main(int argc, char **argv)
     gethostname(hostname, _POSIX_HOST_NAME_MAX);
     snprintf(serveruri, _POSIX_HOST_NAME_MAX * 2, "http://%s:%s/%s", hostname, port, prefix);
     accmap = tf_new_access_map("public", "Public Access Mapping", serveruri);
-    accmap->fdefault = 1; /* HACK */
     dberr = tf_add_access_map(ctx, accmap);
+
+    if (dberr != TF_ERROR_SUCCESS)
+        goto error;
+
+    dberr = tf_set_default_access_map(ctx, accmap);
     accmap = tf_free_access_map(accmap);
 
     if (dberr != TF_ERROR_SUCCESS)

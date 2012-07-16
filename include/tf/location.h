@@ -98,3 +98,5 @@ tf_error tf_fetch_services(pgctx *, tf_service_filter **, tf_service ***);
 tf_error tf_add_access_map(pgctx *, tf_access_map *);
 tf_error tf_add_service(pgctx *, tf_service *);
 
+tf_error tf_set_default_access_map(pgctx *, tf_access_map *);
+
