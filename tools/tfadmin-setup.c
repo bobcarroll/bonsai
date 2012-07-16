@@ -29,6 +29,8 @@
 #include <wordexp.h>
 #include <limits.h>
 
+#include <libconfig.h>
+
 #include <log.h>
 #include <pgcommon.h>
 #include <pgctxpool.h>
@@ -42,26 +44,30 @@
 int main(int argc, char **argv)
 {
     int lev = LOG_NOTICE;
-    int opt, err = 0, nopass = 0;
+    int opt, fg = 0, err = 0, nopass = 0, nport;
     char *cfgfile = NULL;
     char *logfile = NULL;
-    char *dbdsn = NULL;
+    const char *dbdsn = NULL;
     char *dbuser = NULL;
     char *dbpasswd = NULL;
+    const char *port = NULL;
+    const char *prefix = NULL;
     char prompt[64];
     char hostname[_POSIX_HOST_NAME_MAX];
     char serveruri[_POSIX_HOST_NAME_MAX * 2];
     wordexp_t expresult;
+    config_t config;
     tf_node *orgroot = NULL;
     tf_node *infroot = NULL;
     tf_node *servinst = NULL;
     tf_host *host = NULL;
     tf_access_map *accmap = NULL;
     tf_property *instprop = NULL;
+    tf_host **hostarr = NULL;
     tf_error dberr;
     int result = 0;
 
-    while (err == 0 && (opt = getopt(argc, argv, "c:d:l:u:w")) != -1) {
+    while (err == 0 && (opt = getopt(argc, argv, "c:d:fl:p:u:w")) != -1) {
 
         switch (opt) {
 
@@ -73,8 +79,16 @@ int main(int argc, char **argv)
             lev = atoi(optarg);
             break;
 
+        case 'f':
+            fg = 1;
+            break;
+
         case 'l':
             logfile = strdup(optarg);
+            break;
+
+        case 'p':
+            dbpasswd = strdup(optarg);
             break;
 
         case 'u':
@@ -93,61 +107,97 @@ int main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    if (argc < 1 || err) {
-        printf("USAGE: tfprep [options] <dsn>\n");
+    if (argc != 0 || err || !cfgfile || !dbuser) {
+        printf("USAGE: tfadmin setup [options] -c <file> -u <username>\n");
         printf("\n");
-        printf("Example DSN: tfsconfig@dbserver.example.com\n");
-        printf("\n");
-        printf("Options:\n");
-        printf("  -c <file>             configuration file\n");
+        printf("Common Options:\n");
+        printf("  -c <file>             configuration file (required)\n");
         printf("  -d <level>            log level (default: 5)\n");
-        printf("  -l <file>             log file (default: ~/tfprep.log)\n");
-        printf("  -u <username>         database user to connect as\n");
+        printf("  -f                    write log messages to standard out\n");
+        printf("  -l <file>             log file (default: ~/tfadmin.log)\n");
+        printf("\n");
+        printf("Database Options:\n");
+        printf("  -u <username>         database user to connect as (required)\n");
+        printf("  -p <password>         password for the database user (will prompt if omitted)\n");
         printf("  -w                    never prompt for password\n");
         printf("\n");
-        return 1;
+
+        result = 1;
+        goto cleanup;
     }
 
     if (!logfile) {
-        wordexp("~/tfprep.log", &expresult, 0);
+        wordexp("~/tfadmin.log", &expresult, 0);
         logfile = strdup(expresult.we_wordv[0]);
         wordfree(&expresult);
     }
 
-    dbdsn = strdup(argv[0]);
+    config_init(&config);
+    if (config_read_file(&config, cfgfile) != CONFIG_TRUE) {
+        fprintf(stderr, "tfadmin: failed to read config file!\n");
+        result = 1;
+        goto cleanup;
+    }
 
-    if (!nopass && dbuser) {
+    config_lookup_string(&config, "configdsn", &dbdsn);
+
+    config_lookup_string(&config, "bindport", &port);
+    nport = (port) ? atoi(port) : 0;
+    if (nport == 0 || nport != (nport & 0xffff)) {
+        log_fatal("bindport must be a valid TCP port number (was %d)", nport);
+        result = 1;
+        goto cleanup_config;
+    }
+
+    config_lookup_string(&config, "prefix", &prefix);
+    if (!prefix || strcmp(prefix, "") == 0 || prefix[0] != '/') {
+        log_fatal("prefix must be a valid URI (was %s)", prefix);
+        result = 1;
+        goto cleanup_config;
+    }
+
+    if (!nopass && !dbpasswd) {
         snprintf(prompt, 64, "Password for user %s: ", dbuser);
         dbpasswd = getpass(prompt);
-    } else
+    } else if (!dbpasswd)
         dbpasswd = strdup("");
 
-    if (!dbuser)
-        dbuser = strdup("");
-
-    if (!log_open(logfile, lev, 1)) {
-        fprintf(stderr, "tfprep: failed to open log file!\n");
-        return 1;
+    if (!log_open(logfile, lev, fg)) {
+        fprintf(stderr, "tfadmin: failed to open log file!\n");
+        result = 1;
+        goto cleanup_config;
     }
 
     if (pg_pool_init(1) != 1) {
         log_fatal("failed to initialise PG context pool");
-        log_close();
-        return 1;
+        fprintf(stderr, "tfadmin: failed to initialise (see %s for details)\n", logfile);
+        result = 1;
+        goto cleanup_log;
     }
 
     if (!pg_connect(dbdsn, dbuser, dbpasswd, 1, NULL)) {
         log_fatal("failed to connect to PG");
-        log_close();
-        return 1;
+        fprintf(stderr, "tfadmin: failed to connect to the database (see %s for details)\n", logfile);
+        result = 1;
+        goto cleanup_db;
     }
 
-    pgctx *ctx = pg_acquire_trans(NULL);
+    pgctx *ctx = pg_context_acquire(NULL);
+
+    if (tf_fetch_hosts(ctx, NULL, &hostarr) == TF_ERROR_SUCCESS) {
+        hostarr = tf_free_host_array(hostarr);
+        pg_context_release(ctx);
+        printf("Team Foundation deployment is already initialised\n");
+        goto cleanup_db;
+    }
+
+    pg_context_release(ctx);
+    ctx = pg_acquire_trans(NULL);
 
     if (tf_init_configdb(ctx) != TF_ERROR_SUCCESS)
         goto error;
 
-    log_notice("building initial catalog");
+    printf("Building initial catalog\n");
 
     orgroot = tf_new_node(
         NULL, 
@@ -179,12 +229,12 @@ int main(int argc, char **argv)
     if (dberr != TF_ERROR_SUCCESS)
         goto error;
 
-    log_notice("registering services");
+    printf("Registering services\n");
 
     gethostname(hostname, _POSIX_HOST_NAME_MAX);
-    snprintf(serveruri, _POSIX_HOST_NAME_MAX * 2, "http://%s:8080/tfs", hostname);
+    snprintf(serveruri, _POSIX_HOST_NAME_MAX * 2, "http://%s:%s/%s", hostname, port, prefix);
     accmap = tf_new_access_map("public", "Public Access Mapping", serveruri);
-    accmap->fdefault = 1;
+    accmap->fdefault = 1; /* HACK */
     dberr = tf_add_access_map(ctx, accmap);
     accmap = tf_free_access_map(accmap);
 
@@ -229,7 +279,7 @@ int main(int argc, char **argv)
     if (dberr != TF_ERROR_SUCCESS)
         goto error;
 
-    log_notice("registering Team Foundation service host");
+    printf("Registering Team Foundation service host\n");
     host = tf_new_host(NULL, "TEAM FOUNDATION", dbdsn);
     dberr = tf_add_host(ctx, host);
 
@@ -245,27 +295,38 @@ int main(int argc, char **argv)
     if (dberr != TF_ERROR_SUCCESS)
         goto error;
 
-    log_notice("TFS deployment is initialised");
+    printf("Team Foundation deployment is initialised\n");
     pg_release_commit(ctx);
-    goto cleanup;
+    goto cleanup_db;
 
 error:
     pg_release_rollback(ctx);
     result = 1;
+    fprintf(stderr, "tfadmin: the operation failed (see %s for details)\n", logfile);
 
-cleanup:
+cleanup_db:
     orgroot = tf_free_node(orgroot);
     infroot = tf_free_node(infroot);
     servinst = tf_free_node(servinst);
     host = tf_free_host(host);
 
-    free(cfgfile);
-    free(logfile);
-    free(dbuser);
-    free(dbdsn);
-
     pg_disconnect();
+
+cleanup_log:
     log_close();
+
+cleanup_config:
+    config_destroy(&config);
+
+cleanup:
+    if (cfgfile)
+        free(cfgfile);
+
+    if (logfile)
+        free(logfile);
+
+    if (dbuser)
+        free(dbuser);
 
     return result;
 }
