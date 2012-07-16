@@ -12,7 +12,7 @@ set_source_files_properties(
     ${Cabrillo_BINARY_DIR}/libbonsai/pgcommon.c
     PROPERTIES GENERATED 1)
 
-add_library(bonsai ${LIBBONSAI_SRC})
+add_library(bonsai SHARED ${LIBBONSAI_SRC})
 
 add_custom_command(OUTPUT ${Cabrillo_BINARY_DIR}/libbonsai/pgcommon.c 
                    COMMAND ${ECPG}
