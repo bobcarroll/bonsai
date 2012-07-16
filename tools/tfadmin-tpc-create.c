@@ -24,6 +24,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <wordexp.h>
@@ -47,6 +48,7 @@ int main(int argc, char **argv)
     int opt, fg = 0, err = 0, nopass = 0;
     char *cfgfile = NULL;
     char *logfile = NULL;
+    const char *shuser = getenv("USER");
     char *dbdsn = NULL;
     char *dbuser = NULL;
     char *dbpasswd = NULL;
@@ -97,8 +99,8 @@ int main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    if (argc != 1 || err || !cfgfile || !dbuser) {
-        printf("USAGE: tfadmin tpc-create [options] -c <file> -u <username> <tpc dsn>\n");
+    if (argc != 1 || err || !cfgfile) {
+        printf("USAGE: tfadmin tpc-create [options] -c <file> <tpc dsn>\n");
         printf("\n");
         printf("Example DSN: tfsfoo@dbserver.example.com\n");
         printf("\n");
@@ -109,7 +111,7 @@ int main(int argc, char **argv)
         printf("  -l <file>             log file (default: ~/tfadmin.log)\n");
         printf("\n");
         printf("Database Options:\n");
-        printf("  -u <username>         database user to connect as\n");
+        printf("  -u <username>         database user to connect as (default: shell user)\n");
         printf("  -p <password>         password for the database user (will prompt if omitted)\n");
         printf("  -w                    never prompt for password\n");
         printf("\n");
@@ -132,6 +134,15 @@ int main(int argc, char **argv)
     }
 
     dbdsn = strdup(argv[0]);
+
+    if (!dbuser && shuser)
+        dbuser = strdup(shuser);
+    else if (!dbuser) {
+        log_fatal("empty database username");
+        fprintf(stderr, "tfadmin: no database user specified!\n");
+        result = 1;
+        goto cleanup_config;
+    }
 
     if (!nopass && !dbpasswd) {
         snprintf(prompt, 64, "Password for user %s: ", dbuser);
