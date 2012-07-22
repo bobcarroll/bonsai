@@ -18,7 +18,7 @@
  */
 
 /**
- * @brief   core services daemon
+ * @brief   team project collection daemon
  *
  * @author  Bob Carroll (bob.carroll@alum.rit.edu)
  */
@@ -36,7 +36,7 @@
 #include <pgctxpool.h>
 #include <authz.h>
 
-#include <csd.h>
+#include <pcd.h>
 
 int main(int argc, char **argv)
 {
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
     const char *smbpasswd = NULL;
     char *instid = NULL;
 
-    while (err == 0 && (opt = getopt(argc, argv, "c:fd:")) != -1) {
+    while (err == 0 && (opt = getopt(argc, argv, "c:fd:h:")) != -1) {
 
         switch (opt) {
 
@@ -76,13 +76,17 @@ int main(int argc, char **argv)
             levovrd = 1;
             break;
 
+        case 'h':
+            instid = strdup(optarg);
+            break;
+
         default:
             err = 1;
         }
     }
 
-    if (argc < 2 || !cfgfile || err) {
-        printf("USAGE: csd -c <file> [-f] [-d <level>]\n");
+    if (argc < 2 || !cfgfile || !instid || err) {
+        printf("USAGE: csd -c <file> -h <host> [-f] [-d <level>]\n");
         return 1;
     }
 
@@ -167,22 +171,19 @@ int main(int argc, char **argv)
         goto cleanup_log;
     }
 
+    char portnum[5];
+    snprintf(portnum, 5, "%d", atoi(port) + 1); /* UGLY HACK */
+
     httpd_set_timeout(10);
     soapargs = (char **)calloc(5, sizeof(char *));
     soapargs[0] = argv[0];
     soapargs[1] = "-NHTTPport";
-    soapargs[2] = strdup(port);
+    soapargs[2] = strdup(portnum);
     soapargs[3] = "-NHTTPntlmhelper";
     soapargs[4] = strdup(ntlmhelper);
     soaperr = soap_server_init_args(5, soapargs);
 
-    instid = core_services_init(prefix);
-    if (!instid) {
-        log_fatal("core services failed to start!");
-        goto cleanup_db;
-    }
-
-    pg_context_retag_default(instid);
+    tpc_services_init(prefix, instid, pguser, pgpasswd, dbconns);
 
     authz_init(smbhost, smbuser, smbpasswd);
 

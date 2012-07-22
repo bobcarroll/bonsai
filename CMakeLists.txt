@@ -69,6 +69,7 @@ add_subdirectory(libbonsai)
 add_subdirectory(libcsoap)
 add_subdirectory(libtf)
 add_subdirectory(nanohttp)
+add_subdirectory(pcd)
 add_subdirectory(tests)
 add_subdirectory(tools)
 
