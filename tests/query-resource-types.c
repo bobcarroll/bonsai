@@ -32,7 +32,7 @@
 
 int main(int argc, char **argv)
 {
-    if (!log_open(NULL, LOG_TRACE, 1, 0)) {
+    if (!log_open(NULL, LOG_TRACE, 1)) {
         fprintf(stderr, "%s: failed to open log file!\n", argv[0]);
         return 1;
     }
