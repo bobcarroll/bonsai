@@ -6,6 +6,7 @@ set(LIBBONSAI_SRC
     session.c
     ntlmauth.c
     authz.c
+    util.c
     base64.c)
 
 set_source_files_properties(

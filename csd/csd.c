@@ -35,14 +35,18 @@
 #include <pgcommon.h>
 #include <pgctxpool.h>
 #include <authz.h>
+#include <util.h>
 
 #include <csd.h>
+
+#define MAXCONNS 100
 
 int main(int argc, char **argv)
 {
     char **soapargs;
     herror_t soaperr;
-    const char *logfile = NULL;
+    const char *logdir = NULL;
+    char *logfile = NULL;
     int lev = LOG_WARN, levovrd = 0;
     int opt, fg = 0, err = 0;
     char *cfgfile = NULL;
@@ -50,7 +54,8 @@ int main(int argc, char **argv)
     const char *pgdsn = NULL;
     const char *pguser = NULL;
     const char *pgpasswd = NULL;
-    int maxconns = 1, dbconns = 1, nport;
+    int maxconns = MAXCONNS, dbconns = 1, nport;
+    char maxconns_str[3];
     const char *port = NULL;
     const char *prefix = NULL;
     const char *ntlmhelper = NULL;
@@ -95,10 +100,11 @@ int main(int argc, char **argv)
 
     free(cfgfile);
 
-    config_lookup_string(&config, "logfile", &logfile);
+    config_lookup_string(&config, "logdir", &logdir);
     if (!levovrd)
         config_lookup_int(&config, "loglevel", &lev);
 
+    logfile = combine(logdir, "csd.log");
     if (!log_open(logfile, lev, fg)) {
         fprintf(stderr, "csd: failed to open log file!\n");
         goto cleanup_cfg;
@@ -132,32 +138,33 @@ int main(int argc, char **argv)
         smbpasswd = "";
     }
 
-    config_lookup_int(&config, "maxconns", &maxconns);
+    config_lookup_int(&config, "team-foundation.maxconns", &maxconns);
     if (maxconns < 1) {
         log_warn("maxconns must be at least 1 (was %d)", maxconns);
-        maxconns = 1;
+        maxconns = MAXCONNS;
     }
+    snprintf(maxconns_str, 3, "%d", maxconns);
 
-    config_lookup_int(&config, "dbconns", &dbconns);
+    config_lookup_int(&config, "team-foundation.dbconns", &dbconns);
     if (dbconns < 1) {
         log_warn("dbconns must be at least 1 (was %d)", dbconns);
         dbconns = 1;
     }
 
-    config_lookup_string(&config, "bindport", &port);
+    config_lookup_string(&config, "team-foundation.listen", &port);
     nport = (port) ? atoi(port) : 0;
     if (nport == 0 || nport != (nport & 0xffff)) {
-        log_fatal("bindport must be a valid TCP port number (was %d)", nport);
+        log_fatal("listen must be a valid TCP port number (was %d)", nport);
         goto cleanup_log;
     }
 
-    config_lookup_string(&config, "prefix", &prefix);
+    config_lookup_string(&config, "team-foundation.prefix", &prefix);
     if (!prefix || strcmp(prefix, "") == 0 || prefix[0] != '/') {
         log_fatal("prefix must be a valid URI (was %s)", prefix);
         goto cleanup_log;
     }
 
-    if (pg_pool_init(maxconns) != maxconns) {
+    if (pg_pool_init(dbconns) != dbconns) {
         log_fatal("failed to initialise PG context pool");
         goto cleanup_log;
     }
@@ -168,13 +175,15 @@ int main(int argc, char **argv)
     }
 
     httpd_set_timeout(10);
-    soapargs = (char **)calloc(5, sizeof(char *));
+    soapargs = (char **)calloc(7, sizeof(char *));
     soapargs[0] = argv[0];
     soapargs[1] = "-NHTTPport";
     soapargs[2] = strdup(port);
-    soapargs[3] = "-NHTTPntlmhelper";
-    soapargs[4] = strdup(ntlmhelper);
-    soaperr = soap_server_init_args(5, soapargs);
+    soapargs[3] = "-NHTTPmaxconn";
+    soapargs[4] = strdup(maxconns_str);
+    soapargs[5] = "-NHTTPntlmhelper";
+    soapargs[6] = strdup(ntlmhelper);
+    soaperr = soap_server_init_args(7, soapargs);
 
     instid = core_services_init(prefix);
     if (!instid) {
@@ -206,6 +215,9 @@ cleanup_log:
 
 cleanup_cfg:
     config_destroy(&config);
+
+    if (logfile)
+        free(logfile);
 
     return 0;
 }
