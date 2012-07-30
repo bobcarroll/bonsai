@@ -34,16 +34,12 @@
  * Retrieves service hosts from the database. Calling functions should
  * call tf_free_host_array() to free "result".
  *
- * If parent is NULL then only TEAM FOUDATAION hosts will be returned.
- * Otherwise, hosts with the given parent will be returned.
- *
  * @param ctx       current database context
- * @param parent    optional parent ID to filter on
  * @param result    pointer to an output buffer for the results
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
+tf_error tf_fetch_hosts(pgctx *ctx, tf_host ***result)
 {
     if (!ctx || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
@@ -52,24 +48,10 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
-    char countstmt[20480];
+    char *countstmt = "SELECT COUNT(*) FROM service_hosts";
     char selstmt[20480];
     int count = 0;
     EXEC SQL END DECLARE SECTION;
-
-    char where[1024];
-
-    if (parent)
-        snprintf(where, 1024, "WHERE parent_host_id = '%s'", parent);
-    else
-        sprintf(where, "WHERE parent_host_id IS NULL");
-
-    sprintf(countstmt, 
-        "SELECT COUNT(*) \
-        FROM service_hosts \
-        %s",
-        where);
-    log_trace("fetch service hosts SQL: %s", countstmt);
 
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL AT :conn PREPARE sqlstmt FROM :countstmt;
@@ -84,13 +66,11 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
         return TF_ERROR_SUCCESS;
 
     sprintf(selstmt, 
-        "SELECT host_id, parent_host_id, \"name\", description, \
+        "SELECT host_id, \"name\", description, \
                 virtual_directory, resource_directory, \
                 connection_string, status, status_reason, \
                 supported_features \
-        FROM service_hosts \
-        %s",
-        where);
+        FROM service_hosts");
 
     EXEC SQL WHENEVER SQLERROR GOTO error_cur;
     EXEC SQL AT :conn PREPARE sqlstmt FROM :selstmt;
@@ -105,8 +85,6 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
 
         EXEC SQL BEGIN DECLARE SECTION;
         char id[TF_SERVICE_HOST_ID_MAXLEN];
-        char parent[TF_SERVICE_HOST_ID_MAXLEN];
-        int parent_ind;
         char name[TF_SERVICE_HOST_NAME_MAXLEN];
         char *description = NULL;
         int desc_ind;
@@ -123,7 +101,7 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
         EXEC SQL END DECLARE SECTION;
 
         EXEC SQL AT :conn FETCH NEXT FROM fetch_hosts
-            INTO :id, :parent:parent_ind, :name, :description:desc_ind, 
+            INTO :id, :name, :description:desc_ind, 
                  :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr, 
                  :status:status_ind, :reason:reason_ind, :features;
 
@@ -131,12 +109,7 @@ tf_error tf_fetch_hosts(pgctx *ctx, const char *parent, tf_host ***result)
         bzero(item, sizeof(tf_host));
 
         strncpy(item->id, id, TF_SERVICE_HOST_ID_MAXLEN);
-
-        if (!parent_ind)
-            strncpy(item->parent, parent, TF_SERVICE_HOST_ID_MAXLEN);
-
         strncpy(item->name, name, TF_SERVICE_HOST_NAME_MAXLEN);
-
         item->description = !desc_ind ? strdup(description) : NULL;
 
         if (!vdir_ind)
@@ -176,13 +149,14 @@ error:
  * Retrieves the given host from the database. Calling functions should
  * call tf_free_host() to free "result".
  *
- * @param ctx       current database context
- * @param id        host ID to match
- * @param result    pointer to an output buffer for the result
+ * @param ctx           current database context
+ * @param id            host ID to match
+ * @param match_name    flag to match on host name instead of ID
+ * @param result        pointer to an output buffer for the result
  *
  * @return TF_ERROR_SUCCESS or an error code
  */
-tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
+tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, int match_name, tf_host **result)
 {
     if (!ctx || !hostid || !result || *result)
         return TF_ERROR_BAD_PARAMETER;
@@ -198,12 +172,13 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
     EXEC SQL WHENEVER SQLERROR GOTO error;
 
     sprintf(selstmt, 
-        "SELECT host_id, parent_host_id, \"name\", description, \
+        "SELECT host_id, \"name\", description, \
                 virtual_directory, resource_directory, \
                 connection_string, status, status_reason, \
                 supported_features \
         FROM service_hosts \
-        WHERE host_id = '%s'",
+        WHERE %s = '%s'",
+        match_name ? "name" : "host_id",
         hostid);
     log_trace("fetch single service host SQL: %s", selstmt);
 
@@ -211,8 +186,6 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
 
     EXEC SQL BEGIN DECLARE SECTION;
     char id[TF_SERVICE_HOST_ID_MAXLEN];
-    char parent[TF_SERVICE_HOST_ID_MAXLEN];
-    int parent_ind;
     char name[TF_SERVICE_HOST_NAME_MAXLEN];
     char *description = NULL;
     int desc_ind;
@@ -229,7 +202,7 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
     EXEC SQL END DECLARE SECTION;
 
     EXEC SQL AT :conn EXECUTE sqlstmt
-        INTO :id, :parent:parent_ind, :name, :description:desc_ind, 
+        INTO :id, :name, :description:desc_ind, 
              :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr, 
              :status:status_ind, :reason:reason_ind, :features;
 
@@ -237,12 +210,7 @@ tf_error tf_fetch_single_host(pgctx *ctx, const char *hostid, tf_host **result)
     bzero(item, sizeof(tf_host));
 
     strncpy(item->id, id, TF_SERVICE_HOST_ID_MAXLEN);
-
-    if (!parent_ind)
-        strncpy(item->parent, parent, TF_SERVICE_HOST_ID_MAXLEN);
-
     strncpy(item->name, name, TF_SERVICE_HOST_NAME_MAXLEN);
-
     item->description = !desc_ind ? strdup(description) : NULL;
 
     if (!vdir_ind)
@@ -289,12 +257,10 @@ tf_error tf_add_host(pgctx *ctx, tf_host *host)
     const char *conn = ctx->conn;
     const char *hoststmt = 
         "INSERT INTO service_hosts \
-           (host_id, parent_host_id, \"name\", description, virtual_directory, resource_directory, \
+           (host_id, \"name\", description, virtual_directory, resource_directory, \
             connection_string, status, status_reason, supported_features) \
            VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, 0)";
     const char *hostid = host->id;
-    const char *parentid = host->parent[0] ? host->parent : NULL;
-    int parentid_ind = parentid ? 0 : -1;
     const char *name = host->name;
     const char *desc = host->description;
     int desc_ind = desc ? 0 : -1;
@@ -308,10 +274,10 @@ tf_error tf_add_host(pgctx *ctx, tf_host *host)
     EXEC SQL WHENEVER SQLERROR GOTO error;
     EXEC SQL WHENEVER NOT FOUND CONTINUE;
 
-    log_debug("inserting new service host ('%s', '%s', '%s')", hostid, parentid, name);
+    log_debug("inserting new service host ('%s', '%s')", hostid, name);
 
     EXEC SQL AT :conn PREPARE sqlstmt FROM :hoststmt;
-    EXEC SQL AT :conn EXECUTE sqlstmt USING :hostid, :parentid:parentid_ind, :name,
+    EXEC SQL AT :conn EXECUTE sqlstmt USING :hostid, :name,
         :desc:desc_ind, :vdir:vdir_ind, :rsrcdir:rsrcdir_ind, :connstr;
 
     return TF_ERROR_SUCCESS;

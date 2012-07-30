@@ -65,82 +65,85 @@ static void _start_service(tf_service *service, SoapRouter **router, const char 
  * Team Project Collection services initialisation.
  *
  * @param prefix    the URI prefix for services.
- * @param instid    team foundation instance ID
+ * @param name      name of TPC to initialise
  * @param pguser    database connection user ID
  * @param pgpasswd  database connection password
  * @param dbconns   database connection count
+ *
+ * @return true on success, false otherwise
  */
-void tpc_services_init(const char *prefix, const char *instid, const char *pguser, 
+int tpc_services_init(const char *prefix, const char *tpcname, const char *pguser, 
     const char *pgpasswd, int dbconns)
 {
     pgctx *ctx;
-    tf_host **hostarr = NULL;
+    tf_host *host = NULL;
     tf_service **svcarr = NULL;
     tf_error dberr;
     char pcprefix[TF_LOCATION_SERVICE_REL_PATH_MAXLEN + 1024];
     char lpcname[TF_SERVICE_HOST_NAME_MAXLEN];
     int i, n;
 
-    if (!prefix || !instid || !pguser || !pgpasswd || dbconns < 1)
+    if (!prefix || !tpcname || !pguser || !pgpasswd || dbconns < 1)
         return;
 
     if (_routers) {
         log_warn("project collection services are already initialised!");
-        return;
+        return 1;
     }
 
     ctx = pg_context_acquire(NULL);
-    dberr = tf_fetch_hosts(ctx, instid, &hostarr);
+    dberr = tf_fetch_single_host(ctx, tpcname, 1, &host);
     pg_context_release(ctx);
 
-    if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {
-        log_warn("no project collections were found for instance %s", instid);
-        hostarr = tf_free_host_array(hostarr);
-        return;
+    if (dberr != TF_ERROR_SUCCESS) {
+        log_warn("no project collections were found with name", tpcname);
+        host = tf_free_host(host);
+        return 0;
     }
 
     _routers = (SoapRouter **)calloc(MAX_ROUTERS, sizeof(SoapRouter *));
 
-    for (i = 0; hostarr[i]; i++) {
-        if (!pg_connect(hostarr[i]->connstr, pguser, pgpasswd, dbconns, hostarr[i]->id)) {
-            log_error("failed to connect to PG");
-            continue;
-        }
-
-        log_info("initialising project collection services for %s", hostarr[i]->name);
-
-        bzero(lpcname, TF_SERVICE_HOST_NAME_MAXLEN);
-        strncpy(lpcname, hostarr[i]->name, TF_SERVICE_HOST_NAME_MAXLEN - 1);
-        for (n = 0; lpcname[n]; n++)
-            lpcname[n] = tolower(lpcname[n]);
-
-        snprintf(pcprefix, TF_LOCATION_SERVICE_REL_PATH_MAXLEN + 1024, "%s/%s", prefix, lpcname);
-
-        ctx = pg_context_acquire(hostarr[i]->id);
-        dberr = tf_fetch_services(ctx, NULL, &svcarr);
-        pg_context_release(ctx);
-
-        if (dberr != TF_ERROR_SUCCESS || !svcarr[0]) {
-            log_warn("failed to retrieve project collection services for %s", hostarr[i]->id);
-            svcarr = tf_free_service_array(svcarr);
-            continue;
-        }
-
-        for (n = 0; svcarr[n]; n++) {
-            if (n == MAX_ROUTERS) {
-                log_error(
-                    "unable to start service because the maximum count was reached (%d)", 
-                    MAX_ROUTERS);
-                break;
-            }
-
-            if (svcarr[n]->reltosetting == TF_SERVICE_RELTO_CONTEXT)
-                _start_service(svcarr[n], &_routers[n], pcprefix, hostarr[i]->id);
-        }
-
-        svcarr = tf_free_service_array(svcarr);
+    if (!pg_connect(host->connstr, pguser, pgpasswd, dbconns, host->id)) {
+        log_error("failed to connect to PG");
+        host = tf_free_host(host);
+        return 0;
     }
 
-    hostarr = tf_free_host_array(hostarr);
+    log_info("initialising project collection services for %s", host->name);
+
+    bzero(lpcname, TF_SERVICE_HOST_NAME_MAXLEN);
+    strncpy(lpcname, host->name, TF_SERVICE_HOST_NAME_MAXLEN - 1);
+    for (n = 0; lpcname[n]; n++)
+        lpcname[n] = tolower(lpcname[n]);
+
+    snprintf(pcprefix, TF_LOCATION_SERVICE_REL_PATH_MAXLEN + 1024, "%s/%s", prefix, lpcname);
+
+    ctx = pg_context_acquire(host->id);
+    dberr = tf_fetch_services(ctx, NULL, &svcarr);
+    pg_context_release(ctx);
+
+    if (dberr != TF_ERROR_SUCCESS || !svcarr[0]) {
+        log_warn("failed to retrieve project collection services for %s", host->id);
+        svcarr = tf_free_service_array(svcarr);
+        host = tf_free_host(host);
+        return 0;
+    }
+
+    for (n = 0; svcarr[n]; n++) {
+        if (n == MAX_ROUTERS) {
+            log_error(
+                "unable to start service because the maximum count was reached (%d)", 
+                MAX_ROUTERS);
+            break;
+        }
+
+        if (svcarr[n]->reltosetting == TF_SERVICE_RELTO_CONTEXT)
+            _start_service(svcarr[n], &_routers[n], pcprefix, host->id);
+    }
+
+    svcarr = tf_free_service_array(svcarr);
+    host = tf_free_host(host);
+
+    return 1;
 }
 

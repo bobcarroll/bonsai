@@ -35,31 +35,39 @@
 #include <pgcommon.h>
 #include <pgctxpool.h>
 #include <authz.h>
+#include <util.h>
 
 #include <pcd.h>
+
+#define MAXCONNS 100
 
 int main(int argc, char **argv)
 {
     char **soapargs;
     herror_t soaperr;
-    const char *logfile = NULL;
+    const char *logdir = NULL;
+    char *logfile = NULL;
+    char logname[1024];
     int lev = LOG_WARN, levovrd = 0;
     int opt, fg = 0, err = 0;
     char *cfgfile = NULL;
+    char confgroup[1024];
+    char confitem[1024];
     config_t config;
     const char *pgdsn = NULL;
     const char *pguser = NULL;
     const char *pgpasswd = NULL;
-    int maxconns = 1, dbconns = 1, nport;
+    int maxconns = MAXCONNS, dbconns = 1, nport;
+    char maxconns_str[3];
     const char *port = NULL;
     const char *prefix = NULL;
     const char *ntlmhelper = NULL;
     const char *smbhost = NULL;
     const char *smbuser = NULL;
     const char *smbpasswd = NULL;
-    char *instid = NULL;
+    char *tpcname = NULL;
 
-    while (err == 0 && (opt = getopt(argc, argv, "c:fd:h:")) != -1) {
+    while (err == 0 && (opt = getopt(argc, argv, "c:fd:n:")) != -1) {
 
         switch (opt) {
 
@@ -76,8 +84,8 @@ int main(int argc, char **argv)
             levovrd = 1;
             break;
 
-        case 'h':
-            instid = strdup(optarg);
+        case 'n':
+            tpcname = strdup(optarg);
             break;
 
         default:
@@ -85,8 +93,8 @@ int main(int argc, char **argv)
         }
     }
 
-    if (argc < 2 || !cfgfile || !instid || err) {
-        printf("USAGE: csd -c <file> -h <host> [-f] [-d <level>]\n");
+    if (argc < 2 || !cfgfile || !tpcname || err) {
+        printf("USAGE: csd -c <file> -n <tpc name> [-f] [-d <level>]\n");
         return 1;
     }
 
@@ -98,11 +106,14 @@ int main(int argc, char **argv)
     }
 
     free(cfgfile);
+    snprintf(confgroup, 1024, "tpc-%s", tpcname);
 
-    config_lookup_string(&config, "logfile", &logfile);
+    config_lookup_string(&config, "logdir", &logdir);
     if (!levovrd)
         config_lookup_int(&config, "loglevel", &lev);
 
+    snprintf(logname, 1024, "tpc-%s.log", tpcname);
+    logfile = combine(logdir, logname);
     if (!log_open(logfile, lev, fg)) {
         fprintf(stderr, "csd: failed to open log file!\n");
         goto cleanup_cfg;
@@ -136,54 +147,62 @@ int main(int argc, char **argv)
         smbpasswd = "";
     }
 
-    config_lookup_int(&config, "maxconns", &maxconns);
+    snprintf(confitem, 1024, "%s.maxconns", confgroup);
+    config_lookup_int(&config, confitem, &maxconns);
     if (maxconns < 1) {
         log_warn("maxconns must be at least 1 (was %d)", maxconns);
         maxconns = 1;
     }
+    snprintf(maxconns_str, 3, "%d", maxconns);
 
-    config_lookup_int(&config, "dbconns", &dbconns);
+    snprintf(confitem, 1024, "%s.dbconns", confgroup);
+    config_lookup_int(&config, confitem, &dbconns);
     if (dbconns < 1) {
         log_warn("dbconns must be at least 1 (was %d)", dbconns);
         dbconns = 1;
     }
+    dbconns++;
 
-    config_lookup_string(&config, "bindport", &port);
+    snprintf(confitem, 1024, "%s.listen", confgroup);
+    config_lookup_string(&config, confitem, &port);
     nport = (port) ? atoi(port) : 0;
     if (nport == 0 || nport != (nport & 0xffff)) {
-        log_fatal("bindport must be a valid TCP port number (was %d)", nport);
+        log_fatal("listen must be a valid TCP port number (was %d)", nport);
         goto cleanup_log;
     }
 
-    config_lookup_string(&config, "prefix", &prefix);
+    snprintf(confitem, 1024, "%s.prefix", confgroup);
+    config_lookup_string(&config, confitem, &prefix);
     if (!prefix || strcmp(prefix, "") == 0 || prefix[0] != '/') {
         log_fatal("prefix must be a valid URI (was %s)", prefix);
         goto cleanup_log;
     }
 
-    if (pg_pool_init(maxconns) != maxconns) {
+    if (pg_pool_init(dbconns) != dbconns) {
         log_fatal("failed to initialise PG context pool");
         goto cleanup_log;
     }
 
-    if (!pg_connect(pgdsn, pguser, pgpasswd, dbconns, NULL)) {
+    if (!pg_connect(pgdsn, pguser, pgpasswd, 1, NULL)) {
         log_fatal("failed to connect to PG");
         goto cleanup_log;
     }
 
-    char portnum[5];
-    snprintf(portnum, 5, "%d", atoi(port) + 1); /* UGLY HACK */
-
     httpd_set_timeout(10);
-    soapargs = (char **)calloc(5, sizeof(char *));
+    soapargs = (char **)calloc(7, sizeof(char *));
     soapargs[0] = argv[0];
     soapargs[1] = "-NHTTPport";
-    soapargs[2] = strdup(portnum);
-    soapargs[3] = "-NHTTPntlmhelper";
-    soapargs[4] = strdup(ntlmhelper);
-    soaperr = soap_server_init_args(5, soapargs);
+    soapargs[2] = strdup(port);
+    soapargs[3] = "-NHTTPmaxconn";
+    soapargs[4] = strdup(maxconns_str);
+    soapargs[5] = "-NHTTPntlmhelper";
+    soapargs[6] = strdup(ntlmhelper);
+    soaperr = soap_server_init_args(7, soapargs);
 
-    tpc_services_init(prefix, instid, pguser, pgpasswd, dbconns);
+    if (!tpc_services_init(prefix, tpcname, pguser, pgpasswd, dbconns - 1)) {
+        log_fatal("team project collection services failed to start!");
+        goto cleanup_db;
+    }
 
     authz_init(smbhost, smbuser, smbpasswd);
 
@@ -197,7 +216,7 @@ int main(int argc, char **argv)
     free(soapargs);
 
     authz_free();
-    free(instid);
+    free(tpcname);
 
 cleanup_db:
     pg_disconnect();
@@ -207,6 +226,9 @@ cleanup_log:
 
 cleanup_cfg:
     config_destroy(&config);
+
+    if (logfile)
+        free(logfile);
 
     return 0;
 }

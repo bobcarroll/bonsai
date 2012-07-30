@@ -249,7 +249,7 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     }
 
     ctx = pg_context_acquire(NULL);
-    dberr = tf_fetch_single_host(ctx, hostid, &host);
+    dberr = tf_fetch_single_host(ctx, hostid, 0, &host);
 
     if (dberr != TF_ERROR_SUCCESS || !host) {
         authz_free_buffer(ui);
@@ -278,7 +278,10 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
         return H_OK;
     }
 
-    if (host->parent) {
+    /* TODO HACK This is really checking whether or not the host is a TPC.
+       This is fine for now since the only other hosts are TPCs, but we
+       need a better way to test for this. */
+    if (strcmp(host->name, "TEAM FOUNDATION") == 0) {
         pg_context_release(ctx);
         ctx = pg_context_acquire(hostid);
     }

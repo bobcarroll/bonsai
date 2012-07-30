@@ -23,7 +23,7 @@
 
 #include <tf/xml.h>
 
-void tpc_services_init(const char *, const char *, const char *, const char *, int);
+int tpc_services_init(const char *, const char *, const char *, const char *, int);
 
 void registration_service_init(SoapRouter **, const char *, const char *, const char *);
 

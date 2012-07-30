@@ -29,5 +29,5 @@ void catalog_service_init(SoapRouter **, const char *, const char *, const char 
 void location_append_service(xmlNode *, tf_service *);
 void location_service_init(SoapRouter **, const char *, const char *, const char *);
 
-char *core_services_init(const char *);
+int core_services_init(const char *);
 

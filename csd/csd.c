@@ -62,7 +62,6 @@ int main(int argc, char **argv)
     const char *smbhost = NULL;
     const char *smbuser = NULL;
     const char *smbpasswd = NULL;
-    char *instid = NULL;
 
     while (err == 0 && (opt = getopt(argc, argv, "c:fd:")) != -1) {
 
@@ -185,13 +184,10 @@ int main(int argc, char **argv)
     soapargs[6] = strdup(ntlmhelper);
     soaperr = soap_server_init_args(7, soapargs);
 
-    instid = core_services_init(prefix);
-    if (!instid) {
+    if (!core_services_init(prefix)) {
         log_fatal("core services failed to start!");
         goto cleanup_db;
     }
-
-    pg_context_retag_default(instid);
 
     authz_init(smbhost, smbuser, smbpasswd);
 
@@ -205,7 +201,6 @@ int main(int argc, char **argv)
     free(soapargs);
 
     authz_free();
-    free(instid);
 
 cleanup_db:
     pg_disconnect();

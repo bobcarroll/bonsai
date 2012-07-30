@@ -195,7 +195,7 @@ int main(int argc, char **argv)
 
     pgctx *ctx = pg_context_acquire(NULL);
 
-    if (tf_fetch_hosts(ctx, NULL, &hostarr) == TF_ERROR_SUCCESS) {
+    if (tf_fetch_hosts(ctx, &hostarr) == TF_ERROR_SUCCESS) {
         hostarr = tf_free_host_array(hostarr);
         pg_context_release(ctx);
         printf("Team Foundation deployment is already initialised\n");
@@ -295,7 +295,7 @@ int main(int argc, char **argv)
         goto error;
 
     printf("Registering Team Foundation service host\n");
-    host = tf_new_host(NULL, "TEAM FOUNDATION", dbdsn);
+    host = tf_new_host("TEAM FOUNDATION", dbdsn);
     dberr = tf_add_host(ctx, host);
 
     if (dberr != TF_ERROR_SUCCESS)

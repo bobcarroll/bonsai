@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     char hostname[_POSIX_HOST_NAME_MAX];
     char serveruri[_POSIX_HOST_NAME_MAX * 2];
     wordexp_t expresult;
-    tf_host **hostarr = NULL;
+    tf_host *tfhost = NULL;
     tf_error dberr;
     int result = 0;
 
@@ -174,24 +174,23 @@ int main(int argc, char **argv)
     pgctx *cfgctx = pg_acquire_trans("configdb");
     pgctx *tpcctx = pg_acquire_trans("tpcdb");
 
-    dberr = tf_fetch_hosts(cfgctx, NULL, &hostarr);
+    dberr = tf_fetch_single_host(cfgctx, "TEAM FOUNDATION", 1, &tfhost);
 
-    if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {
-        log_fatal("no Team Foundation instances were found!");
-        hostarr = tf_free_host_array(hostarr);
+    if (dberr != TF_ERROR_SUCCESS) {
+        log_fatal("Team Foundation instance not found!");
+        tfhost = tf_free_host(tfhost);
         goto error;
     }
 
-    /* TODO support more than one host */
-    if (tf_attach_collection(tpcctx, tpcname, serveruri, cfgctx, hostarr[0]) != TF_ERROR_SUCCESS) {
+    if (tf_attach_collection(tpcctx, tpcname, serveruri, cfgctx, tfhost) != TF_ERROR_SUCCESS) {
         log_fatal("failed to attach project collection to server instance!");
-        hostarr = tf_free_host_array(hostarr);
+        tfhost = tf_free_host(tfhost);
         goto error;
     }
 
-    hostarr = tf_free_host_array(hostarr);
+    printf("Team project collection '%s' is now attached to server instance %s\n", tpcname, tfhost->id);
+    tfhost = tf_free_host(tfhost);
 
-    printf("Team project collection '%s' is now attached to this server instance\n", tpcname);
     pg_release_commit(cfgctx);
     pg_release_commit(tpcctx);
     goto cleanup_db;

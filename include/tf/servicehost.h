@@ -31,7 +31,6 @@
 
 typedef struct {
     char id[TF_SERVICE_HOST_ID_MAXLEN];
-    char parent[TF_SERVICE_HOST_ID_MAXLEN];
     char name[TF_SERVICE_HOST_NAME_MAXLEN];
     char *description;
     char vdir[TF_SERVICE_HOST_PATH_MAXLEN];
@@ -45,10 +44,10 @@ typedef struct {
 void *tf_free_host(tf_host *);
 void *tf_free_host_array(tf_host **);
 
-tf_host *tf_new_host(tf_host *, const char *, const char *);
+tf_host *tf_new_host(const char *, const char *);
 
-tf_error tf_fetch_hosts(pgctx *, const char *, tf_host ***);
-tf_error tf_fetch_single_host(pgctx *, const char *, tf_host **);
+tf_error tf_fetch_hosts(pgctx *, tf_host ***);
+tf_error tf_fetch_single_host(pgctx *, const char *, int, tf_host **);
 
 tf_error tf_add_host(pgctx *, tf_host *);
 int tf_set_host_vdir(tf_host *, const char *);

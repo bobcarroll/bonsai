@@ -264,7 +264,6 @@ tf_error tf_init_configdb(pgctx *ctx)
 
     EXEC SQL AT :conn CREATE TABLE service_hosts (
         host_id uuid NOT NULL,
-        parent_host_id uuid,
         "name" character varying(128) NOT NULL,
         description text,
         virtual_directory character varying(260),
@@ -274,9 +273,7 @@ tf_error tf_init_configdb(pgctx *ctx)
         status_reason character varying(2048),
         supported_features integer NOT NULL,
         CONSTRAINT "PK_service_hosts" PRIMARY KEY (host_id),
-        CONSTRAINT "FK_service_host_parent" FOREIGN KEY (parent_host_id)
-            REFERENCES service_hosts (host_id) MATCH SIMPLE
-            ON UPDATE NO ACTION ON DELETE NO ACTION);
+        CONSTRAINT "UK_service_hosts_name" UNIQUE (name));
 
     EXEC SQL AT :conn PREPARE sqlstmt FROM :resstmt;
 

@@ -74,13 +74,12 @@ void *tf_free_host_array(tf_host **result)
  * Creates a new service host. The caller is responsible for
  * freeing the result using tf_free_host().
  *
- * @param parent    optional parent service host
  * @param name      name of the new service host
  * @param connstr   database connection string
  *
  * @return a new service host or NULL on error
  */
-tf_host *tf_new_host(tf_host *parent, const char *name, const char *connstr)
+tf_host *tf_new_host(const char *name, const char *connstr)
 {
     tf_host *result;
     uuid_t newid;
@@ -91,9 +90,6 @@ tf_host *tf_new_host(tf_host *parent, const char *name, const char *connstr)
 
     result = (tf_host *)malloc(sizeof(tf_host));
     bzero(result, sizeof(tf_host));
-
-    if (parent)
-        strncpy(result->parent, parent->id, TF_SERVICE_HOST_ID_MAXLEN);
 
     uuid_generate(newid);
     uuid_unparse_lower(newid, newid_s);

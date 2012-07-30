@@ -24,6 +24,7 @@
  */
 
 #include <log.h>
+#include <pgcommon.h>
 
 #include <tf/catalog.h>
 #include <tf/location.h>
@@ -60,41 +61,39 @@ static void _start_service(tf_service_ref *ref, SoapRouter **router, const char 
  *
  * @param prefix    the URI prefix for services.
  *
- * @return the team foundation instance ID
+ * @return true on success, false otherwise
  */
-char *core_services_init(const char *prefix)
+int core_services_init(const char *prefix)
 {
     pgctx *ctx;
     tf_node **nodearr = NULL;
     tf_service_ref **refarr = NULL;
-    tf_host **hostarr = NULL;
+    tf_host *host = NULL;
     tf_error dberr;
-    char *result = NULL;
     int i;
 
     if (!prefix) {
         log_error("prefix cannot be NULL");
-        return NULL;
+        return 0;
     }
 
     ctx = pg_context_acquire(NULL);
-    dberr = tf_fetch_hosts(ctx, NULL, &hostarr);
+    dberr = tf_fetch_single_host(ctx, "TEAM FOUNDATION", 1, &host);
 
-    if (dberr != TF_ERROR_SUCCESS || !hostarr[0]) {
+    if (dberr != TF_ERROR_SUCCESS) {
         log_error("no team foundation instances were found!");
-        hostarr = tf_free_host_array(hostarr);
         pg_context_release(ctx);
-        return NULL;
+        return 0;
     }
 
-    result = strdup(hostarr[0]->id); /* TODO support more than one host */
-    log_debug("team foundation instance ID is %s", result);
-    hostarr = tf_free_host_array(hostarr);
+    log_debug("team foundation instance ID is %s", host->id);
+    pg_context_retag_default(host->id);
 
     if (_routers) {
         log_warn("core services are already initialised!");
+        host = tf_free_host(host);
         pg_context_release(ctx);
-        return result;
+        return 1;
     }
 
     log_info("initialising team foundation services");
@@ -108,9 +107,9 @@ char *core_services_init(const char *prefix)
     if (dberr != TF_ERROR_SUCCESS || !nodearr[0]) {
         log_warn("failed to retrieve team foundation catalog nodes");
         nodearr = tf_free_node_array(nodearr);
+        host = tf_free_host(host);
         pg_context_release(ctx);
-        free(result);
-        return NULL;
+        return 0;
     }
 
     dberr = tf_fetch_service_refs(ctx, nodearr, &refarr);
@@ -119,9 +118,9 @@ char *core_services_init(const char *prefix)
     if (dberr != TF_ERROR_SUCCESS || !refarr[0]) {
         log_warn("failed to retrieve team foundation services");
         refarr = tf_free_service_ref_array(refarr);
+        host = tf_free_host(host);
         pg_context_release(ctx);
-        free(result);
-        return NULL;
+        return 0;
     }
 
     for (i = 0; refarr[i]; i++)
@@ -129,11 +128,12 @@ char *core_services_init(const char *prefix)
     _routers = (SoapRouter **)calloc(i, sizeof(SoapRouter *));
 
     for (i = 0; refarr[i]; i++)
-        _start_service(refarr[i], &_routers[i], prefix, result);
+        _start_service(refarr[i], &_routers[i], prefix, host->id);
 
     refarr = tf_free_service_ref_array(refarr);
+    host = tf_free_host(host);
     pg_context_release(ctx);
 
-    return result;
+    return 1;
 }
 

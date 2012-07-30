@@ -160,7 +160,7 @@ tf_error tf_attach_collection(pgctx *pcctx, const char *name, const char *amuri,
         return TF_ERROR_PG_FAILURE;
     }
 
-    pchost = tf_new_host(tfhost, name, pcctx->dsn);
+    pchost = tf_new_host(name, pcctx->dsn);
     tf_set_host_vdir(pchost, name);
 
     if (!pchost) {

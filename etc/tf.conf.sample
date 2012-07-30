@@ -47,3 +47,19 @@ team-foundation: {
     maxconns = 100;
 };
 
+# Example Team Project Collection (must begin with "tpc")
+tpc-Example: {
+
+    # The TCP port the daemon listens on.
+    listen = "8082";
+
+    # The team services URL prefix.
+    prefix = "/tfs";
+
+    # The number of database connections to open.
+    dbconns = 2;
+
+    # The maximum number of HTTP connections to allow at a time.
+    maxconns = 100;
+};
+
