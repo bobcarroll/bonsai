@@ -123,7 +123,7 @@ tf_error tf_attach_collection(pgctx *pcctx, const char *name, const char *amuri,
 
     log_notice("attaching project collection %s to instance %s", name, tfhost->id);
 
-    accmap = tf_new_access_map("public", "Public Access Mapping", amuri);
+    accmap = tf_new_access_map(TF_ACCESSMAP_PUBLIC_MONIKER, TF_ACCESSMAP_PUBLIC_DISPLNAME, amuri);
     dberr = tf_add_access_map(pcctx, accmap);
 
     if (dberr != TF_ERROR_SUCCESS)

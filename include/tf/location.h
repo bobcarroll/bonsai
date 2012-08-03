@@ -57,6 +57,9 @@
 #define TF_SERVICE_RELTO_WEB_APPLICATION    1
 #define TF_SERVICE_RELTO_FULLY_QUALIFIED    2
 
+#define TF_ACCESSMAP_PUBLIC_MONIKER     "public"
+#define TF_ACCESSMAP_PUBLIC_DISPLNAME   "Team Foundation front-end"
+
 typedef struct {
     char moniker[TF_LOCATION_ACCMAP_MONIKER_MAXLEN];
     char name[TF_LOCATION_ACCMAP_DISPLNAME_MAXLEN];
