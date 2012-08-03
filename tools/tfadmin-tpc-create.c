@@ -215,6 +215,12 @@ cleanup:
     if (dbdsn)
         free(dbdsn);
 
+    if (dbuser)
+        free(dbuser);
+
+    if (dbpasswd)
+        free(dbpasswd);
+
     return result;
 }
 

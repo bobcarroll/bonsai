@@ -53,14 +53,12 @@ int main(int argc, char **argv)
     const char *cfgdbdsn = NULL;
     const char *pguser = NULL;
     const char *pgpasswd = NULL;
-    const char *port = NULL;
-    const char *prefix = NULL;
-    char hostname[_POSIX_HOST_NAME_MAX];
-    char serveruri[_POSIX_HOST_NAME_MAX * 2];
     wordexp_t expresult;
+    tf_access_map **accmaparr = NULL;
+    tf_access_map *pubaccmap = NULL;
     tf_host *tfhost = NULL;
     tf_error dberr;
-    int result = 0;
+    int result = 0, i;
 
     while (err == 0 && (opt = getopt(argc, argv, "c:d:fl:")) != -1) {
 
@@ -91,7 +89,7 @@ int main(int argc, char **argv)
     argv += optind;
 
     if (argc != 2 || err || !cfgfile) {
-        printf("USAGE: tfadmin tpc-attach [options] -c <file> <dsn> <tpc name>\n");
+        printf("USAGE: tfadmin tpc-attach [options] -c <file> <tpc dsn> <tpc name>\n");
         printf("\n");
         printf("Example DSN: tfsfoo@dbserver.example.com\n");
         printf("\n");
@@ -126,24 +124,6 @@ int main(int argc, char **argv)
     tpcdbdsn = strdup(argv[0]);
     tpcname = strdup(argv[1]);
 
-    config_lookup_string(&config, "bindport", &port);
-    nport = (port) ? atoi(port) : 0;
-    if (nport == 0 || nport != (nport & 0xffff)) {
-        log_fatal("bindport must be a valid TCP port number (was %d)", nport);
-        result = 1;
-        goto cleanup_config;
-    }
-
-    config_lookup_string(&config, "prefix", &prefix);
-    if (!prefix || strcmp(prefix, "") == 0 || prefix[0] != '/') {
-        log_fatal("prefix must be a valid URI (was %s)", prefix);
-        result = 1;
-        goto cleanup_config;
-    }
-
-    gethostname(hostname, _POSIX_HOST_NAME_MAX);
-    snprintf(serveruri, _POSIX_HOST_NAME_MAX * 2, "http://%s:%s/%s", hostname, port, prefix);
-
     if (!log_open(logfile, lev, fg)) {
         fprintf(stderr, "tfadmin: failed to open log file!\n");
         result = 1;
@@ -174,7 +154,27 @@ int main(int argc, char **argv)
     pgctx *cfgctx = pg_acquire_trans("configdb");
     pgctx *tpcctx = pg_acquire_trans("tpcdb");
 
-    dberr = tf_fetch_single_host(cfgctx, "TEAM FOUNDATION", 1, &tfhost);
+    dberr = tf_fetch_access_map(cfgctx, &accmaparr);
+
+    if (dberr != TF_ERROR_SUCCESS) {
+        log_fatal("failed to retrieve access mappings");
+        goto error;
+    }
+
+    for (i = 0; accmaparr[i]; i++) {
+        if (strcmp(accmaparr[i]->moniker, TF_ACCESSMAP_PUBLIC_MONIKER) == 0) {
+            pubaccmap = accmaparr[i];
+            break;
+        }
+    }
+
+    if (!pubaccmap) {
+        log_fatal("no public access mapping found");
+        accmaparr = tf_free_access_map_array(accmaparr);
+        goto error;
+    }
+
+    dberr = tf_fetch_single_host(cfgctx, TF_TEAM_FOUNDATION_SERVICE_NAME, 1, &tfhost);
 
     if (dberr != TF_ERROR_SUCCESS) {
         log_fatal("Team Foundation instance not found!");
@@ -182,13 +182,16 @@ int main(int argc, char **argv)
         goto error;
     }
 
-    if (tf_attach_collection(tpcctx, tpcname, serveruri, cfgctx, tfhost) != TF_ERROR_SUCCESS) {
+    if (tf_attach_collection(tpcctx, tpcname, pubaccmap->apuri, cfgctx, tfhost) != TF_ERROR_SUCCESS) {
         log_fatal("failed to attach project collection to server instance!");
         tfhost = tf_free_host(tfhost);
         goto error;
     }
 
     printf("Team project collection '%s' is now attached to server instance %s\n", tpcname, tfhost->id);
+
+    pubaccmap = NULL;
+    accmaparr = tf_free_access_map_array(accmaparr);
     tfhost = tf_free_host(tfhost);
 
     pg_release_commit(cfgctx);

@@ -52,8 +52,8 @@ int main(int argc, char **argv)
     const char *dbdsn = NULL;
     char *dbuser = NULL;
     char *dbpasswd = NULL;
-    const char *port = NULL;
-    const char *prefix = NULL;
+    char *port = NULL;
+    char *prefix = NULL;
     char prompt[64];
     char hostname[_POSIX_HOST_NAME_MAX];
     char serveruri[_POSIX_HOST_NAME_MAX * 2];
@@ -69,7 +69,9 @@ int main(int argc, char **argv)
     tf_error dberr;
     int result = 0;
 
-    while (err == 0 && (opt = getopt(argc, argv, "c:d:fl:p:u:w")) != -1) {
+    hostname[0] = '\0';
+
+    while (err == 0 && (opt = getopt(argc, argv, "c:d:fh:l:p:P:t:u:w")) != -1) {
 
         switch (opt) {
 
@@ -85,12 +87,24 @@ int main(int argc, char **argv)
             fg = 1;
             break;
 
+        case 'h':
+            strncpy(hostname, optarg, _POSIX_HOST_NAME_MAX);
+            break;
+
         case 'l':
             logfile = strdup(optarg);
             break;
 
         case 'p':
             dbpasswd = strdup(optarg);
+            break;
+
+        case 'P':
+            prefix = strdup(optarg);
+            break;
+
+        case 't':
+            port = strdup(optarg);
             break;
 
         case 'u':
@@ -118,6 +132,11 @@ int main(int argc, char **argv)
         printf("  -f                    write log messages to standard out\n");
         printf("  -l <file>             log file (default: ~/tfadmin.log)\n");
         printf("\n");
+        printf("Team Services Options:\n");
+        printf("  -h <host>             hostname where HAProxy is installed (default: localhost)\n");
+        printf("  -t <port>             TCP port HAProxy listens on (default: 8080)\n");
+        printf("  -P <prefix>           URL prefix with leading forward slash (default: /tfs)\n");
+        printf("\n");
         printf("Database Options:\n");
         printf("  -u <username>         database user to connect as (default: shell user)\n");
         printf("  -p <password>         password for the database user (will prompt if omitted)\n");
@@ -143,25 +162,24 @@ int main(int argc, char **argv)
 
     config_lookup_string(&config, "configdsn", &dbdsn);
 
-    config_lookup_string(&config, "bindport", &port);
     nport = (port) ? atoi(port) : 0;
-    if (nport == 0 || nport != (nport & 0xffff)) {
-        log_fatal("bindport must be a valid TCP port number (was %d)", nport);
+    if (port && (nport == 0 || nport != (nport & 0xffff))) {
+        fprintf(stderr, "listening port must be a valid TCP port number (was %d)\n", nport);
         result = 1;
         goto cleanup_config;
-    }
+    } else if (!port)
+        port = strdup("8080"); /* default */
 
-    config_lookup_string(&config, "prefix", &prefix);
-    if (!prefix || strcmp(prefix, "") == 0 || prefix[0] != '/') {
-        log_fatal("prefix must be a valid URI (was %s)", prefix);
+    if (prefix && (strcmp(prefix, "") == 0 || prefix[0] != '/')) {
+        fprintf(stderr, "prefix must be a valid URI (was %s)\n", prefix);
         result = 1;
         goto cleanup_config;
-    }
+    } else if (!prefix)
+        prefix = strdup("/tfs"); /* default */
 
     if (!dbuser && shuser)
         dbuser = strdup(shuser);
     else if (!dbuser) {
-        log_fatal("empty database username");
         fprintf(stderr, "tfadmin: no database user specified!\n");
         result = 1;
         goto cleanup_config;
@@ -242,9 +260,11 @@ int main(int argc, char **argv)
 
     printf("Registering services\n");
 
-    gethostname(hostname, _POSIX_HOST_NAME_MAX);
+    if (!hostname[0])
+        gethostname(hostname, _POSIX_HOST_NAME_MAX);
+
     snprintf(serveruri, _POSIX_HOST_NAME_MAX * 2, "http://%s:%s/%s", hostname, port, prefix);
-    accmap = tf_new_access_map("public", "Public Access Mapping", serveruri);
+    accmap = tf_new_access_map(TF_ACCESSMAP_PUBLIC_MONIKER, TF_ACCESSMAP_PUBLIC_DISPLNAME, serveruri);
     dberr = tf_add_access_map(ctx, accmap);
 
     if (dberr != TF_ERROR_SUCCESS)
@@ -295,7 +315,7 @@ int main(int argc, char **argv)
         goto error;
 
     printf("Registering Team Foundation service host\n");
-    host = tf_new_host("TEAM FOUNDATION", dbdsn);
+    host = tf_new_host(TF_TEAM_FOUNDATION_SERVICE_NAME, dbdsn);
     dberr = tf_add_host(ctx, host);
 
     if (dberr != TF_ERROR_SUCCESS)
@@ -342,6 +362,15 @@ cleanup:
 
     if (dbuser)
         free(dbuser);
+
+    if (dbpasswd)
+        free(dbpasswd);
+
+    if (port)
+        free(port);
+
+    if (prefix)
+        free(prefix);
 
     return result;
 }
