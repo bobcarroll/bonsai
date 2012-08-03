@@ -259,7 +259,7 @@ tf_error tf_add_host(pgctx *ctx, tf_host *host)
         "INSERT INTO service_hosts \
            (host_id, \"name\", description, virtual_directory, resource_directory, \
             connection_string, status, status_reason, supported_features) \
-           VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, 0)";
+           VALUES (?, ?, ?, ?, ?, ?, 0, NULL, 0)";
     const char *hostid = host->id;
     const char *name = host->name;
     const char *desc = host->description;
