@@ -182,12 +182,12 @@ int pg_context_count()
  *
  * @param tag   an optional marker for PG contexts for targeting queries
 
- * @return a connection context
+ * @return a connection context, or NULL on error
  */
 pgctx *pg_context_acquire(const char *tag)
 {
     pgctx *result = NULL;
-    int i = 0, m;
+    int i = 0, m, z = 0;
 
     log_debug("acquiring PG context with tag %s", tag);
 
@@ -204,12 +204,18 @@ pgctx *pg_context_acquire(const char *tag)
             result = _ctxpool[i];
 
             break;
-        }
+        } else if (_ctxpool[i])
+            z = 1;
     }
     pthread_mutex_unlock(&_ctxmtx);
 
     if (result)
         return result;
+
+    if (!z) {
+        log_error("no PG contexts have been allocated");
+        return NULL;
+    }
 
     i = 0;
     while (1) {

@@ -121,11 +121,14 @@ error:
  *
  * @param tag   an optional marker for PG contexts for targeting queries
  *
- * @return a connection context
+ * @return a connection context, or NULL on error
  */
 pgctx *pg_acquire_trans(const char *tag)
 {
     pgctx *ctx = pg_context_acquire(tag);
+
+    if (!ctx)
+        return NULL;
 
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
@@ -133,25 +136,32 @@ pgctx *pg_acquire_trans(const char *tag)
 
     if (ctx->trans) {
         log_debug("re-using existing transaction for PG context %s", ctx->conn);
-        ctx->trans++;
 
-        /* TODO actually handle errors when starting the transaction */
-        EXEC SQL WHENEVER SQLERROR CONTINUE;
+        EXEC SQL WHENEVER SQLERROR GOTO error;
         EXEC SQL AT :conn SAVEPOINT new_trans;
     } else {
         log_debug("beginning transaction for PG context %s", ctx->conn);
-        ctx->trans = 1;
 
         /* make sure we're not in a current transaction before starting */
         EXEC SQL WHENEVER SQLERROR CONTINUE;
         EXEC SQL AT :conn ROLLBACK WORK;
 
-        /* TODO actually handle errors when starting the transaction */
+        EXEC SQL WHENEVER SQLERROR GOTO rollback;
         EXEC SQL AT :conn BEGIN WORK;
         EXEC SQL AT :conn SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
     }
 
+    ctx->trans++;
     return ctx;
+
+rollback:
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+    EXEC SQL AT :conn ROLLBACK WORK;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    pg_context_release(ctx);
+    return NULL;
 }
 
 /**
