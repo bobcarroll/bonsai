@@ -92,6 +92,11 @@ int tpc_services_init(const char *prefix, const char *tpcname, const char *pguse
     }
 
     ctx = pg_context_acquire(NULL);
+    if (!ctx) {
+        log_critical("failed to obtain PG context!");
+        return 0;
+    }
+
     dberr = tf_fetch_single_host(ctx, tpcname, 1, &host);
     pg_context_release(ctx);
 
@@ -119,6 +124,12 @@ int tpc_services_init(const char *prefix, const char *tpcname, const char *pguse
     snprintf(pcprefix, TF_LOCATION_SERVICE_REL_PATH_MAXLEN + 1024, "%s/%s", prefix, lpcname);
 
     ctx = pg_context_acquire(host->id);
+    if (!ctx) {
+        log_critical("failed to obtain PG context!");
+        host = tf_free_host(host);
+        return 0;
+    }
+
     dberr = tf_fetch_services(ctx, NULL, &svcarr);
     pg_context_release(ctx);
 

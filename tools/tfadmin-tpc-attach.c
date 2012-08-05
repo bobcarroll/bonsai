@@ -154,6 +154,13 @@ int main(int argc, char **argv)
     pgctx *cfgctx = pg_acquire_trans("configdb");
     pgctx *tpcctx = pg_acquire_trans("tpcdb");
 
+    if (!cfgctx || !tpcctx) {
+        log_fatal("failed to obtain PG context!");
+        fprintf(stderr, "tfadmin: failed to connect to the database (see %s for details)\n", logfile);
+        result = 1;
+        goto cleanup_db;
+    }
+
     dberr = tf_fetch_access_map(cfgctx, &accmaparr);
 
     if (dberr != TF_ERROR_SUCCESS) {

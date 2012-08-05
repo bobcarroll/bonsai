@@ -190,6 +190,15 @@ static herror_t _query_resources(SoapCtx *req, SoapCtx *res)
     }
 
     ctx = pg_context_acquire(NULL);
+    if (!ctx) {
+        log_critical("failed to obtain PG context!");
+        tf_fault_env(
+            Fault_Server, 
+            "Internal database error", 
+            dberr, 
+            &res->env);
+        return H_OK;
+    }
 
     /* TODO property filters */
     /* TODO query options */
@@ -320,6 +329,15 @@ static herror_t _query_nodes(SoapCtx *req, SoapCtx *res)
         queryopts = atoi(qoptsnode->content);
 
     ctx = pg_context_acquire(NULL);
+    if (!ctx) {
+        log_critical("failed to obtain PG context!");
+        tf_fault_env(
+            Fault_Server, 
+            "Internal database error", 
+            dberr, 
+            &res->env);
+        return H_OK;
+    }
 
     /* TODO property filter */
 

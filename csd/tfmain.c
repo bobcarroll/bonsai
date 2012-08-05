@@ -78,6 +78,11 @@ int core_services_init(const char *prefix)
     }
 
     ctx = pg_context_acquire(NULL);
+    if (!ctx) {
+        log_critical("failed to obtain PG context!");
+        return 0;
+    }
+
     dberr = tf_fetch_single_host(ctx, "TEAM FOUNDATION", 1, &host);
 
     if (dberr != TF_ERROR_SUCCESS) {

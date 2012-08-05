@@ -171,6 +171,12 @@ int main(int argc, char **argv)
     }
 
     pgctx *ctx = pg_context_acquire(NULL);
+    if (!ctx) {
+        log_fatal("failed to obtain PG context!");
+        fprintf(stderr, "tfadmin: failed to connect to the database (see %s for details)\n", logfile);
+        result = 1;
+        goto cleanup_db;
+    }
 
     if (tf_fetch_access_map(ctx, &accmaparr) == TF_ERROR_SUCCESS) {
         accmaparr = tf_free_access_map_array(accmaparr);
@@ -181,6 +187,13 @@ int main(int argc, char **argv)
 
     pg_context_release(ctx);
     ctx = pg_acquire_trans(NULL);
+
+    if (!ctx) {
+        log_fatal("failed to obtain PG context!");
+        fprintf(stderr, "tfadmin: failed to connect to the database (see %s for details)\n", logfile);
+        result = 1;
+        goto cleanup_db;
+    }
 
     if (tf_create_collection(ctx) != TF_ERROR_SUCCESS) {
         log_fatal("failed to create new project collection!");

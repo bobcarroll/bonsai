@@ -212,6 +212,12 @@ int main(int argc, char **argv)
     }
 
     pgctx *ctx = pg_context_acquire(NULL);
+    if (!ctx) {
+        log_fatal("failed to obtain PG context!");
+        fprintf(stderr, "tfadmin: failed to connect to the database (see %s for details)\n", logfile);
+        result = 1;
+        goto cleanup_db;
+    }
 
     if (tf_fetch_hosts(ctx, &hostarr) == TF_ERROR_SUCCESS) {
         hostarr = tf_free_host_array(hostarr);
@@ -222,6 +228,13 @@ int main(int argc, char **argv)
 
     pg_context_release(ctx);
     ctx = pg_acquire_trans(NULL);
+
+    if (!ctx) {
+        log_fatal("failed to obtain PG context!");
+        fprintf(stderr, "tfadmin: failed to connect to the database (see %s for details)\n", logfile);
+        result = 1;
+        goto cleanup_db;
+    }
 
     if (tf_init_configdb(ctx) != TF_ERROR_SUCCESS)
         goto error;

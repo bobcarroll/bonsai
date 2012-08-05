@@ -249,6 +249,17 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     }
 
     ctx = pg_context_acquire(NULL);
+    if (!ctx) {
+        authz_free_buffer(ui);
+        log_critical("failed to obtain PG context!");
+        tf_fault_env(
+            Fault_Server, 
+            "Internal database error", 
+            dberr, 
+            &res->env);
+        return H_OK;
+    }
+
     dberr = tf_fetch_single_host(ctx, hostid, 0, &host);
 
     if (dberr != TF_ERROR_SUCCESS || !host) {
@@ -284,6 +295,21 @@ static herror_t _connect(SoapCtx *req, SoapCtx *res)
     if (strcmp(host->name, "TEAM FOUNDATION") == 0) {
         pg_context_release(ctx);
         ctx = pg_context_acquire(hostid);
+
+        if (!ctx) {
+            authz_free_buffer(ui);
+
+            host = tf_free_host(host);
+            pg_context_release(ctx);
+
+            log_critical("failed to obtain PG context!");
+            tf_fault_env(
+                Fault_Server, 
+                "Internal database error", 
+                dberr, 
+                &res->env);
+            return H_OK;
+        }
     }
 
     if (inclservices) {
@@ -389,6 +415,15 @@ static herror_t _query_services(SoapCtx *req, SoapCtx *res)
     }
 
     ctx = pg_context_acquire(hostid);
+    if (!ctx) {
+        log_critical("failed to obtain PG context!");
+        tf_fault_env(
+            Fault_Server, 
+            "Internal database error", 
+            dberr, 
+            &res->env);
+        return H_OK;
+    }
 
     /* TODO check last changed ID */
     dberr = tf_fetch_services(ctx, filters, &svcarr);
