@@ -111,46 +111,53 @@ error:
 
 /**
  * Acquires a thread-exclusive database connection with a new transaction.
- * If a transaction is already started for this thread then it will be
- * reused. This function will block until a connection becomes available.
+ * If a transaction is already started for this thread then a savepoint
+ * will be created and the transaction will be reused. This function will
+ * block until a connection becomes available.
  *
  * Passing NULL for the tag argument will always return bootstrapping
  * contexts (as in, contexts created without a tag) even if the contexts
  * were retagged by calling pg_context_retag_default().
  *
  * @param tag   an optional marker for PG contexts for targeting queries
-
+ *
  * @return a connection context
  */
 pgctx *pg_acquire_trans(const char *tag)
 {
     pgctx *ctx = pg_context_acquire(tag);
 
-    if (ctx->trans) {
-        log_debug("re-using existing transaction for PG context %s", ctx->conn);
-        ctx->trans++;
-        return ctx;
-    }
-
-    log_debug("beginning transaction for PG context %s", ctx->conn);
-    ctx->trans = 1;
-
     EXEC SQL BEGIN DECLARE SECTION;
     const char *conn = ctx->conn;
     EXEC SQL END DECLARE SECTION;
 
-    EXEC SQL WHENEVER SQLERROR CONTINUE;
-    EXEC SQL AT :conn BEGIN WORK;
-    EXEC SQL AT :conn SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+    if (ctx->trans) {
+        log_debug("re-using existing transaction for PG context %s", ctx->conn);
+        ctx->trans++;
+
+        /* TODO actually handle errors when starting the transaction */
+        EXEC SQL WHENEVER SQLERROR CONTINUE;
+        EXEC SQL AT :conn SAVEPOINT new_trans;
+    } else {
+        log_debug("beginning transaction for PG context %s", ctx->conn);
+        ctx->trans = 1;
+
+        /* make sure we're not in a current transaction before starting */
+        EXEC SQL WHENEVER SQLERROR CONTINUE;
+        EXEC SQL AT :conn ROLLBACK WORK;
+
+        /* TODO actually handle errors when starting the transaction */
+        EXEC SQL AT :conn BEGIN WORK;
+        EXEC SQL AT :conn SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+    }
 
     return ctx;
 }
 
 /**
- * Releases the given context after committing the transaction. If
- * there are other open handles to the context, then the transaction
- * will only be marked for commit. If the context is already marked
- * for rollback, then it will be released without commit.
+ * Releases the given context after committing the transaction. If there
+ * are other open handles to the context, then the last savepoint will be
+ * be released and the transaction will not be committed.
  *
  * @param ctx
  *
@@ -163,34 +170,36 @@ int pg_release_commit(pgctx *ctx)
         return 0;
     }
 
-    if (ctx->trans == 1 && ctx->commit != -1) {
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    EXEC SQL END DECLARE SECTION;
+
+    if (ctx->trans == 1) {
         log_debug("commiting work for PG context %s", ctx->conn);
-        ctx->commit = 0;
 
-        EXEC SQL BEGIN DECLARE SECTION;
-        const char *conn = ctx->conn;
-        EXEC SQL END DECLARE SECTION;
-
-        EXEC SQL WHENEVER SQLERROR CONTINUE;
+        EXEC SQL WHENEVER SQLERROR GOTO error;
         EXEC SQL AT :conn COMMIT WORK;
-    } else if (ctx->commit == -1) {
-        log_debug("PG context %s is already marked for rollback", ctx->conn);
     } else {
-        log_debug("marking PG context %s for commit", ctx->conn);
-        ctx->commit = 1;
+        log_debug("releasing last savepoint in PG context %s", ctx->conn);
+
+        EXEC SQL WHENEVER SQLERROR GOTO error;
+        EXEC SQL AT :conn RELEASE SAVEPOINT new_trans;
     }
 
     ctx->trans--;
     pg_context_release(ctx);
 
     return 1;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return 0;
 }
 
 /**
- * Releases the given context after rolling back the transaction. If
- * there are other open handles to the context, then the transaction
- * will only be marked for rollback. Calling this function will
- * override any previous commit requests for the transaction.
+ * Releases the given context after rolling back the transaction. If there
+ * are other open handles to the context, then the transaction will be rolled
+ * back to the last savepoint and that savepoint will be released.
  *
  * @param ctx
  *
@@ -203,24 +212,30 @@ int pg_release_rollback(pgctx *ctx)
         return 0;
     }
 
-    if (ctx->trans == 1 && ctx->commit == -1) {
+    EXEC SQL BEGIN DECLARE SECTION;
+    const char *conn = ctx->conn;
+    EXEC SQL END DECLARE SECTION;
+
+    if (ctx->trans == 1) {
         log_debug("rolling back PG context %s", ctx->conn);
-        ctx->commit = 0;
 
-        EXEC SQL BEGIN DECLARE SECTION;
-        const char *conn = ctx->conn;
-        EXEC SQL END DECLARE SECTION;
-
-        EXEC SQL WHENEVER SQLERROR CONTINUE;
+        EXEC SQL WHENEVER SQLERROR GOTO error;
         EXEC SQL AT :conn ROLLBACK WORK;
     } else {
-        log_debug("marking PG context %s for rollback", ctx->conn);
-        ctx->commit = -1;
+        log_debug("rolling back to last savepoint in PG context %s", ctx->conn);
+
+        EXEC SQL WHENEVER SQLERROR GOTO error;
+        EXEC SQL AT :conn ROLLBACK TO SAVEPOINT new_trans;
+        EXEC SQL AT :conn RELEASE SAVEPOINT new_trans;
     }
 
     ctx->trans--;
     pg_context_release(ctx);
 
     return 1;
+
+error:
+    log_error(sqlca.sqlerrm.sqlerrmc);
+    return 0;
 }
 

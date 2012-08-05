@@ -26,7 +26,6 @@ typedef struct {
     unsigned long owner;
     char *tag;
     int trans;
-    int commit;
 } pgctx;
 
 int pg_pool_init(int);
