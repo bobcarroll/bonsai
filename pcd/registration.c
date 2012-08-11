@@ -28,7 +28,7 @@
 #include <tf/webservices.h>
 #include <tf/xml.h>
 
-#include <csd.h>
+#include <pcd.h>
 
 /**
  * Registration SOAP service handler for GetRegistrationEntries.

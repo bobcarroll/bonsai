@@ -34,6 +34,7 @@
 #include <tf/webservices.h>
 #include <tf/xml.h>
 
+#include <pcd.h>
 #include <csd.h>
 
 #define MAX_ROUTERS     1024

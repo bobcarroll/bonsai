@@ -28,7 +28,7 @@
 #include <tf/webservices.h>
 #include <tf/xml.h>
 
-#include <csd.h>
+#include <pcd.h>
 
 /**
  * Server Status SOAP service handler for CheckAuthentication.

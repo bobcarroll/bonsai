@@ -94,13 +94,13 @@ int main(int argc, char **argv)
     }
 
     if (argc < 2 || !cfgfile || !tpcname || err) {
-        printf("USAGE: csd -c <file> -n <tpc name> [-f] [-d <level>]\n");
+        printf("USAGE: pcd -c <file> -n <tpc name> [-f] [-d <level>]\n");
         return 1;
     }
 
     config_init(&config);
     if (config_read_file(&config, cfgfile) != CONFIG_TRUE) {
-        fprintf(stderr, "csd: failed to read config file!\n");
+        fprintf(stderr, "pcd: failed to read config file!\n");
         free(cfgfile);
         return 1;
     }
@@ -115,7 +115,7 @@ int main(int argc, char **argv)
     snprintf(logname, 1024, "tpc-%s.log", tpcname);
     logfile = combine(logdir, logname);
     if (!log_open(logfile, lev, fg)) {
-        fprintf(stderr, "csd: failed to open log file!\n");
+        fprintf(stderr, "pcd: failed to open log file!\n");
         goto cleanup_cfg;
     }
 
