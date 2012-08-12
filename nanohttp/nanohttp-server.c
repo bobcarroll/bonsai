@@ -342,7 +342,7 @@ httpd_find_service(const char *ctx)
 
   while (cur != NULL)
   {
-    if (!strcmp(cur->ctx, ctx))
+    if (!strcasecmp(cur->ctx, ctx))
     {
       return cur;
     }

@@ -231,7 +231,7 @@ soap_server_find_router(const char *context)
 
   for (node = head; node; node = node->next)
   {
-    if (!strcmp(node->context, context))
+    if (!strcasecmp(node->context, context))
       return node->router;
   }
 
