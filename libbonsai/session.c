@@ -131,28 +131,66 @@ void session_bind_user(session_t *session, const char *userid)
  * always return an error.
  *
  * @param session   a session structure
+ * @param scope     authentication scope
  * @param authctx   authenication context input/output buffer
  *
  * @return 1 if initialised, 0 if not initialised, or -1 on error
  */
-int session_auth_init(session_t *session, ntlmctx_t **authctx)
+int session_auth_init(session_t *session, const char *scope, ntlmctx_t **authctx)
 {
-    if (!session || (authctx && *authctx && session->authctx))
+    ntlmctx_t *buf = NULL;
+    int result;
+
+    if (!session)
         return -1;
 
-    if (!authctx)
-        return (session->authctx != NULL);
-    else if (authctx && !*authctx && session->authctx) {
+    pthread_mutex_lock(&_sessionmtx);
+    buf = session->authctx;
+
+    while (buf) {
+        if (!strcasecmp(buf->scope, scope))
+            break;
+
+        buf = buf->next;
+    }
+
+    if (!authctx) {
+        result = (buf != NULL);
+        pthread_mutex_unlock(&_sessionmtx);
+        return result;
+    } else if (authctx && *authctx && buf) {
+        log_error("got an auth context but one already exists");
+        pthread_mutex_unlock(&_sessionmtx);
+        return -1;
+    } else if (authctx && !*authctx && buf) {
         log_debug("returning previous authentication context");
-        *authctx = session->authctx;
+        *authctx = buf;
+        pthread_mutex_unlock(&_sessionmtx);
         return 1;
     } else if (authctx && !*authctx) {
         log_debug("no previous authentication context exists");
+        pthread_mutex_unlock(&_sessionmtx);
         return 0;
     }
 
     log_debug("setting new authentication context");
-    session->authctx = *authctx;
+    log_debug("session=%s, scope=%s", session->id, scope);
+
+    if (session->authctx) {
+        buf = session->authctx;
+
+        while (buf) {
+            if (!buf->next) {
+                buf->next = *authctx;
+                break;
+            }
+
+            buf = buf->next;
+        }
+    } else
+        session->authctx = *authctx;
+
+    pthread_mutex_unlock(&_sessionmtx);
     return 1;
 }
 
@@ -165,6 +203,12 @@ int session_auth_init(session_t *session, ntlmctx_t **authctx)
  */
 int session_auth_check(session_t *session)
 {
-    return (session->authctx && session->authctx->state == NTLM_SUCCESS);
+    int result;
+
+    pthread_mutex_lock(&_sessionmtx);
+    result = (session->userid != NULL);
+    pthread_mutex_unlock(&_sessionmtx);
+
+    return result;
 }
 

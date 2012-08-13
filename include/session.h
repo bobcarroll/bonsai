@@ -34,6 +34,6 @@ typedef struct {
 session_t *session_init(const char *);
 void session_close(session_t *);
 void session_bind_user(session_t *, const char *);
-int session_auth_init(session_t *, ntlmctx_t **);
+int session_auth_init(session_t *, const char *, ntlmctx_t **);
 int session_auth_check(session_t *);
 

@@ -594,13 +594,13 @@ _httpd_authenticate_request(hrequest_t * req, httpd_auth auth, char **authdata)
       return 1;
     }
 
-    if (!session_auth_init(req->session, NULL))
+    if (!session_auth_init(req->session, req->path, NULL))
     {
       log_debug("initialising authentication context");
-      authctx = ntlm_auth_init(_httpd_auth_helper);
+      authctx = ntlm_auth_init(req->path, _httpd_auth_helper);
     }
 
-    session_auth_init(req->session, &authctx);
+    session_auth_init(req->session, req->path, &authctx);
     authorization = hpairnode_get_ignore_case(req->header, HEADER_AUTHORIZATION);
 
     if (ntlm_auth_challenge(authctx, authorization, authdata)) {

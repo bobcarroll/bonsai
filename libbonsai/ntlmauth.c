@@ -36,11 +36,12 @@ enum pipes { READ, WRITE };
  * Initialises an NTLM authentication context. Calling functions
  * should call ntlm_auth_free() to free the result.
  *
+ * @param scope     authentication scope
  * @param helper    path to the NTLM helper tool
  *
  * @return a context or NULL on error
  */
-ntlmctx_t *ntlm_auth_init(const char *helper)
+ntlmctx_t *ntlm_auth_init(const char *scope, const char *helper)
 {
     int infd[2];
     int outfd[2];
@@ -59,6 +60,7 @@ ntlmctx_t *ntlm_auth_init(const char *helper)
     ntlmctx_t *result = (ntlmctx_t *)malloc(sizeof(ntlmctx_t));
     bzero(result, sizeof(ntlmctx_t));
 
+    result->scope = strdup(scope);
     result->helper = strdup(helper);
 
     pipe(infd);
@@ -118,6 +120,9 @@ void ntlm_auth_free(ntlmctx_t *ctx)
 {
     if (!ctx)
         return;
+
+    if (ctx->scope)
+        free(ctx->scope);
 
     if (ctx->helper)
         free(ctx->helper);

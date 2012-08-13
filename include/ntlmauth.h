@@ -27,16 +27,18 @@
 #define NTLM_RESPONSE   2
 #define NTLM_SUCCESS    3
 
-typedef struct {
+typedef struct ntlmctx {
+    char *scope;
     char *helper;
     pid_t pid;
     int infd;
     int outfd;
     int errfd;
     int state;
+    struct ntlmctx *next;
 } ntlmctx_t;
 
-ntlmctx_t *ntlm_auth_init(const char *);
+ntlmctx_t *ntlm_auth_init(const char *, const char *);
 void ntlm_auth_free(ntlmctx_t *);
 int ntlm_auth_challenge(ntlmctx_t *, const char *, char **);
 
