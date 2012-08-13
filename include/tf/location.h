@@ -35,6 +35,8 @@
 #define TF_LOCATION_FILTER_SERVICE_ID       "567713db-d56d-4bb0-8f35-604e0e116174"
 #define TF_LOCATION_FILTER_SERVICE_TYPE     "*"
 
+#define TF_SERVICE_AUTHORIZATION_ID     "6373ee32-aad4-4bf9-9ec8-72201ab1c45c"
+#define TF_SERVICE_AUTHORIZATION3_ID    "da728b84-3c54-46bb-a423-8a5fb526a722"
 #define TF_SERVICE_CATALOG_ID           "c2f9106f-127a-45b7-b0a3-e0ad8239a2a7"
 #define TF_SERVICE_LOCATION_ID          "bf9cf1d0-24ac-4d35-aeca-6cd18c69c1fe"
 #define TF_SERVICE_REGISTRATION_ID      "b8f97328-80d2-412d-9810-67c5a3f4190f"
@@ -43,11 +45,15 @@
    service on a Team Foundation service host. */
 #define TF_SERVICE_LOCATION2_ID        "8d299418-9467-402b-a171-9165e2f703e2"
 
+#define TF_SERVICE_AUTHORIZATION_TYPE   "Authorization"
+#define TF_SERVICE_AUTHORIZATION3_TYPE  "Authorization3"
 #define TF_SERVICE_CATALOG_TYPE         "CatalogService"
 #define TF_SERVICE_LOCATION_TYPE        "LocationService"
 #define TF_SERVICE_REGISTRATION_TYPE    "RegistrationService"
 #define TF_SERVICE_STATUS_TYPE          "StatusService"
 
+#define TF_SERVICE_AUTHORIZATION_NAME   "Authorization Service"
+#define TF_SERVICE_AUTHORIZATION3_NAME  "Authorization Service 3"
 #define TF_SERVICE_CATALOG_NAME         "Catalog Service"
 #define TF_SERVICE_LOCATION_NAME        "Location Service"
 #define TF_SERVICE_REGISTRATION_NAME    "Registration Service"

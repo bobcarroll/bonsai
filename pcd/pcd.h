@@ -29,3 +29,5 @@ void registration_service_init(SoapRouter **, const char *, const char *, const 
 
 void status_service_init(SoapRouter **, const char *, const char *, const char *);
 
+void authz_service_init(SoapRouter **, const char *, const char *, const char *, int);
+

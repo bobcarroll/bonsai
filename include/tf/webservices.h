@@ -19,10 +19,13 @@
 
 #pragma once
 
+#define TF_AUTHORIZATION3_NAMESPACE             "http://schemas.microsoft.com/TeamFoundation/2005/06/Services/Authorization/03"
 #define TF_DEFAULT_NAMESPACE                    "http://microsoft.com/webservices/"
 #define TF_REGISTRATION_NAMESPACE               "http://schemas.microsoft.com/TeamFoundation/2005/06/Services/Registration/03"
 #define TF_SERVER_STATUS_NAMESPACE              "http://schemas.microsoft.com/TeamFoundation/2005/06/Services/ServerStatus/03"
 
+#define TF_AUTHORIZATION_SERVICE_ENDPOINT       "/Services/v1.0/AuthorizationService.asmx"
+#define TF_AUTHORIZATION3_SERVICE_ENDPOINT      "/Services/v3.0/AuthorizationService3.asmx"
 #define TF_CATALOG_SERVICE_ENDPOINT             "/TeamFoundation/Administration/v3.0/CatalogService.asmx"
 #define TF_LOCATION_SERVICE_ENDPOINT            "/TeamFoundation/Administration/v3.0/LocationService.asmx"
 #define TF_LOCATION_SERVICE_PC_ENDPOINT         "/Services/v3.0/LocationService.asmx"

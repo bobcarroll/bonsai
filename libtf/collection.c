@@ -92,6 +92,18 @@ tf_error tf_create_collection(pgctx *ctx)
     if (dberr != TF_ERROR_SUCCESS)
         return TF_ERROR_PG_FAILURE;
 
+    service = tf_new_service(
+        TF_SERVICE_AUTHORIZATION3_ID, 
+        TF_SERVICE_AUTHORIZATION3_TYPE, 
+        TF_SERVICE_AUTHORIZATION3_NAME, 
+        TF_CATALOG_TOOL_FRAMEWORK);
+    tf_set_service_url(service, TF_AUTHORIZATION3_SERVICE_ENDPOINT, TF_SERVICE_RELTO_CONTEXT);
+    dberr = tf_add_service(ctx, service);
+    service = tf_free_service(service);
+
+    if (dberr != TF_ERROR_SUCCESS)
+        return TF_ERROR_PG_FAILURE;
+
     return TF_ERROR_SUCCESS;
 }
 
