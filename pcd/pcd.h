@@ -31,3 +31,7 @@ void status_service_init(SoapRouter **, const char *, const char *, const char *
 
 void authz_service_init(SoapRouter **, const char *, const char *, const char *, int);
 
+void common_str_service_init(SoapRouter **, const char *, const char *, const char *, int);
+
+void proc_templ_service_init(SoapRouter **, const char *, const char *, const char *);
+

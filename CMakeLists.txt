@@ -72,4 +72,5 @@ add_subdirectory(nanohttp)
 add_subdirectory(pcd)
 add_subdirectory(tests)
 add_subdirectory(tools)
+add_subdirectory(vcd)
 

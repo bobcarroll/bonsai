@@ -8,7 +8,9 @@ set(PCD_SRC
     ../csd/location.c
     registration.c
     status.c
-    authz.c)
+    authz.c
+    commonstr.c
+    proctmpl.c)
 
 add_executable(pcd ${PCD_SRC})
 target_link_libraries(pcd bonsai tf ${LIBCONFIG_LIBRARY})

@@ -62,6 +62,12 @@ static void _start_service(tf_service *service, SoapRouter **router, const char 
         authz_service_init(router, prefix, service->relpath, instid, 1);
     else if (strcmp(service->type, TF_SERVICE_AUTHORIZATION3_TYPE) == 0)
         authz_service_init(router, prefix, service->relpath, instid, 3);
+    else if (strcmp(service->type, TF_SERVICE_COMMON_STRUCT_TYPE) == 0)
+        common_str_service_init(router, prefix, service->relpath, instid, 1);
+    else if (strcmp(service->type, TF_SERVICE_COMMON_STRUCT3_TYPE) == 0)
+        common_str_service_init(router, prefix, service->relpath, instid, 3);
+    else if (strcmp(service->type, TF_SERVICE_PROCESS_TEMPL_TYPE) == 0)
+        proc_tmpl_service_init(router, prefix, service->relpath, instid);
     else
         log_warn("cannot start unknown service type %s", service->type);
 }

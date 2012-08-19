@@ -20,15 +20,23 @@
 #pragma once
 
 #define TF_AUTHORIZATION3_NAMESPACE             "http://schemas.microsoft.com/TeamFoundation/2005/06/Services/Authorization/03"
+#define TF_CLASSIFICATION_NAMESPACE             "http://schemas.microsoft.com/TeamFoundation/2005/06/Services/Classification/03"
 #define TF_DEFAULT_NAMESPACE                    "http://microsoft.com/webservices/"
+#define TF_PROCESS_TEMPL_NAMESPACE              "http://schemas.microsoft.com/TeamFoundation/2005/06/Services/ProcessTemplate/03"
 #define TF_REGISTRATION_NAMESPACE               "http://schemas.microsoft.com/TeamFoundation/2005/06/Services/Registration/03"
 #define TF_SERVER_STATUS_NAMESPACE              "http://schemas.microsoft.com/TeamFoundation/2005/06/Services/ServerStatus/03"
+#define TF_VERSION_CONTR_CLI_NAMESPACE          "http://schemas.microsoft.com/TeamFoundation/2005/06/VersionControl/ClientServices/03"
 
 #define TF_AUTHORIZATION_SERVICE_ENDPOINT       "/Services/v1.0/AuthorizationService.asmx"
 #define TF_AUTHORIZATION3_SERVICE_ENDPOINT      "/Services/v3.0/AuthorizationService3.asmx"
 #define TF_CATALOG_SERVICE_ENDPOINT             "/TeamFoundation/Administration/v3.0/CatalogService.asmx"
+#define TF_COMMON_STRUCT_SERVICE_ENDPOINT       "/Services/v1.0/CommonStructureService.asmx"
+#define TF_COMMON_STRUCT_SERVICE3_ENDPOINT      "/Services/v3.0/CommonStructureService.asmx"
 #define TF_LOCATION_SERVICE_ENDPOINT            "/TeamFoundation/Administration/v3.0/LocationService.asmx"
 #define TF_LOCATION_SERVICE_PC_ENDPOINT         "/Services/v3.0/LocationService.asmx"
+#define TF_PROCESS_TEMPL_SERVICE_ENDPOINT       "/Services/v1.0/ProcessTemplate.asmx"
 #define TF_REGISTRATION_SERVICE_ENDPOINT        "/Services/v1.0/Registration.asmx"
 #define TF_SERVER_STATUS_SERVICE_ENDPOINT       "/Services/v1.0/ServerStatus.asmx"
+#define TF_VERSION_CONTR_SERVICE_ENDPOINT       "/VersionControl/v1.0/repository.asmx"
+#define TF_VERSION_CONTR3_SERVICE_ENDPOINT      "/VersionControl/v3.0/repository.asmx"
 
